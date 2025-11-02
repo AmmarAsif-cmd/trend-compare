@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+:root { --fg:#0f172a; --muted:#64748b; }
+
+html, body { background: #f8fafc; color: var(--fg); }
+p, .muted { color: var(--muted); }
+.hero-gradient {
+  background: linear-gradient(180deg, rgba(241,245,249,0.4) 0%, rgba(241,245,249,0) 100%);
+}

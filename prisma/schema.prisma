@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Comparison {
+  id        String   @id @default(cuid())
+  slug      String
+  timeframe String // '7d' | '30d' | '12m' | '5y' | 'all'
+  geo       String // '' worldwide or 'GB','US', etc.
+  terms     Json // ["chatgpt","gemini"]
+  series    Json // SeriesPoint[]
+  stats     Json // computeStats output
+  ai        Json? // generateCopy output (later LLM)
+  dataHash  String // hash(terms+timeframe+geo+series)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([slug, timeframe, geo], name: "slug_timeframe_geo")
+  @@index([slug])
+}

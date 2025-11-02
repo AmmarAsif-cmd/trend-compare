@@ -12,3 +12,5 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/
+
+/lib/generated/prisma

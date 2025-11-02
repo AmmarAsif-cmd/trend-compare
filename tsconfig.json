@@ -18,6 +18,7 @@
         "name": "next"
       }
     ],
+    "typeRoots": ["./types", "./node_modules/@types"],
     "paths": {
       "@/*": ["./*"]
     }
@@ -31,4 +32,5 @@
     "**/*.mts"
   ],
   "exclude": ["node_modules"]
+  
 }
