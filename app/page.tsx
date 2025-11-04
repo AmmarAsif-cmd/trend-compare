@@ -2,6 +2,7 @@ import HomeCompareForm from "@/components/HomeCompareForm";
 import FAQSection from "@/components/FAQSection";
 import Image from "next/image";
 import { BRAND, TAGLINE } from "@/lib/brand";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -54,9 +55,13 @@ export default function Home() {
       {/* Examples */}
       <section className="text-center text-sm text-slate-500">
         Try{" "}
-        <a href="/compare/chatgpt-vs-gemini" className="underline">chatgpt vs gemini</a>{" "}
+        <Link href="/compare/chatgpt-vs-gemini" className="underline">
+          chatgpt vs gemini
+        </Link>{" "}
         ·{" "}
-        <a href="/compare/iphone-16-vs-iphone-17" className="underline">iphone 16 vs iphone 17</a>
+        <Link href="/compare/iphone-16-vs-iphone-17" className="underline">
+          iphone 16 vs iphone 17
+        </Link>
       </section>
       <FAQSection />
       {/* FAQ */}

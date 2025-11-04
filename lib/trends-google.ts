@@ -9,6 +9,17 @@ export type TrendsOptions = {
   tz?: number;        // minutes offset; 0 is fine
 };
 
+type TimelinePoint = {
+  time: string;
+  value: number[];
+};
+
+type InterestOverTimeResponse = {
+  default?: {
+    timelineData?: TimelinePoint[];
+  };
+};
+
 const DEFAULT_OPTS: TrendsOptions = {
   timeframe: "12m",
   geo: "",
@@ -31,7 +42,7 @@ function resolveRange(tf?: string): { startTime?: Date; endTime?: Date; useAll?:
 }
 
 // Safe JSON.parse that returns null on HTML/invalid payloads
-function safeParse<T = any>(raw: string): T | null {
+function safeParse<T = unknown>(raw: string): T | null {
   if (!raw || typeof raw !== "string") return null;
   const first = raw.trim()[0];
   if (first === "<") return null; // HTML error/consent page
@@ -55,11 +66,8 @@ async function fetchTermSeries(term: string, opts: TrendsOptions) {
     ...(range.useAll ? {} : { startTime: range.startTime, endTime: range.endTime }),
   });
 
-  const data = safeParse<any>(res);
-  const timeline = (data?.default?.timelineData ?? []) as Array<{
-    time: string; // unix seconds (string)
-    value: number[]; // usually [number]
-  }>;
+  const data = safeParse<InterestOverTimeResponse>(res);
+  const timeline = data?.default?.timelineData ?? [];
 
   return timeline.map((p) => ({
     unix: Number(p.time),
@@ -89,11 +97,8 @@ export async function fetchSeriesGoogle(
       ...(range.useAll ? {} : { startTime: range.startTime, endTime: range.endTime }),
     });
 
-    const data = safeParse<any>(res);
-    const timeline = (data?.default?.timelineData ?? []) as Array<{
-      time: string;
-      value: number[]; // one entry per term in same order
-    }>;
+    const data = safeParse<InterestOverTimeResponse>(res);
+    const timeline = data?.default?.timelineData ?? [];
 
     if (timeline?.length && timeline[0]?.value?.length === terms.length) {
       const series: SeriesPoint[] = timeline.map((p) => {
