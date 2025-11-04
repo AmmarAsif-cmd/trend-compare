@@ -5,16 +5,19 @@ import { getOrBuildComparison } from "@/lib/getOrBuild";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
+import type { SeriesPoint } from "@/lib/trends";
+import type { Stats } from "@/lib/stats";
+import type { AICopy } from "@/lib/ai";
 
 export async function generateMetadata({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ tf?: string; geo?: string }>;
+  params: { slug: string };
+  searchParams: { tf?: string; geo?: string };
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const { tf } = await searchParams;
+  const { slug } = params;
+  const { tf } = searchParams;
   const terms = fromSlug(slug);
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return { title: "Not available", robots: { index: false } };
@@ -29,11 +32,11 @@ export default async function ComparePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ tf?: string; geo?: string; smooth?: string }>;
+  params: { slug: string };
+  searchParams: { tf?: string; geo?: string; smooth?: string };
 }) {
-  const { slug } = await params;
-  const { tf, geo, smooth } = await searchParams;
+  const { slug } = params;
+  const { tf, geo, smooth } = searchParams;
   if (!slug) return notFound();
 
   const terms = fromSlug(slug);
@@ -57,9 +60,9 @@ export default async function ComparePage({
   });
   if (!row) return notFound();
 
-  const rawSeries = row.series as any[];
-  const stats = row.stats as any;
-  const ai = row.ai as any;
+  const rawSeries = row.series as unknown as SeriesPoint[];
+  const stats = row.stats as Stats;
+  const ai = (row.ai ?? null) as AICopy | null;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
   const series = smoothSeries ? smoothSeries(rawSeries, smoothingWindow) : rawSeries;
@@ -129,16 +132,16 @@ export default async function ComparePage({
           <ul className="space-y-2 text-slate-700">
             <li><span className="font-medium">Timeframe:</span> {timeframe}</li>
             <li><span className="font-medium">Region:</span> {region || "Worldwide"}</li>
-            {stats?.leaders && (
+            {stats?.peaks?.length ? (
               <>
                 <li className="mt-2 font-medium">Peaks</li>
-                {stats.leaders.map((l: any, i: number) => (
-                  <li key={i} className="text-sm">
-                    {l.term} peaked on {l.date} at {l.value}.
+                {stats.peaks.map((peak, i) => (
+                  <li key={`${peak.term}-${i}`} className="text-sm">
+                    {peak.term} peaked on {peak.date} at {peak.value}.
                   </li>
                 ))}
               </>
-            )}
+            ) : null}
           </ul>
         </div>
       </section>
