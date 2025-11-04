@@ -8,12 +8,12 @@ export default function SiteHeader() {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur border-b border-slate-200">
-      <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center h-14">
           
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white text-sm font-bold">TA</span>
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900 text-white text-2xl font-bold">TA</span>
         
-          <span className="font-semibold tracking-tight">{BRAND}</span>
+          {/* <span className="font-semibold tracking-tight">{BRAND}</span> */}
         </Link>
         <nav className="hidden sm:flex items-center gap-4">
           {NAV.map(item => (

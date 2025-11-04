@@ -5,6 +5,7 @@ import { getOrBuildComparison } from "@/lib/getOrBuild";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
+import BackButton from "@/components/BackButton";
 
 export async function generateMetadata({
   params,
@@ -81,6 +82,7 @@ export default async function ComparePage({
 
   return (
     <main className="mx-auto max-w-5xl space-y-6">
+      <BackButton label="Back to Home" />
       {/* Top header */}
       <div className="flex items-center justify-between">
         <div>

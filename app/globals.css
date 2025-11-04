@@ -33,3 +33,6 @@ p, .muted { color: var(--muted); }
 .hero-gradient {
   background: linear-gradient(180deg, rgba(241,245,249,0.4) 0%, rgba(241,245,249,0) 100%);
 }
+h1,h2{
+  color:indigo;
+}

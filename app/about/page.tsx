@@ -1,43 +1,69 @@
 import { BRAND } from "@/lib/brand";
-
+import BackButton from "@/components/BackButton";
+import React from "react";
 export const metadata = {
-  title: `About — ${BRAND}`,
+  title: `About Us — ${BRAND}`,
+  description:
+    "Learn what TrendCompare is all about, how we make online trend comparisons simple, fast, and meaningful for everyone.",
 };
 
 export default function AboutPage() {
   return (
-    <main className="mx-auto max-w-3xl space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">About {BRAND}</h1>
-        <p className="text-slate-600">
-          {BRAND} helps anyone compare interest in two topics with simple charts and a clear summary.
-        </p>
-      </header>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
-        <h2 className="text-lg font-semibold">What we do</h2>
-        <p className="text-slate-700">
-          We fetch interest data, normalize it, and present it as an easy snapshot with a short explanation.
-          Our goal is to keep it fast, readable, and honest. No fluff.
+    <main className="max-w-5xl mx-auto px-6 py-10 md:py-16">
+      <div className="mb-6">
+        <BackButton label="Go Back" />
+      </div>
+      {/* Hero Section */}
+      <section className="text-center mb-16">
+        <h1 className="text-4xl font-bold mb-4 ">About TrendCompare</h1>
+        <p className="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto">
+          TrendCompare is a simple way to see what the world is curious about.
+          We help you explore how interests rise, fall, and compete. All through
+          clean visuals and meaningful insights.
         </p>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
-        <h2 className="text-lg font-semibold">How it works</h2>
-        <ul className="list-disc pl-5 text-slate-700 space-y-1">
-          <li>First visit gathers data and stores it in a secure database.</li>
-          <li>Next visits load instantly from cache.</li>
-          <li>Canonical slugs keep URLs clean and consistent.</li>
-        </ul>
+      {/* What We Do */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mb-3 text-gray-900">What We Do</h2>
+        <p className="text-gray-600 leading-relaxed max-w-3xl">
+          We make global search trends easy to understand. By comparing topics side by side,
+          TrendCompare reveals how people’s attention shifts across time and ideas.
+          Whether you’re a marketer, researcher, or just curious, you can quickly see which
+          topics are gaining momentum and which are fading away.
+        </p>
       </section>
+<div className="border-t border-gray-200 my-8"></div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
-        <h2 className="text-lg font-semibold">What is next</h2>
-        <ul className="list-disc pl-5 text-slate-700 space-y-1">
-          <li>Region selector.</li>
-          <li>Better summaries using an affordable language model.</li>
-          <li>Admin tools to feature popular comparisons.</li>
-        </ul>
+      {/* How It Works */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mb-3 text-gray-900">How It Works</h2>
+        <p className="text-gray-600 leading-relaxed max-w-3xl">
+          You choose the topics, we handle the rest. TrendCompare instantly gathers
+          the latest insights and presents them in a clear, interactive view designed
+          for everyone. No logins, no jargon and just trends that make sense at a glance.
+        </p>
+      </section>
+<div className="border-t border-gray-200 my-8"></div>
+
+      {/* Why It Matters */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mb-3 text-gray-900">Why It Matters</h2>
+        <p className="text-gray-600 leading-relaxed max-w-3xl">
+          Online trends shape conversations, opinions, and opportunities. We make it easier
+          for anyone, from creators to curious minds to understand what’s gaining attention
+          and why it matters. TrendCompare brings clarity to the noise of the internet.
+        </p>
+      </section>
+<div className="border-t border-gray-200 my-8"></div>
+
+      {/* Our Vision */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-3 text-gray-900">Our Vision</h2>
+        <p className="text-gray-600 leading-relaxed max-w-3xl">
+          To become the go-to platform for exploring public interest and cultural trends.
+          Powered by simplicity, speed, and transparency.
+        </p>
       </section>
     </main>
   );
