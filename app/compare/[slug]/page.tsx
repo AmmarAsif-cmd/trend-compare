@@ -5,9 +5,6 @@ import { getOrBuildComparison } from "@/lib/getOrBuild";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
-import type { SeriesPoint } from "@/lib/trends";
-import type { Stats } from "@/lib/stats";
-import type { AICopy } from "@/lib/ai";
 
 export async function generateMetadata({
   params,
@@ -60,13 +57,11 @@ export default async function ComparePage({
   });
   if (!row) return notFound();
 
-  const rawSeries = row.series as unknown as SeriesPoint[];
-  const stats = row.stats as Stats;
-  const ai = (row.ai ?? null) as AICopy | null;
+  const { series: rawSeries, stats, ai } = row;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
-  const series = smoothSeries ? smoothSeries(rawSeries, smoothingWindow) : rawSeries;
-  const sparse = nonZeroRatio ? nonZeroRatio(rawSeries) < 0.1 : false;
+  const series = smoothSeries(rawSeries, smoothingWindow);
+  const sparse = nonZeroRatio(rawSeries) < 0.1;
 
   if (!series?.length || series.length < 8) {
     return (
