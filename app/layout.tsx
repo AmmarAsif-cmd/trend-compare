@@ -4,9 +4,27 @@ import SiteHeader from "@/components/SiteHeader";
 import { BRAND, TAGLINE } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: `${BRAND} — ${TAGLINE}`,
-  description: TAGLINE,
+  title: "TrendArc — Compare search interest for any two topics",
+  description: "See which topics are trending worldwide with clear charts and AI-generated insights.",
+  metadataBase: new URL("https://trendarc.net"),
+  openGraph: {
+    title: "TrendArc",
+    description: "Compare trending topics side by side — fast, clean, and data-driven.",
+    url: "https://trendarc.net",
+    siteName: "TrendArc",
+    images: [
+      {
+        url: "/og-image.png", 
+        width: 1200,
+        height: 630,
+        alt: "TrendArc — Compare any two topics",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

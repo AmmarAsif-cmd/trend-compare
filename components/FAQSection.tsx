@@ -7,17 +7,17 @@ const faqs = [
   {
     question: "How fresh is the data?",
     answer:
-      "The data is updated in real time whenever you open a new comparison. After that, TrendCompare keeps a fast cached version so repeat visits load instantly.",
+      "The data is updated in real time whenever you open a new comparison. After that, TrendArc keeps a fast cached version so repeat visits load instantly.",
   },
   {
     question: "What can I compare?",
     answer:
-      "You can compare search interest for any two topics, brands, or keywords — from ‘AI vs Crypto’ to ‘Tea vs Coffee’.",
+      "You can compare search interest for any two topics, brands, or keywords, from ‘AI vs Crypto’ to ‘Tea vs Coffee’.",
   },
   {
     question: "Where does the data come from?",
     answer:
-      "TrendCompare uses official Google Trends data to visualize how people’s interests change over time.",
+      "TrendArc uses official Google Trends data to visualize how people’s interests change over time.",
   },
   {
     question: "Is it free to use?",
@@ -27,7 +27,7 @@ const faqs = [
   {
     question: "Why are some results slower to load?",
     answer:
-      "If a topic hasn’t been searched before, TrendCompare fetches fresh data directly from Google — this can take a few seconds.",
+      "If a topic hasn’t been searched before, TrendArc fetches fresh data directly from Google. This can take a few seconds.",
   },
   {
     question: "Can I share a comparison?",
@@ -37,7 +37,7 @@ const faqs = [
   {
     question: "Do I need an account?",
     answer:
-      "No signup needed — just enter your keywords and start comparing instantly.",
+      "No signup needed, just enter your keywords and start comparing instantly.",
   },
   {
     question: "How accurate are the trends?",

@@ -41,7 +41,7 @@ export default function Home() {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-semibold">Always Up to Date</h3>
           <p className="mt-1 text-slate-600">
-            TrendCompare stays fresh with the latest online buzz, so you never miss what’s hot.
+            TrendArc stays fresh with the latest online buzz, so you never miss what’s hot.
           </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -80,7 +80,7 @@ export default function Home() {
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-semibold">Where does the data come from?</h3>
-          <p className="mt-1 text-slate-600">TrendCompare uses official Google Trends data to visualize how people’s interests change over time.</p>
+          <p className="mt-1 text-slate-600">TrendArc uses official Google Trends data to visualize how people’s interests change over time.</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-semibold">Is it free to use?</h3>
