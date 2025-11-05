@@ -18,3 +18,8 @@ export function fromSlug(slug?: string | string[]) {
   const value = Array.isArray(slug) ? slug[0] : slug;
   return value.split("-vs-").filter(Boolean);
 }
+
+function prettyTerm(t: string) {
+  // show "open-ai" as "open ai" in UI without breaking slugs
+  return t.replace(/-/g, " ");
+}

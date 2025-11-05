@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toCanonicalSlug } from "@/lib/slug";
 
-// simple classnames helper (optional)
 function cn(...xs: (string | false | null | undefined)[]) {
   return xs.filter(Boolean).join(" ");
 }
@@ -21,15 +20,17 @@ export default function HomeCompareForm() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
-  const boxRef = useRef<HTMLDivElement>(null);
+  // FIX: ref should match the element it is attached to (<form>)
+  const boxRef = useRef<HTMLFormElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
 
   // click outside to close
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (!boxRef.current) return;
-      if (!boxRef.current.contains(e.target as Node)) {
+      const el = boxRef.current;
+      if (!el) return;
+      if (!el.contains(e.target as Node)) {
         setOpen(false);
         setCursor(-1);
         setActive(null);
@@ -72,7 +73,7 @@ export default function HomeCompareForm() {
       } finally {
         setLoading(false);
       }
-    }, 150); // 150ms debounce is snappy
+    }, 150);
 
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
