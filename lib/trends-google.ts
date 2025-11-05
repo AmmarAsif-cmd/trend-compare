@@ -26,6 +26,37 @@ const DEFAULT_OPTS: TrendsOptions = {
   tz: 0,
 };
 
+/**
+ * Convert sluggy tokens back to phrases and quote multi-word terms so Google Trends
+ * treats them as exact phrases.
+ *
+ * Examples:
+ * - "open-ai"   -> "open ai" -> "\"open ai\""
+ * - "iphone-16" -> "iphone 16" -> "\"iphone 16\""
+ * - "gemini"    -> "gemini"
+ * - already quoted -> unchanged
+ */
+function normalizeTerm(term: string): string {
+  let t = (term ?? "").trim();
+
+  // If it looks slugified (has '-' but no spaces), convert dashes to spaces.
+  // We avoid touching terms that already have spaces or quotes.
+  if (t.includes("-") && !t.includes(" ") && !/^".+"$/.test(t)) {
+    t = t.replace(/-/g, " ");
+  }
+
+  // If it now contains whitespace and isn't already quoted, wrap in quotes for phrase match.
+  if (/\s/.test(t) && !/^".+"$/.test(t)) {
+    t = `"${t}"`;
+  }
+
+  return t;
+}
+
+function normalizeTerms(terms: string[]): string[] {
+  return (terms ?? []).map(normalizeTerm);
+}
+
 // Turn '7d' | '30d' | '12m' | '5y' | 'all' into a date range
 function resolveRange(tf?: string): { startTime?: Date; endTime?: Date; useAll?: boolean } {
   const now = new Date();
@@ -56,8 +87,9 @@ function safeParse<T = unknown>(raw: string): T | null {
 /** Single-term fetch (robust) */
 async function fetchTermSeries(term: string, opts: TrendsOptions) {
   const range = resolveRange(opts.timeframe);
+
   const res = await googleTrends.interestOverTime({
-    keyword: term,
+    keyword: normalizeTerm(term), // <-- phrase-aware
     geo: opts.geo ?? DEFAULT_OPTS.geo,
     category: 0,
     hl: "en-GB",
@@ -85,10 +117,10 @@ export async function fetchSeriesGoogle(
   const opts = { ...DEFAULT_OPTS, ...(options ?? {}) };
   const range = resolveRange(opts.timeframe);
 
-  // 1) Try combined call first
+  // 1) Try combined call first (best relative normalization)
   try {
     const res = await googleTrends.interestOverTime({
-      keyword: terms, // array => combined normalization
+      keyword: normalizeTerms(terms), // <-- phrase-aware + de-slug
       geo: opts.geo,
       category: 0,
       hl: "en-GB",
@@ -104,13 +136,13 @@ export async function fetchSeriesGoogle(
       const series: SeriesPoint[] = timeline.map((p) => {
         const date = new Date(Number(p.time) * 1000).toISOString().slice(0, 10);
         const row: Record<string, number | string> = { date };
+        // Keep original labels for display (don't show quotes/spaces changes)
         terms.forEach((t, i) => (row[t] = Number(p.value?.[i] ?? 0)));
         return row as SeriesPoint;
       });
       if (series.length) return series;
     }
   } catch (e) {
-    // swallow and fall back
     console.error("[trends] combined call failed, falling back to sequential:", e);
   }
 
@@ -118,7 +150,7 @@ export async function fetchSeriesGoogle(
   const perTerm: Record<string, { unix: number; value: number }[]> = {};
   for (const t of terms) {
     try {
-      perTerm[t] = await fetchTermSeries(t, opts);
+      perTerm[t] = await fetchTermSeries(t, opts); // normalizeTerm inside
     } catch (e) {
       perTerm[t] = [];
       console.error("[trends] term failed:", t, e);

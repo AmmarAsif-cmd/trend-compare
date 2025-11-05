@@ -14,8 +14,8 @@ export async function generateMetadata({
   params: { slug: string };
   searchParams: { tf?: string; geo?: string };
 }): Promise<Metadata> {
-  const { slug } = params;
-  const { tf } = searchParams;
+  const { slug } = await params;
+  const { tf } = await searchParams;
   const terms = fromSlug(slug);
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return { title: "Not available", robots: { index: false } };
@@ -30,11 +30,11 @@ export default async function ComparePage({
   params,
   searchParams,
 }: {
-  params: { slug: string };
-  searchParams: { tf?: string; geo?: string; smooth?: string };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tf?: string; geo?: string; smooth?: string }>;
 }) {
-  const { slug } = params;
-  const { tf, geo, smooth } = searchParams;
+  const { slug } = await params;
+  const { tf, geo, smooth } = await searchParams;
   if (!slug) return notFound();
 
   const terms = fromSlug(slug);
