@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import { BRAND, TAGLINE } from "@/lib/brand";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "TrendArc — Compare search interest for any two topics",
@@ -35,6 +36,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="mt-12 border-t border-slate-200 py-8 text-center text-sm text-slate-500">
           © {new Date().getFullYear()} {BRAND}. All rights reserved.
         </footer>
+         {/* Google tag (gtag.js)  */}
+     <Script
+          strategy="afterInteractive"
+          src="https://www.googletagmanager.com/gtag/js?id=G-GZ6TBCKK5Q"
+        />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-GZ6TBCKK5Q');
+            `,
+          }}
+        />
       </body>
     </html>
   );
