@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";       // Prisma needs node runtime
-export const revalidate = 60 * 60;     // Regenerate sitemap hourly
-
+// export const revalidate = 60 * 60;     // Regenerate sitemap hourly
+export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://trendarc.net";
 
