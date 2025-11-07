@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toCanonicalSlug } from "@/lib/slug";
+import { cleanTerm, isTermAllowed } from "@/lib/validateTerms";
 
 function cn(...xs: (string | false | null | undefined)[]) {
   return xs.filter(Boolean).join(" ");
@@ -10,9 +11,15 @@ function cn(...xs: (string | false | null | undefined)[]) {
 
 type Field = "a" | "b";
 
+type ValidResult =
+  | { ok: true; term: string }
+  | { ok: false; msg: string };
+
 export default function HomeCompareForm() {
   const [a, setA] = useState("");
   const [b, setB] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
   const [active, setActive] = useState<Field | null>(null);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<string[]>([]);
@@ -20,12 +27,24 @@ export default function HomeCompareForm() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
-  // FIX: ref should match the element it is attached to (<form>)
   const boxRef = useRef<HTMLFormElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
 
-  // click outside to close
+  // Helper: validate a single term
+  function validateTerm(v: string): ValidResult {
+    const t = cleanTerm(v);
+    if (!isTermAllowed(t)) {
+      return {
+        ok: false,
+        msg:
+          "Please enter real topics like brands, products, or people. Avoid random strings or generic phrases.",
+      };
+    }
+    return { ok: true, term: t };
+    }
+
+  // Click outside to close suggestions
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const el = boxRef.current;
@@ -40,10 +59,12 @@ export default function HomeCompareForm() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // fetch suggestions with debounce
+  // Fetch suggestions with debounce (and query clamp)
   useEffect(() => {
-    const q = active === "a" ? a : active === "b" ? b : "";
-    if (!active || q.trim().length < 2) {
+    const qRaw = active === "a" ? a : active === "b" ? b : "";
+    const q = qRaw.trim().slice(0, 64); // clamp length before calling API
+
+    if (!active || q.length < 2) {
       setItems([]);
       setOpen(false);
       setCursor(-1);
@@ -63,9 +84,11 @@ export default function HomeCompareForm() {
           signal: ctrl.signal,
           cache: "no-store",
         });
+        if (!res.ok) throw new Error("suggest failed");
         const data = (await res.json()) as { suggestions: string[] };
-        setItems(data.suggestions ?? []);
-        setOpen((data.suggestions ?? []).length > 0);
+        const list = Array.isArray(data.suggestions) ? data.suggestions : [];
+        setItems(list);
+        setOpen(list.length > 0);
         setCursor(-1);
       } catch {
         setItems([]);
@@ -86,6 +109,7 @@ export default function HomeCompareForm() {
     if (active === "b") setB(val);
     setOpen(false);
     setCursor(-1);
+    setError(null);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -109,33 +133,66 @@ export default function HomeCompareForm() {
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const terms = [a.trim(), b.trim()].filter(Boolean);
-    if (terms.length !== 2) return;
-    const slug = toCanonicalSlug(terms);
+    setError(null);
+
+    const aV = validateTerm(a);
+    const bV = validateTerm(b);
+
+    if (!aV.ok || !bV.ok) {
+      let msg = "Please check your inputs.";
+      if (!aV.ok) msg = aV.msg;
+      else if (!bV.ok) msg = bV.msg;
+      setError(msg);
+      return;
+    }
+
+    const slug = toCanonicalSlug([aV.term, bV.term]);
+    if (!slug) {
+      setError("Could not build a valid comparison from those terms.");
+      return;
+    }
+
     router.push(`/compare/${slug}`);
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative space-y-4" ref={boxRef}>
+    <form onSubmit={onSubmit} className="relative space-y-4" ref={boxRef} aria-labelledby="compare-form-heading">
+      <h2 id="compare-form-heading" className="sr-only">Compare two topics</h2>
+
       <div className="grid gap-3 sm:grid-cols-2">
         {/* Field A */}
         <div className="relative">
-          <label className="mb-1 block text-sm font-medium text-slate-700">Keyword 1</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="keyword-a">
+            Keyword 1
+          </label>
           <input
+            id="keyword-a"
             value={a}
             onChange={(e) => setA(e.target.value)}
-            onFocus={() => { setActive("a"); if (items.length) setOpen(true); }}
+            onFocus={() => {
+              setActive("a");
+              if (items.length) setOpen(true);
+            }}
             onKeyDown={onKeyDown}
             placeholder="e.g. chatgpt"
             autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={active === "a" && open}
+            aria-controls="suggest-list-a"
             className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-200"
           />
 
           {active === "a" && open && (
-            <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+            <ul
+              id="suggest-list-a"
+              role="listbox"
+              className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow"
+            >
               {items.map((s, i) => (
                 <li
                   key={s + i}
+                  role="option"
+                  aria-selected={i === cursor}
                   onMouseDown={() => apply(s)}
                   className={cn(
                     "cursor-pointer px-3 py-2 text-sm hover:bg-slate-100",
@@ -154,22 +211,37 @@ export default function HomeCompareForm() {
 
         {/* Field B */}
         <div className="relative">
-          <label className="mb-1 block text-sm font-medium text-slate-700">Keyword 2</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="keyword-b">
+            Keyword 2
+          </label>
           <input
+            id="keyword-b"
             value={b}
             onChange={(e) => setB(e.target.value)}
-            onFocus={() => { setActive("b"); if (items.length) setOpen(true); }}
+            onFocus={() => {
+              setActive("b");
+              if (items.length) setOpen(true);
+            }}
             onKeyDown={onKeyDown}
             placeholder="e.g. gemini"
             autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={active === "b" && open}
+            aria-controls="suggest-list-b"
             className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-200"
           />
 
           {active === "b" && open && (
-            <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+            <ul
+              id="suggest-list-b"
+              role="listbox"
+              className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow"
+            >
               {items.map((s, i) => (
                 <li
                   key={s + i}
+                  role="option"
+                  aria-selected={i === cursor}
                   onMouseDown={() => apply(s)}
                   className={cn(
                     "cursor-pointer px-3 py-2 text-sm hover:bg-slate-100",
@@ -186,6 +258,8 @@ export default function HomeCompareForm() {
           )}
         </div>
       </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"

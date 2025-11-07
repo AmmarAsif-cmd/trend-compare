@@ -7,6 +7,8 @@ import TimeframeSelect from "@/components/TimeframeSelect";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
 import BackButton from "@/components/BackButton";
 import FAQSection from "@/components/FAQSection";
+import { cleanTerm, isTermAllowed } from "@/lib/validateTerms";
+import { deepValidateTerm } from "@/lib/validateTermsServer"; 
 
 /* ---------------- SEO ---------------- */
 
@@ -19,8 +21,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const { tf } = await searchParams;
-  const terms = fromSlug(slug);
+
+    const raw = fromSlug(slug);
+  const humanTerms = raw.map(cleanTerm);
+  if (humanTerms.some(t => !isTermAllowed(t))) return notFound();
+
+  const terms = humanTerms;
   const canonical = toCanonicalSlug(terms);
+
+  // const terms = fromSlug(slug);
+  
+  // const canonical = toCanonicalSlug(terms);
   if (!canonical) return { title: "Not available", robots: { index: false } };
 
   // Helper: remove dashes and make them look natural in titles/descriptions
@@ -134,13 +145,26 @@ export default async function ComparePage({
 }) {
   const { slug } = await params;
   const { tf, geo, smooth } = await searchParams;
+
   if (!slug) return notFound();
 
-  const terms = fromSlug(slug);
+  // Convert slug to raw search terms
+  const raw = fromSlug(slug);
+
+  // Deep validation — server-only protection
+  const checked = raw.map(deepValidateTerm);
+  if (checked.some(c => !c.ok)) {
+    // Optional: log invalid input for monitoring
+    console.warn("Blocked term(s):", checked.filter(c => !c.ok));
+    return notFound();
+  }
+
+  // Extract cleaned, safe terms
+  const terms = checked.map(c => c.term!);
+
+  // Continue canonicalization
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return notFound();
-
-  // Keep tf & geo on canonical redirect
   if (canonical !== slug) {
     const q = new URLSearchParams();
     if (tf) q.set("tf", tf);
