@@ -3,6 +3,7 @@ import FAQSection from "@/components/FAQSection";
 import Image from "next/image";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Link from "next/link";
+import TopThisWeekWrapper from "@/components/TopThisWeekWrapper";
 
 export default function Home() {
   return (
@@ -30,6 +31,7 @@ export default function Home() {
         </div>
       </section>
 
+      <TopThisWeekWrapper />
       {/* Features */}
       <section className="grid gap-6 md:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -59,8 +61,8 @@ export default function Home() {
           chatgpt vs gemini
         </Link>{" "}
         ·{" "}
-        <Link href="/compare/iphone-16-vs-iphone-17" className="underline">
-          iphone 16 vs iphone 17
+        <Link href="/compare/iphone-vs-android" className="underline">
+          iphone vs android
         </Link>
       </section>
       <FAQSection />

@@ -8,7 +8,9 @@ import { smoothSeries, nonZeroRatio } from "@/lib/series";
 import BackButton from "@/components/BackButton";
 import FAQSection from "@/components/FAQSection";
 import { cleanTerm, isTermAllowed } from "@/lib/validateTerms";
-import { deepValidateTerm } from "@/lib/validateTermsServer"; 
+import { deepValidateTerm } from "@/lib/validateTermsServer";
+import { buildHumanCopy } from "@/lib/humanize";
+import TopThisWeekServer from "@/components/TopThisWeekServer";
 
 /* ---------------- SEO ---------------- */
 
@@ -22,21 +24,15 @@ export async function generateMetadata({
   const { slug } = await params;
   const { tf } = await searchParams;
 
-    const raw = fromSlug(slug);
+  const raw = fromSlug(slug);
   const humanTerms = raw.map(cleanTerm);
-  if (humanTerms.some(t => !isTermAllowed(t))) return notFound();
+  if (humanTerms.some((t) => !isTermAllowed(t))) return notFound();
 
   const terms = humanTerms;
   const canonical = toCanonicalSlug(terms);
-
-  // const terms = fromSlug(slug);
-  
-  // const canonical = toCanonicalSlug(terms);
   if (!canonical) return { title: "Not available", robots: { index: false } };
 
-  // Helper: remove dashes and make them look natural in titles/descriptions
   const pretty = (t: string) => t.replace(/-/g, " ");
-
   const cleanTerms = terms.map(pretty);
 
   return {
@@ -48,92 +44,36 @@ export async function generateMetadata({
   };
 }
 
-/* -------- helper functions for humanized stats -------- */
+/* -------- small helpers for local UI text -------- */
 
-function avg(nums: number[]) {
-  const v = nums.filter((n) => Number.isFinite(n));
-  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
-}
-function rollingAvg(nums: number[], window = 6) {
-  const n = nums.slice(-window);
-  return avg(n);
-}
-function earliestAvg(nums: number[], window = 6) {
-  return avg(nums.slice(0, window));
-}
-function momentumPct(nums: number[]) {
-  const early = earliestAvg(nums, 6);
-  const late = rollingAvg(nums, 6);
-  if (!early) return 0;
-  return ((late - early) / early) * 100;
-}
-function peak(nums: number[], dates: string[]) {
-  let max = -1, idx = -1;
-  nums.forEach((n, i) => { if (n > max) { max = n; idx = i; } });
-  return { value: Math.max(0, Math.round(max)), date: dates[idx] ?? "" };
-}
 function prettyTerm(t: string) {
-  // show "open-ai" as "open ai" in UI without breaking slugs
   return t.replace(/-/g, " ");
 }
-
-type TableRow = {
-  term: string;
-  avg: number;
-  latest: number;
-  momentumPct: number;
-  peakValue: number;
-  peakDate: string;
-};
-
-function buildRows(series: any[], terms: string[]): TableRow[] {
-  const dates = series.map((r) => String(r.date));
-  return terms.map((t) => {
-    const values = series.map((r) => Number(r[t] ?? 0));
-    const { value: peakValue, date: peakDate } = peak(values, dates);
-    return {
-      term: prettyTerm(t),
-      avg: avg(values),
-      latest: values.at(-1) ?? 0,
-      momentumPct: momentumPct(values),
-      peakValue,
-      peakDate,
-    };
-  });
-}
-
-function quickTake(rows: TableRow[]) {
-  if (rows.length < 2) return { title: "Quick take", lines: [] as string[] };
-  const [a, b] = rows;
-
-  // Who led on average
-  const leader = a.avg >= b.avg ? a : b;
-  const runner = leader === a ? b : a;
-  const leadPct = leader.avg
-    ? Math.round(((leader.avg - runner.avg) / leader.avg) * 100)
-    : 0;
-
-  // Who looks stronger right now (latest point)
-  const nowLeader = a.latest >= b.latest ? a.term : b.term;
-
-  // Who’s trending up more (momentum)
-  const momentumLeader = a.momentumPct >= b.momentumPct ? a.term : b.term;
-
-  return {
-    title: "What the data says at a glance",
-    lines: [
-      `${leader.term} has been ahead on average over this period — roughly ${Math.abs(leadPct)}% higher than ${runner.term}.`,
-      `Right now, ${nowLeader} looks stronger based on the most recent data point.`,
-      `${momentumLeader} shows better upward momentum when you compare the start vs the latest data.`,
-    ],
-  };
-}
-
-function pctText(x: number) {
-  const n = Math.round(x);
-  return `${n >= 0 ? "+" : ""}${n}%`;
-}
-
+// function suggestionToHref(
+//   label: string,
+//   fallbackA: string,
+//   fallbackB: string
+// ): string {
+//   const m = label.match(/^(.+?)\s+vs\s+(.+)$/i);
+//   if (m) {
+//     const strip = (s: string) =>
+//       s.replace(/\b(meanings?|definition|definitions|alternative|alternatives)\b/i, "").trim();
+//     const a = strip(m[1]);
+//     const b = strip(m[2]);
+//     try {
+//       const slug = toCanonicalSlug([a, b]);
+//       if (slug) return `/compare/${slug}`;
+//     } catch {
+//       /* fall through to prefill */
+//     }
+//   }
+//   // Prefill the home form if it wasn't a clean "A vs B"
+//   const qp = new URLSearchParams({
+//     a: fallbackA,
+//     b: fallbackB,
+//   }).toString();
+//   return `/?${qp}`;
+// }
 /* -------------------- page -------------------- */
 
 export default async function ComparePage({
@@ -145,7 +85,6 @@ export default async function ComparePage({
 }) {
   const { slug } = await params;
   const { tf, geo, smooth } = await searchParams;
-
   if (!slug) return notFound();
 
   // Convert slug to raw search terms
@@ -153,16 +92,15 @@ export default async function ComparePage({
 
   // Deep validation — server-only protection
   const checked = raw.map(deepValidateTerm);
-  if (checked.some(c => !c.ok)) {
-    // Optional: log invalid input for monitoring
-    console.warn("Blocked term(s):", checked.filter(c => !c.ok));
+  if (checked.some((c) => !c.ok)) {
+    console.warn("Blocked term(s):", checked.filter((c) => !c.ok));
     return notFound();
   }
 
-  // Extract cleaned, safe terms
-  const terms = checked.map(c => c.term!);
+  // Safe, cleaned terms
+  const terms = checked.map((c) => c.term!);
 
-  // Continue canonicalization
+  // Canonicalize URL
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return notFound();
   if (canonical !== slug) {
@@ -183,7 +121,7 @@ export default async function ComparePage({
   });
   if (!row) return notFound();
 
-  const { series: rawSeries, stats, ai } = row;
+  const { series: rawSeries } = row;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
   const series = smoothSeries(rawSeries, smoothingWindow);
@@ -191,150 +129,211 @@ export default async function ComparePage({
 
   if (!series?.length || series.length < 8) {
     return (
-      <main className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{terms.join(" vs ")}</h1>
-            <p className="text-slate-600">Not enough data. Try a longer timeframe or different terms.</p>
+      <main className="mx-auto max-w-5xl space-y-6">
+        <BackButton label="Back to Home" />
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+          </h1>
+          <p className="mt-1 text-slate-600">
+            Not enough data. Try a longer timeframe or different terms.
+          </p>
+          <div className="mt-4">
+            <TimeframeSelect />
           </div>
-          <TimeframeSelect />
         </div>
       </main>
     );
   }
 
-  // Build humanized rows and summary
-  const rows = buildRows(series, terms);
-  const summary = quickTake(rows);
+  // Human write-up (summary, bullets, table, long form)
+  const human = buildHumanCopy(terms, series, { timeframe });
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6">
+    <main className="mx-auto max-w-6xl">
       <BackButton label="Back to Home" />
 
-      {/* Top header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
-          </h1>
-          <p className="text-slate-600">
-            {ai?.metaDescription ??
-              `Compare ${prettyTerm(terms[0])} and ${prettyTerm(terms[1])} over the past ${timeframe}.`}
-          </p>
-          {sparse && (
-            <p className="text-sm text-amber-700 mt-2">
-              Most interest comes in short spikes. Try a shorter timeframe (30 days / 12 months) for a clearer picture.
-            </p>
+      {/* Page grid: main + sticky sidebar */}
+      <div className="grid gap-4 md:grid-cols-12 mt-4">
+        {/* Main content */}
+        <div className="md:col-span-9 space-y-6">
+          {/* Header */}
+          <div className="flex items-start justify-between ">
+            <div className="pr-4 sm:col-span-12">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+              </h1>
+              <p className="mt-1 max-w-prose text-slate-600">
+                Compare {prettyTerm(terms[0])} and {prettyTerm(terms[1])} over the past{" "}
+                {timeframe === "12m" ? "12 months" : timeframe}. Scores range from 0 to
+                100 and reflect relative interest for each term in the selected period.
+              </p>
+              {sparse && (
+                <p className="mt-2 text-sm text-amber-700">
+                  Interest looks spiky. Try a shorter timeframe like 30 days or 12 months
+                  for clearer detail.
+                </p>
+              )}
+            </div>
+            <div className="shrink-0 sm:col-span-12">
+              <TimeframeSelect />
+            </div>
+          </div>
+
+          {/* Chart */}
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="p-4 sm:p-6">
+              <TrendChart series={series} />
+            </div>
+          </section>
+
+          {/* Summary and At a glance */}
+          <section className="grid gap-6 md:grid-cols-2">
+            {/* Summary card */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold mb-2">Summary</h2>
+              <div className="space-y-3 text-slate-700">
+                <p>{human.summary}</p>
+
+                {human.extraBullets.length > 0 && (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {human.extraBullets.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {human.infoNote && (
+                  <p className="text-sm text-amber-700">{human.infoNote}</p>
+                )}
+
+                {!!human.suggestions.length && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {human.suggestions.map((s) => (
+                      <a
+                        key={s}
+                        href={`/?q=${encodeURIComponent(
+                          s.replace(/\s+vs\s+/i, " ")
+                        )}`}
+                        className="text-xs rounded-full bg-slate-100 px-3 py-1 hover:bg-slate-200"
+                      >
+                        {s}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* At a glance */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold mb-2">At a glance</h2>
+              <ul className="space-y-2 text-slate-700">
+                {human.atAGlance.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          {/* Five-year highlights (only when 5y/all) */}
+          {(timeframe === "5y" || timeframe === "all") && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold mb-2">Five year highlights</h2>
+              <div className="space-y-2 text-slate-700">
+                {human.longForm
+                  .filter((p) =>
+                    /Year by year|yearly average winner|tends to be highest|Over the long run/.test(
+                      p
+                    )
+                  )
+                  .map((p, i) => (
+                    <p key={`five-${i}`}>{p}</p>
+                  ))}
+              </div>
+            </section>
           )}
+
+          {/* Side by side table */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold mb-3">Side by side</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="p-2 text-left">Metric</th>
+                    <th className="p-2 text-left">{prettyTerm(terms[0])}</th>
+                    <th className="p-2 text-left">{prettyTerm(terms[1])}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {human.table.rows.map((r, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-2 text-slate-600 text-left">{r.label}</td>
+                      <td className="p-2">{r.a}</td>
+                      <td className="p-2">{r.b}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Deep dive narrative */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold mb-2">Deep dive</h2>
+            <div className="space-y-3 text-slate-700">
+              {human.longForm.map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
+            </div>
+          </section>
+
+          {/* Scale explainer */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold mb-2">What this means</h2>
+            <p className="text-slate-700">{human.scaleExplainer}</p>
+          </section>
+
+          {/* FAQ */}
+          <FAQSection />
         </div>
-        <TimeframeSelect />
+
+        {/* Sticky Sidebar */}
+        <aside className="md:col-span-3 space-y-6">
+          <div className="md:sticky md:top-20 space-y-3">
+            
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <TopThisWeekServer />
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-md font-semibold mb-4">
+                Try these
+              </h2>
+              <ul className="grid sm:grid-cols-1 gap-2">
+                <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <a className="hover:underline" href="/compare/usa-vs-china">
+                    Usa vs China
+                  </a>
+                </li>
+                <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+
+                  <a className="hover:underline" href="/compare/spotify-vs-youtube-music">
+                    spotify vs youtube music
+                  </a>
+                </li>
+                <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+
+                  <a className="hover:underline" href="/compare/angular-vs-react">
+                    Angular vs React
+                  </a>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </aside>
       </div>
-
-      {/* Chart */}
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="p-4 sm:p-6">
-          <TrendChart series={series} />
-        </div>
-      </section>
-
-      {/* Human summary + Quick stats */}
-      <section className="grid gap-4 md:grid-cols-3">
-        {/* Humanized summary */}
-        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-          <h2 className="text-lg font-semibold mb-2">
-            {summary.title}
-          </h2>
-          <ul className="list-disc pl-5 text-slate-700 space-y-1">
-            {summary.lines.map((l, i) => (
-              <li key={i}>{l}</li>
-            ))}
-          </ul>
-
-          {/* Keep your AI content if available */}
-          {ai?.summary && (
-            <p className="mt-4 text-slate-700">
-              {ai.summary}
-            </p>
-          )}
-          {ai?.verdict && (
-            <p className="mt-2 font-medium">
-              <strong>{prettyTerm(ai.verdict)}</strong>
-            </p>
-          )}
-          {Array.isArray(ai?.insights) && ai.insights.length > 0 && (
-            <ul className="mt-3 list-disc pl-5 text-slate-700">
-              {ai.insights.map((i: string, idx: number) => (
-                <li key={idx}>{i}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Friendly quick stats */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-          <h2 className="text-lg font-semibold mb-2">Quick stats</h2>
-          <ul className="space-y-2 text-slate-700">
-            <li>
-              <span className="font-medium">Timeframe:</span> last {timeframe === "12m" ? "12 months" : timeframe}
-            </li>
-            <li>
-              <span className="font-medium">Region:</span> {region || "Worldwide"}
-            </li>
-
-            <li className="mt-3 font-medium">Peaks</li>
-            {(stats?.peaks ?? rows.map(r => ({ term: r.term, date: r.peakDate, value: r.peakValue }))).map((p: any, i: number) => (
-              <li key={`${p.term}-${i}`} className="text-sm">
-                {prettyTerm(p.term)} had its biggest week on <span className="tabular-nums">{p.date}</span> with a score of {p.value}.
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* Comparison table (self-explanatory) */}
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-        <h2 className="text-lg font-semibold mb-3">Side-by-side comparison</h2>
-        <p className="text-slate-600 mb-4">
-          Scores are normalized from 0 to 100. Think of them as “how popular this term was on Google relative to its own best week.”
-        </p>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-700">
-              <tr>
-                <th className="text-left px-4 py-3">Term</th>
-                <th className="text-right px-4 py-3">Typical level (avg)</th>
-                <th className="text-right px-4 py-3">Right now (latest)</th>
-                <th className="text-right px-4 py-3">Trend since start</th>
-                <th className="text-right px-4 py-3">Best week</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((r) => (
-                <tr key={r.term} className="text-slate-800">
-                  <td className="px-4 py-3 font-medium">{r.term}</td>
-                  <td className="px-4 py-3 text-right">{Math.round(r.avg)}</td>
-                  <td className="px-4 py-3 text-right">{Math.round(r.latest)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={r.momentumPct >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                      {pctText(r.momentumPct)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {r.peakValue} on <span className="tabular-nums">{r.peakDate}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <p className="text-slate-600 mt-4 text-sm">
-          Tip: “Trend since start” compares the first few weeks with the most recent weeks.
-          Positive = building interest; negative = cooling off.
-        </p>
-      </section>
-      <FAQSection />
     </main>
   );
 }

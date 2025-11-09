@@ -30,7 +30,7 @@ export default function HomeCompareForm() {
   const boxRef = useRef<HTMLFormElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
-
+  // const searchParams = useSearchParams();
   // Helper: validate a single term
   function validateTerm(v: string): ValidResult {
     const t = cleanTerm(v);
@@ -42,10 +42,11 @@ export default function HomeCompareForm() {
       };
     }
     return { ok: true, term: t };
-    }
+  }
 
   // Click outside to close suggestions
   useEffect(() => {
+
     const onDown = (e: MouseEvent) => {
       const el = boxRef.current;
       if (!el) return;
@@ -59,6 +60,13 @@ export default function HomeCompareForm() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
+  // Prefill from URL once (/?a=...&b=...)
+  // useEffect(() => {
+  //   const pa = (searchParams.get("a") || "").trim();
+  //   const pb = (searchParams.get("b") || "").trim();
+  //   if (pa) setA(pa);
+  //   if (pb) setB(pb);
+  // }, [searchParams]);
   // Fetch suggestions with debounce (and query clamp)
   useEffect(() => {
     const qRaw = active === "a" ? a : active === "b" ? b : "";
