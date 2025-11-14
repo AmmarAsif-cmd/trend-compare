@@ -1,105 +1,87 @@
 // lib/validateTermsServer.ts
-import "server-only";
-import leo from "leo-profanity";
 import isUrl from "is-url-superb";
+import leo from "leo-profanity";
 import removeAccents from "remove-accents";
 
-export type DeepValidation = {
-  ok: boolean;
-  term?: string;
-  reason?: string;
-};
+type Result =
+  | { ok: true; term: string }
+  | { ok: false; reason: string };
 
-const ZERO_WIDTH = /[\u200B-\u200F\uFEFF]/g; // zero-width chars
-const MULTI_SPACES = /\s{2,}/g;
+const MAX_LEN = 60;
+const MIN_LEN = 2;
 
-// Keep aligned with client STOP_PHRASES (you can centralize later if you want)
-const STOP_PHRASES = [
-  // spam & location
-  "near me", "location", "map",
+// Allow letters, numbers, spaces, and a few safe symbols
+const SAFE = /^[a-z0-9\s\.\-+&'’#]+$/i;
 
-  // low quality / piracy
-  "lyrics", "mp3", "song", "torrent", "movie", "download", "free download",
-  "watch online", "stream", "episode",
+/**
+ * Very conservative gibberish check.
+ * Only blocks crazy strings that will never be real queries.
+ */
+function looksGibberish(raw: string): boolean {
+  const t = raw.toLowerCase().trim();
 
-  // explicit / adult
-  "porn", "xxx", "sex", "adult", "nude", "nsfw",
+  if (!t) return true;
 
-  // scam / hacking
-  "hack", "crack", "generator", "cheat", "mod", "proxy", "vpn", "keygen", "serial", "code",
+  // Single character
+  if (t.length === 1) return true;
 
-  // gambling / drugs
-  "bet", "casino", "gambling", "drug", "weed", "marijuana",
-].map(s => s.toLowerCase());
+  // Only symbols (no letters or numbers)
+  if (!/[a-z0-9]/i.test(t)) return true;
 
-function normalize(raw: string) {
-  let t = raw.normalize("NFKC");      // Unicode normalize
-  t = t.replace(ZERO_WIDTH, "");      // strip zero-width
-  t = t.replace(/[^A-Za-z0-9 \-]/g, " "); // keep letters/digits/space/hyphen
-  t = t.replace(MULTI_SPACES, " ").trim();
-  return t;
-}
-
-function hasStopPhrase(t: string) {
-  const lower = t.toLowerCase();
-  return STOP_PHRASES.some(p => lower.includes(p));
-}
-
-function looksGibberish(word: string) {
-  const w = word.toLowerCase();
-  const hasVowel = /[aeiou]/.test(w);
-  const digits = (w.match(/\d/g)?.length ?? 0);
-  const digitRatio = digits / Math.max(w.length, 1);
-  const repeats = /(.)\1\1\1/.test(w);
-  const tooLong = w.length > 32;
-  const consonantStreak = /[bcdfghjklmnpqrstvwxyz]{6,}/i.test(w);
-  return !hasVowel || digitRatio > 0.5 || repeats || tooLong || consonantStreak;
-}
-
-function mixedScriptsSuspicious(input: string) {
-  // Simple mixed-script heuristic without external deps
-  const hasLatin = /[A-Za-z]/.test(input);
-  const hasCyril = /[\u0400-\u04FF]/.test(input);
-  const hasGreek = /[\u0370-\u03FF]/.test(input);
-  const hasArabic = /[\u0600-\u06FF]/.test(input);
-  const hasDevanagari = /[\u0900-\u097F]/.test(input);
-  const groups = [hasLatin, hasCyril, hasGreek, hasArabic, hasDevanagari].filter(Boolean).length;
-  return groups >= 2; // multiple scripts mixed is suspicious for our use case
-}
-
-function isEmailLike(t: string) {
-  return /[^\s@]+@[^\s@]+\.[^\s@]+/.test(t);
-}
-
-export function deepValidateTerm(raw: string): DeepValidation {
-  if (!raw) return { ok: false, reason: "empty" };
-
-  let t = normalize(raw);
-  if (!t || t.length < 2) return { ok: false, reason: "too-short" };
-
-  if (isUrl(t)) return { ok: false, reason: "url" };
-  if (isEmailLike(t)) return { ok: false, reason: "email" };
-
-  // Normalize accents for consistent slugs/display
-  const tNoAccents = removeAccents(t);
-
-  if (hasStopPhrase(tNoAccents)) return { ok: false, reason: "stop-phrase" };
-
-  // Profanity (multi-language)
-  if (leo.check(tNoAccents)) return { ok: false, reason: "profanity" };
-
-  // Token-level checks
-  const toks = tNoAccents.split(/[-\s]/).filter(Boolean);
-  if (toks.length > 6) return { ok: false, reason: "too-many-words" };
-  if (toks.some(looksGibberish)) return { ok: false, reason: "gibberish" };
-
-  // At least 3 alphabetic chars overall
-  if ((tNoAccents.match(/[A-Za-z]/g)?.length ?? 0) < 3) {
-    return { ok: false, reason: "too-few-letters" };
+  // Very long no-space string without vowels
+  const noSpace = t.replace(/\s+/g, "");
+  if (
+    noSpace.length > 40 &&
+    !/[aeiou]/.test(noSpace) &&
+    /^[a-z]+$/.test(noSpace)
+  ) {
+    return true;
   }
 
-  // Mixed scripts (homoglyph-ish suspicion)
-  if (mixedScriptsSuspicious(raw)) return { ok: false, reason: "mixed-scripts" };
+  // Same char repeated many times (aaaaa or 111111)
+  if (/(.)\1{7,}/.test(noSpace)) return true;
 
-  return { ok: true, term: tNoAccents };
+  return false;
+}
+
+function clean(input: string): string {
+  let x = input.trim();
+
+  // Strip accents so "José" and "Jose" behave similarly
+  x = removeAccents(x);
+
+  // Collapse multiple spaces
+  x = x.replace(/\s+/g, " ");
+
+  return x;
+}
+
+export function validateTopic(input: string): Result {
+  const term = clean(input);
+
+  if (!term) return { ok: false, reason: "empty" };
+  if (term.length < MIN_LEN) return { ok: false, reason: "short" };
+  if (term.length > MAX_LEN) return { ok: false, reason: "long" };
+
+  // Block URLs directly
+  if (isUrl(term) || /https?:\/\//i.test(term)) {
+    return { ok: false, reason: "url" };
+  }
+
+  // Basic safe character whitelist
+  if (!SAFE.test(term)) {
+    return { ok: false, reason: "charset" };
+  }
+
+  // Profanity filter with default dictionary
+  if (leo.check(term)) {
+    return { ok: false, reason: "profanity" };
+  }
+
+  // Gibberish check, but very lenient to avoid false blocks
+  if (looksGibberish(term)) {
+    return { ok: false, reason: "gibberish" };
+  }
+
+  return { ok: true, term };
 }

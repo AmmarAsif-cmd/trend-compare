@@ -1,48 +1,47 @@
-// lib/validateTerms.ts
-export const STOP_PHRASES = [
-  // spam & location
-  "near me", "location", "map",
+// lib/validateTerms.ts (client-side lightweight mirror)
+import removeAccents from "remove-accents";
 
-  // low quality / piracy
-  "lyrics", "mp3", "song", "torrent", "movie", "download", "free download",
-  "watch online", "stream", "episode",
-
-  // explicit / adult
-  "porn", "xxx", "sex", "adult", "nude", "nsfw",
-
-  // scam / hacking
-  "hack", "crack", "generator", "cheat", "mod", "proxy", "vpn", "keygen", "serial", "code",
-
-  // gambling / drugs
-  "bet", "casino", "gambling", "drug", "weed", "marijuana"
+const STOP_PHRASES = [
+  "near me", "lyrics", "mp3", "torrent", "porn", "xxx", "sex", "adult",
+  "free download", "crack", "serial key"
 ];
 
-function looksGibberish(word: string) {
-  const w = word.toLowerCase();
-  const hasVowel = /[aeiou]/.test(w);
-  const digitRatio = (w.match(/\d/g)?.length ?? 0) / Math.max(1, w.length);
-  const repeats = /(.)\1\1\1/.test(w);
-  const tooLong = w.length > 28;
-  const consonantStreak = /[bcdfghjklmnpqrstvwxyz]{6,}/i.test(w);
-  return !hasVowel || digitRatio > 0.5 || repeats || tooLong || consonantStreak;
+const SAFE_SHAPE = /^[a-z0-9][a-z0-9 .+\-]{0,58}[a-z0-9]$/i;
+
+const MAX_LEN = 60;
+const MAX_TOKEN_LEN = 24;
+const MIN_CHAR_DIVERSITY = 3;
+
+function normalize(raw: string) {
+  return removeAccents(String(raw)).trim().replace(/\s+/g, " ");
+}
+
+function hasRepeatRun(t: string) {
+  return /(.)\1{4,}/i.test(t);
+}
+
+function charDiversityOK(t: string) {
+  const lettersDigits = t.replace(/[^a-z0-9]/gi, "");
+  if (lettersDigits.length <= 5) return true;
+  const unique = new Set(lettersDigits.toLowerCase());
+  return unique.size >= MIN_CHAR_DIVERSITY;
 }
 
 export function cleanTerm(raw: string) {
-  // keep letters, numbers, spaces, hyphens
-  return raw.replace(/[^a-zA-Z0-9 \-]/g, " ").replace(/\s+/g, " ").trim();
+  return normalize(raw);
 }
 
-export function isTermAllowed(term: string) {
-  const t = term.toLowerCase();
-  if (!t || t.length < 2) return false;
-  if (STOP_PHRASES.some(p => t.includes(p))) return false;
-
-  const toks = t.split(/[-\s]/).filter(Boolean);
-  if (toks.length > 6) return false;
-  if (toks.some(looksGibberish)) return false;
-
-  // at least 3 alphabetic characters overall
-  if ((t.match(/[a-z]/gi)?.length ?? 0) < 3) return false;
-
+export function isTermAllowed(raw: string) {
+  const t = normalize(raw);
+  if (!t) return false;
+  if (t.length < 2 || t.length > MAX_LEN) return false;
+  const lower = t.toLowerCase();
+  if (STOP_PHRASES.some(p => lower.includes(p))) return false;
+  if (!SAFE_SHAPE.test(t)) return false;
+  if (t.split(/\s+/).some(tok => tok.length > MAX_TOKEN_LEN)) return false;
+  if (hasRepeatRun(t)) return false;
+  if (!charDiversityOK(t)) return false;
+  const lettersOrDigits = t.replace(/[^a-z0-9]/gi, "").length;
+  if (lettersOrDigits < 2) return false;
   return true;
 }

@@ -29,7 +29,7 @@ export default async function TopThisWeekServer({ limit = 6, compact = false }: 
           >
             <div className="min-w-0">
               <Link href={`/compare/${it.slug}`} className="hover:underline truncate block">
-                {it.title}
+                {it.slug}
               </Link>
               {(it.tf || it.geo) && (
                 <div className="text-xs text-slate-500">

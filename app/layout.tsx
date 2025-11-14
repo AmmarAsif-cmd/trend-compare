@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     siteName: "TrendArc",
     images: [
       {
-        url: "/og-image.png", 
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "TrendArc — Compare any two topics",
@@ -36,8 +36,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="mt-12 border-t border-slate-200 py-8 text-center text-sm text-slate-500">
           © {new Date().getFullYear()} {BRAND}. All rights reserved.
         </footer>
-         {/* Google tag (gtag.js)  */}
-     <Script
+        {/* Google tag (gtag.js)  */}
+        {/*<Script
           strategy="afterInteractive"
           src="https://www.googletagmanager.com/gtag/js?id=G-GZ6TBCKK5Q"
         />
@@ -52,7 +52,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               gtag('config', 'G-GZ6TBCKK5Q');
             `,
           }}
-        />
+        />*/}
+        {/* Set GA id in a small bootstrap before ga-init uses it */}
+        <Script id="ga-id" strategy="afterInteractive">
+          {`window.GA_MEASUREMENT_ID='${process.env.NEXT_PUBLIC_GA_ID || ""}';`}
+        </Script>
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID || ""}`} strategy="afterInteractive" />
+        <Script src="/ga-init.js" strategy="afterInteractive" />
       </body>
     </html>
   );

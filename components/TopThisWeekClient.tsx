@@ -58,7 +58,7 @@ export default function TopThisWeekClient() {
       <ul className="grid gap-2 sm:grid-cols-2">
         {items.map((it) => (
           <li
-            key={it.slug}
+            key={`${it.slug}|${it.tf ?? "12m"}|${it.geo ?? ""}`}
             className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2"
           >
             <div className="min-w-0">
