@@ -10,6 +10,7 @@ import FAQSection from "@/components/FAQSection";
 import { buildHumanCopy } from "@/lib/humanize";
 import TopThisWeekServer from "@/components/TopThisWeekServer";
 import { validateTopic } from "@/lib/validateTermsServer";
+import RelatedComparisons from "@/components/RelatedComparisons";
 
 /* ---------------- SEO ---------------- */
 
@@ -224,6 +225,8 @@ const terms = valid.map(c => c.term);
             </div>
 </aside>
 </div>
+   {/* Related comparisons */}
+      <RelatedComparisons currentSlug={canonical} terms={terms} />
       <FAQSection />
     </main>
   );
