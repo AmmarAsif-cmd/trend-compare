@@ -163,15 +163,7 @@ const terms = valid.map(c => c.term);
               </ul>
             )}
             {human.infoNote && <p className="text-sm text-amber-700">{human.infoNote}</p>}
-            {!!human.suggestions.length && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {human.suggestions.map(s => (
-                  <a key={s} href={`/compare/${s.toLowerCase().replace(/\s+/g, "-")}`} className="text-xs rounded-full bg-slate-100 px-3 py-1 hover:bg-slate-200">
-                    {s}
-                  </a>
-                ))}
-              </div>
-            )}
+            
           </div>
         </div>
 

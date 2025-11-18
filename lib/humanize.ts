@@ -159,7 +159,7 @@ export type HumanCopy = {
   table: { rows: Array<{ label: string; a: string; b: string }> };
   scaleExplainer: string;
   infoNote: string | null;
-  suggestions: string[]; // kept as strings; page.tsx resolves them to working links
+  // suggestions: string[]; // kept as strings; page.tsx resolves them to working links
   longForm: string[]; // paragraphs for the Deep dive section (inc. 5y highlights)
 };
 
@@ -420,9 +420,7 @@ export function buildHumanCopy(
 
   // Suggestions: always valid compare phrases that work with internal routing.
   // Kept as strings because page.tsx turns them into working links.
-  const suggestions: string[] = [];
-  suggestions.push(`${A} vs ${B}`);
-  suggestions.push(`${B} vs ${A}`);
+  
 
   return {
     summary,
@@ -431,7 +429,6 @@ export function buildHumanCopy(
     table,
     scaleExplainer,
     infoNote,
-    suggestions,
     longForm,
   };
 }
