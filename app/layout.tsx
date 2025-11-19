@@ -6,7 +6,7 @@ import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "TrendArc — Compare search interest for any two topics",
-  description: "See which topics are trending worldwide with clear charts and AI-generated insights.",
+  description: "See which topics are trending worldwide with clear charts and data-driven insights insights.",
   metadataBase: new URL("https://trendarc.net"),
   openGraph: {
     title: "TrendArc",

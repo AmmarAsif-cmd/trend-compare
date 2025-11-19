@@ -12,11 +12,11 @@ export default function Home() {
       <section className="text-center space-y-3">
         <div className="flex justify-center">
           <Image
-            src="/hero.png" // use your own image path here
-            alt="Keyword comparison illustration"
+            src="/hero.png" 
+            alt="Keyword Comparison Illustration"
             width={350}
             height={250}
-            className="opacity-90"
+            className="opacity-100"
             priority
           />
         </div>

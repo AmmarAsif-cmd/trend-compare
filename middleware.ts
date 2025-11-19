@@ -38,7 +38,11 @@ export function middleware(req: NextRequest) {
   if (req.method === "OPTIONS") {
     return new NextResponse(null, { status: 204, headers: res.headers });
   }
-
+  // Url Fix
+  //  if (url.searchParams.has("q")) {
+  //   url.search = "";
+  //   return NextResponse.redirect(url);
+  // }
   // Rate limit only compare pages and public APIs
   if (path.startsWith("/compare/") || path.startsWith("/api/")) {
     const xff = req.headers.get("x-forwarded-for");
@@ -64,7 +68,12 @@ export function middleware(req: NextRequest) {
       return new NextResponse("Too Many Requests", { status: 429, headers: res.headers });
     }
   }
-
+// Url Fix
+    if (url.pathname === "/" && url.search) {
+    // Strip all query parameters on the homepage
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
   return res;
 }
 

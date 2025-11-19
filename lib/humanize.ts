@@ -35,7 +35,6 @@ function stdev(xs: number[]) {
 }
 
 function slope(xs: number[]) {
-  // simple linear regression slope against index
   const n = xs.length;
   if (n < 2) return 0;
   const xbar = (n - 1) / 2;
@@ -49,9 +48,10 @@ function slope(xs: number[]) {
   return den === 0 ? 0 : num / den;
 }
 
-function pct(a: number, b: number) {
-  if (a === 0) return b === 0 ? 0 : 100;
-  return Math.round(((b - a) / Math.abs(a)) * 100);
+function pctChange(from: number, to: number) {
+  if (!from && !to) return 0;
+  if (!from) return 100;
+  return Math.round(((to - from) / Math.abs(from)) * 100);
 }
 
 function trendWord(m: number) {
@@ -74,6 +74,26 @@ function looksBroad(term: string) {
     (t.length <= 4 && /^[a-z]+$/.test(t)) ||
     (!/\s/.test(t) && /^[a-z]+$/.test(t) && t.length <= 6)
   );
+}
+
+function timeframeLabel(code?: string) {
+  switch (code) {
+    case "7d":
+      return "over the last 7 days";
+    case "30d":
+    case "1m":
+      return "over the last 30 days";
+    case "3m":
+      return "over the last 3 months";
+    case "12m":
+      return "over the past 12 months";
+    case "5y":
+      return "over the past 5 years";
+    case "all":
+      return "across the full available history";
+    default:
+      return "over this period";
+  }
 }
 
 /* ---------------- point wise helpers ---------------- */
@@ -99,8 +119,8 @@ function firstWindow(xs: number[], n: number) {
 }
 
 function shareOfLeading(aVals: number[], bVals: number[]) {
-  let a = 0,
-    b = 0;
+  let a = 0;
+  let b = 0;
   for (let i = 0; i < Math.min(aVals.length, bVals.length); i++) {
     if (aVals[i] > bVals[i]) a++;
     else if (bVals[i] > aVals[i]) b++;
@@ -159,8 +179,8 @@ export type HumanCopy = {
   table: { rows: Array<{ label: string; a: string; b: string }> };
   scaleExplainer: string;
   infoNote: string | null;
-  // suggestions: string[]; // kept as strings; page.tsx resolves them to working links
-  longForm: string[]; // paragraphs for the Deep dive section (inc. 5y highlights)
+  suggestions: string[];
+  longForm: string[];
 };
 
 /* ---------------- main builder ---------------- */
@@ -184,12 +204,21 @@ export function buildHumanCopy(
   const leader = aAvg >= bAvg ? A : B;
   const trailer = aAvg >= bAvg ? B : A;
 
-  const summary =
-    aAvg === bAvg
-      ? `Both terms are close across this period.`
-      : `${leader} is searched more than ${trailer} in this period, with an average gap of about ${gapPct} percent.`;
+  const tfLabel = timeframeLabel(opts?.timeframe);
 
-  /* short bullets */
+  let summary: string;
+  if (aAvg === bAvg) {
+    summary = `${A} and ${B} sit very close to each other ${tfLabel}. On average there is almost no gap between them.`;
+  } else if (gapPct < 15) {
+    summary = `${leader} has a slight edge over ${trailer} ${tfLabel}, with only a small average gap of around ${gapPct} percent.`;
+  } else if (gapPct < 40) {
+    summary = `${leader} is clearly ahead of ${trailer} ${tfLabel}, with an average lead of roughly ${gapPct} percent.`;
+  } else {
+    summary = `${leader} dominates searches compared with ${trailer} ${tfLabel}, with an average lead of about ${gapPct} percent.`;
+  }
+
+  /* ------------ core stats ------------ */
+
   const aPeak = peakFor(A, series);
   const bPeak = peakFor(B, series);
 
@@ -205,30 +234,59 @@ export function buildHumanCopy(
   const aVol = volatilityWord(aStd);
   const bVol = volatilityWord(bStd);
 
-  const lead = shareOfLeading(aVals, bVals);
+  const leadShare = shareOfLeading(aVals, bVals);
   const xo = crossovers(aVals, bVals, dates);
 
   const aMonth = monthlyAverages(A, series);
   const bMonth = monthlyAverages(B, series);
 
-  const atAGlance: string[] = [
-    `Average interest: ${A} ${aAvg}, ${B} ${bAvg}`,
-    `Peaks: ${A} ${
-      aPeak.value ? monthName(new Date(aPeak.date)) : "none"
-    }, ${B} ${bPeak.value ? monthName(new Date(bPeak.date)) : "none"}`,
-    `Recent trend: ${A} ${aTrend}, ${B} ${bTrend}`,
-    `Stability: ${A} ${aVol}, ${B} ${bVol}`,
-    `Head to head: ${A} led ${lead.aPct} percent of the time, ${B} led ${lead.bPct} percent`,
-    `Crossovers: ${xo.count}${
-      xo.last ? `, last on ${dayName(new Date(xo.last))}` : ""
-    }`,
-  ];
+  /* ------------ at a glance text ------------ */
 
-  /* table */
+  const atAGlance: string[] = [];
+
+  atAGlance.push(
+    `Average interest: ${A} ${aAvg}, ${B} ${bAvg}. ${leader} comes out ahead on most weeks.`
+  );
+
+  if (aPeak.value || bPeak.value) {
+    const aPeakText = aPeak.value
+      ? `${A} peaked in ${monthName(new Date(aPeak.date))} at ${aPeak.value}.`
+      : `${A} never really spikes on this chart.`;
+    const bPeakText = bPeak.value
+      ? `${B} peaked in ${monthName(new Date(bPeak.date))} at ${bPeak.value}.`
+      : `${B} never really spikes on this chart.`;
+    atAGlance.push(`${aPeakText} ${bPeakText}`);
+  }
+
+  atAGlance.push(
+    `Recent trend: ${A} looks ${aTrend}, while ${B} looks ${bTrend}.`
+  );
+  atAGlance.push(
+    `Stability: ${A} is ${aVol}, and ${B} is ${bVol}. Higher volatility usually means more short lived spikes.`
+  );
+
+  atAGlance.push(
+    `Head to head: ${A} leads in about ${leadShare.aPct} percent of points, while ${B} leads in about ${leadShare.bPct} percent.`
+  );
+
+  if (xo.count > 0) {
+    atAGlance.push(
+      `The lines cross ${xo.count} time${xo.count === 1 ? "" : "s"}, with the latest crossover on ${
+        xo.last ? dayName(new Date(xo.last)) : "a recent date"
+      }.`
+    );
+  } else {
+    atAGlance.push(
+      `There is no clear crossover in this view. One term keeps the lead from start to finish.`
+    );
+  }
+
+  /* ------------ table friendly stats ------------ */
+
   const table = {
     rows: [
       { label: "Average interest", a: String(aAvg), b: String(bAvg) },
-      { label: "Recent trend", a: aTrend, b: bTrend },
+      { label: "Recent direction", a: aTrend, b: bTrend },
       { label: "Stability", a: aVol, b: bVol },
       {
         label: "Peak month",
@@ -240,134 +298,67 @@ export function buildHumanCopy(
         a: aMonth ?? "not clear",
         b: bMonth ?? "not clear",
       },
-      { label: "Share of leading periods", a: `${lead.aPct}%`, b: `${lead.bPct}%` },
       {
-        label: "Crossovers",
+        label: "Share of leading points",
+        a: `${leadShare.aPct}%`,
+        b: `${leadShare.bPct}%`,
+      },
+      {
+        label: "Lead changes",
         a: xo.count ? String(xo.count) : "0",
         b: xo.last ? dayName(new Date(xo.last)) : "not recent",
       },
     ],
   };
 
-  /* extra bullets for the Summary card */
+  /* ------------ extra bullets for Summary card ------------ */
+
   const extraBullets: string[] = [];
+
   const firstA = avg(firstWindow(aVals, Math.floor(aVals.length / 3)));
   const lastA = avg(recentWindow(aVals, Math.floor(aVals.length / 3)));
   const firstB = avg(firstWindow(bVals, Math.floor(bVals.length / 3)));
   const lastB = avg(recentWindow(bVals, Math.floor(bVals.length / 3)));
 
-  const growA = pct(firstA || 1, lastA);
-  const growB = pct(firstB || 1, lastB);
+  const growA = pctChange(firstA, lastA);
+  const growB = pctChange(firstB, lastB);
 
-  extraBullets.push(
-    `${A} changed by about ${growA} percent from early to late period.`
-  );
-  extraBullets.push(
-    `${B} changed by about ${growB} percent from early to late period.`
-  );
-
-  /* long form narrative */
-  const longForm: string[] = [];
-  const tf = (opts?.timeframe ?? "").toLowerCase();
-  const tfText = opts?.timeframe
-    ? `over the last ${opts.timeframe}`
-    : "over this period";
-
-  longForm.push(
-    `This view summarises how people searched for ${A} and ${B} ${tfText}. The chart shows monthly values from zero to one hundred where one hundred marks the local high for a term.`
-  );
-
-  // ---- five-year / all-time highlights
-  const wantsFiveYear = tf === "5y" || tf === "all";
-  if (wantsFiveYear) {
-    // Yearly averages per term
-    const yearMap = new Map<number, { a: number[]; b: number[] }>();
-    series.forEach((r) => {
-      const d = new Date(String(r.date ?? ""));
-      if (isNaN(d.getTime())) return;
-      const y = d.getFullYear();
-      const vA = Number(r[A] ?? 0);
-      const vB = Number(r[B] ?? 0);
-      const bucket = yearMap.get(y) ?? { a: [], b: [] };
-      bucket.a.push(vA);
-      bucket.b.push(vB);
-      yearMap.set(y, bucket);
-    });
-
-    const yearly = Array.from(yearMap.entries())
-      .map(([y, v]) => ({
-        year: y,
-        aAvg: Math.round(avg(v.a)),
-        bAvg: Math.round(avg(v.b)),
-        winner: avg(v.a) === avg(v.b) ? "tie" : avg(v.a) > avg(v.b) ? A : B,
-      }))
-      .sort((x, y) => x.year - y.year);
-
-    if (yearly.length >= 2) {
-      const first = yearly[0];
-      const last = yearly[yearly.length - 1];
-
-      const aYoY = pct(first.aAvg || 1, last.aAvg);
-      const bYoY = pct(first.bAvg || 1, last.bAvg);
-
-      longForm.push(
-        `Year by year: in ${first.year}, averages were ${A} ${first.aAvg} and ${B} ${first.bAvg}. In ${last.year}, they were ${A} ${last.aAvg} and ${B} ${last.bAvg}. That is a change of about ${aYoY} percent for ${A} and ${bYoY} percent for ${B}.`
-      );
-
-      const wins = yearly.reduce(
-        (acc, r) => {
-          if (r.winner === A) acc.a++;
-          else if (r.winner === B) acc.b++;
-          return acc;
-        },
-        { a: 0, b: 0 }
-      );
-
-      longForm.push(
-        `Across these years the yearly average winner was ${A} in ${wins.a} year${wins.a === 1 ? "" : "s"} and ${B} in ${wins.b} year${wins.b === 1 ? "" : "s"}.`
-      );
-    }
-
-    // Month seasonality by average
-    const monthBuckets = Array.from({ length: 12 }, () => ({
-      a: [] as number[],
-      b: [] as number[],
-    }));
-    series.forEach((r) => {
-      const d = new Date(String(r.date ?? ""));
-      if (isNaN(d.getTime())) return;
-      const m = d.getMonth(); // 0..11
-      monthBuckets[m].a.push(Number(r[A] ?? 0));
-      monthBuckets[m].b.push(Number(r[B] ?? 0));
-    });
-    const monthAvg = monthBuckets.map((b, i) => ({
-      idx: i,
-      a: b.a.length ? Math.round(avg(b.a)) : 0,
-      b: b.b.length ? Math.round(avg(b.b)) : 0,
-    }));
-    const bestA = monthAvg.reduce((p, c) => (c.a > p.a ? c : p), monthAvg[0]);
-    const bestB = monthAvg.reduce((p, c) => (c.b > p.b ? c : p), monthAvg[0]);
-
-    longForm.push(
-      `${A} tends to be highest in ${new Date(2000, bestA.idx, 1).toLocaleString(
-        "en-GB",
-        { month: "long" }
-      )}. ${B} tends to be highest in ${new Date(2000, bestB.idx, 1).toLocaleString(
-        "en-GB",
-        { month: "long" }
-      )}.`
+  if (growA === 0) {
+    extraBullets.push(`${A} stays roughly flat from the start to the end.`);
+  } else if (growA > 0) {
+    extraBullets.push(
+      `${A} has climbed by about ${growA} percent from the early part of the chart to the most recent section.`
     );
-
-    if (xo.count > 0) {
-      longForm.push(
-        `Over the long run there were ${xo.count} lead changes. The most recent was on ${
-          xo.last ? dayName(new Date(xo.last)) : "a recent date"
-        }.`
-      );
-    }
+  } else {
+    extraBullets.push(
+      `${A} has eased off by around ${Math.abs(
+        growA
+      )} percent between the early and late parts of the chart.`
+    );
   }
 
-  // timeline split (works for any timeframe)
+  if (growB === 0) {
+    extraBullets.push(`${B} also stays fairly level across the period.`);
+  } else if (growB > 0) {
+    extraBullets.push(
+      `${B} has grown by roughly ${growB} percent from early to late in the chart.`
+    );
+  } else {
+    extraBullets.push(
+      `${B} has dropped by roughly ${Math.abs(
+        growB
+      )} percent between the start and the end of the period.`
+    );
+  }
+
+  /* ------------ long form narrative (Deep dive) ------------ */
+
+  const longForm: string[] = [];
+
+  longForm.push(
+    `This chart shows how often people searched for ${A} and ${B} ${tfLabel}. Values go from zero to one hundred for each term, where one hundred is that term’s own highest point in the selected period.`
+  );
+
   const third = Math.max(3, Math.floor(series.length / 3));
   const early = { a: avg(aVals.slice(0, third)), b: avg(bVals.slice(0, third)) };
   const mid = {
@@ -380,47 +371,55 @@ export function buildHumanCopy(
   };
 
   longForm.push(
-    `Breaking the period into thirds, averages were: early ${A} ${early.a} and ${B} ${early.b}, middle ${A} ${mid.a} and ${B} ${mid.b}, recent ${A} ${late.a} and ${B} ${late.b}.`
+    `If you split the period into three chunks, the early averages look like this: ${A} ${early.a} and ${B} ${early.b}. In the middle section they move to ${A} ${mid.a} and ${B} ${mid.b}. By the most recent third they sit around ${A} ${late.a} and ${B} ${late.b}.`
   );
-
-  if (xo.count > 0) {
-    longForm.push(
-      `The two lines crossed ${xo.count} times. The most recent crossover was on ${
-        xo.last ? dayName(new Date(xo.last)) : "a recent date"
-      }, which hints at changing interest.`
-    );
-  } else {
-    longForm.push(
-      `There was no clear crossover. One term held the lead across most of the timeline.`
-    );
-  }
 
   if (aPeak.value || bPeak.value) {
     longForm.push(
-      `${A} peaked in ${
+      `${A} hits its sharpest peak in ${
         aPeak.value ? monthName(new Date(aPeak.date)) : "no obvious month"
-      }, while ${B} peaked in ${
+      }. ${B} peaks in ${
         bPeak.value ? monthName(new Date(bPeak.date)) : "no obvious month"
-      }.`
+      }. These spikes often line up with big news, events or marketing pushes.`
+    );
+  }
+
+  if (xo.count > 0) {
+    longForm.push(
+      `The two lines swap the lead ${xo.count} time${
+        xo.count === 1 ? "" : "s"
+      }. The latest crossover appears around ${
+        xo.last ? dayName(new Date(xo.last)) : "a recent date"
+      }, which hints at shifting interest between the two topics.`
+    );
+  } else {
+    longForm.push(
+      `There is no clear crossover here. One term keeps the lead almost the entire way, which usually points to a more durable long run advantage.`
     );
   }
 
   longForm.push(
-    `${A} looks ${aVol} with a ${aTrend} trend. ${B} looks ${bVol} with a ${bTrend} trend.`
+    `${A} looks ${aVol} overall with a ${aTrend} trend. ${B} looks ${bVol} with a ${bTrend} trend. Steady, slow moving lines usually reflect stable evergreen interest, while choppier lines tend to follow news and social media spikes.`
   );
 
-  // scale explainer and helpful note
+  /* ------------ scale explainer and hints ------------ */
+
   const scaleExplainer =
-    "Scores come from Google Trends. Each series is scaled to its own peak within the chosen period. Use the chart to compare direction and timing rather than total search counts.";
+    "Scores come from Google Trends. Each line is scaled to that term’s own peak in the selected period, so focus on the shape of the lines, the timing of peaks and who is ahead rather than the raw numbers.";
 
   const broad = looksBroad(A) && looksBroad(B);
   const infoNote = broad
-    ? "These are broad topics, so values reflect general curiosity. Try a more specific term if you want a focused comparison."
+    ? "These are broad topics, so the chart mostly reflects general curiosity. If you want a more focused view, try comparing more specific phrases or product names."
     : null;
 
-  // Suggestions: always valid compare phrases that work with internal routing.
-  // Kept as strings because page.tsx turns them into working links.
-  
+  const suggestions: string[] = [];
+  if (broad) {
+    suggestions.push(
+      `${A} vs ${B} meaning`,
+      `${A} vs ${B} definition`,
+      `${A} alternatives`
+    );
+  }
 
   return {
     summary,
@@ -429,6 +428,7 @@ export function buildHumanCopy(
     table,
     scaleExplainer,
     infoNote,
+    suggestions,
     longForm,
   };
 }
