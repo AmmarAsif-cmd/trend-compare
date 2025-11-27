@@ -191,26 +191,25 @@ export default function DynamicHeroChart() {
       </div>
 
       <div className="mt-8 pt-8 border-t border-slate-200">
-        <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center">
-          <div className="bg-slate-50 rounded-xl p-4 sm:p-5">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-1">
-              {totalSearches > 1000000 ? `${(totalSearches / 1000000).toFixed(1)}M` : `${(totalSearches / 1000).toFixed(0)}K`}
-            </div>
-            <div className="text-xs sm:text-sm text-slate-600 font-medium">Total searches</div>
-          </div>
-          <div className="bg-slate-50 rounded-xl p-4 sm:p-5">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-1">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 text-center">
+          <div className="bg-blue-50 rounded-xl p-4 sm:p-5 border-2 border-blue-200">
+            <div className="text-xs sm:text-sm text-blue-600 font-semibold mb-2 uppercase tracking-wide">{terms[0]}</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-1">
               {Math.round(aShare)}%
             </div>
-            <div className="text-xs sm:text-sm text-slate-600 font-medium">{terms[0]} share</div>
+            <div className="text-xs sm:text-sm text-slate-600 font-medium">Search Interest</div>
           </div>
-          <div className="bg-slate-50 rounded-xl p-4 sm:p-5">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-1">
+          <div className="bg-purple-50 rounded-xl p-4 sm:p-5 border-2 border-purple-200">
+            <div className="text-xs sm:text-sm text-purple-600 font-semibold mb-2 uppercase tracking-wide">{terms[1]}</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-600 mb-1">
               {Math.round(bShare)}%
             </div>
-            <div className="text-xs sm:text-sm text-slate-600 font-medium">{terms[1]} share</div>
+            <div className="text-xs sm:text-sm text-slate-600 font-medium">Search Interest</div>
           </div>
         </div>
+        <p className="text-center text-xs sm:text-sm text-slate-500 mt-4">
+          Based on relative search interest over the last 12 months
+        </p>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import FeaturesSection from "@/components/FeaturesSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
+import TopGoogleSearches from "@/components/TopGoogleSearches";
 
 export default function Home() {
   return (
@@ -15,6 +16,7 @@ export default function Home() {
         <TopThisWeekWrapper />
       </div>
 
+      <TopGoogleSearches />
       <FeaturesSection />
       <HowItWorksSection />
       <UseCasesSection />

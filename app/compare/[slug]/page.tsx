@@ -205,22 +205,22 @@ function buildInsightBundle(
   if (Math.abs(gapPct) <= 10) {
     headline = `${prettyTerm(A)} and ${prettyTerm(
       B,
-    )} are very close in search interest right now.`;
+    )} are basically tied — people search for both at nearly the same rate.`;
   } else if (gapPct < 30) {
     headline = `${prettyTerm(
       leader,
-    )} has a slight lead over ${prettyTerm(trailer)} at the moment.`;
+    )} gets more searches than ${prettyTerm(trailer)}, but it's not a blowout.`;
   } else {
     headline = `${prettyTerm(
       leader,
-    )} has a clear lead over ${prettyTerm(trailer)} right now.`;
+    )} crushes ${prettyTerm(trailer)} in search volume.`;
   }
 
   const subline = `Over the ${cleanTf}, ${prettyTerm(
     leader,
-  )} has averaged about ${leaderAvg} on the Google Trends scale, while ${prettyTerm(
+  )} averages ${leaderAvg} and ${prettyTerm(
     trailer,
-  )} sits around ${trailerAvg}.`;
+  )} sits at ${trailerAvg} (on a 0-100 scale). The higher the number, the more people are searching for it.`;
 
    // Badges
   const badges: string[] = [];
@@ -244,66 +244,68 @@ function buildInsightBundle(
   // Prediction hint (very soft)
   let prediction: string;
   if (Math.abs(gapPct) <= 10 && Math.abs(aSlope - bSlope) < 0.1) {
-    prediction =
-      "Right now this looks like a balanced matchup. Unless something big happens, neither term is likely to run away in the near term.";
+    prediction = `${prettyTerm(A)} and ${prettyTerm(B)} are dead even right now, and neither is pulling away. Looks like they'll stay neck-and-neck unless something big changes.`;
   } else if (leader === A && aSlope > 0.2 && bSlope <= 0) {
     prediction = `${prettyTerm(
       A,
-    )} already leads and is trending up, while ${prettyTerm(
+    )} is already ahead and still growing, while ${prettyTerm(
       B,
-    )} is flat or softening. If that continues, ${prettyTerm(
+    )} is flat or dropping. ${prettyTerm(
       A,
-    )} should stay comfortably ahead.`;
+    )} will probably keep winning.`;
   } else if (leader === B && bSlope > 0.2 && aSlope <= 0) {
     prediction = `${prettyTerm(
       B,
-    )} already leads and is trending up, while ${prettyTerm(
+    )} is already ahead and still growing, while ${prettyTerm(
       A,
-    )} is flat or softening. If that continues, ${prettyTerm(
+    )} is flat or dropping. ${prettyTerm(
       B,
-    )} should stay comfortably ahead.`;
+    )} will probably keep winning.`;
   } else if (leader === A && aSlope < 0 && bSlope > 0.2) {
     prediction = `${prettyTerm(
       A,
-    )} is ahead right now, but ${prettyTerm(
+    )} is winning now, but ${prettyTerm(
       B,
-    )} is the one trending up. Over time the gap could narrow if that pattern holds.`;
+    )} is surging. If this trend continues, ${prettyTerm(
+      B,
+    )} could overtake it soon.`;
   } else if (leader === B && bSlope < 0 && aSlope > 0.2) {
     prediction = `${prettyTerm(
       B,
-    )} is ahead right now, but ${prettyTerm(
+    )} is winning now, but ${prettyTerm(
       A,
-    )} is the one trending up. Over time the gap could narrow if that pattern holds.`;
+    )} is surging. If this trend continues, ${prettyTerm(
+      A,
+    )} could overtake it soon.`;
   } else {
-    prediction =
-      "The chart does not point to a dramatic shift either way. Think of this as a snapshot of current interest rather than a strong forecast.";
+    prediction = `Based on what we're seeing, things will probably stay about the same. Nothing dramatic happening here — just a snapshot of where ${prettyTerm(A)} and ${prettyTerm(B)} stand right now.`;
   }
 
   // Moments
   const moments: string[] = [];
   if (pkA.value) {
     moments.push(
-      `${prettyTerm(A)} peaked around ${monthYearLabel(
+      `${prettyTerm(A)} peaked in ${monthYearLabel(
         pkA.date,
-      )} at a score of ${pkA.value}.`,
+      )} at ${pkA.value}.`,
     );
   }
   if (pkB.value) {
     moments.push(
-      `${prettyTerm(B)} peaked around ${monthYearLabel(
+      `${prettyTerm(B)} peaked in ${monthYearLabel(
         pkB.date,
-      )} at a score of ${pkB.value}.`,
+      )} at ${pkB.value}.`,
     );
   }
   if (xo.count > 0) {
     moments.push(
-      `The lines crossed ${xo.count} time${xo.count === 1 ? "" : "s"}, most recently on ${shortDateLabel(
+      `They swapped leads ${xo.count} time${xo.count === 1 ? "" : "s"}. Last crossover was ${shortDateLabel(
         xo.last,
       )}.`,
     );
   } else {
     moments.push(
-      `There is no clear crossover. One term has held the lead through most of the period.`,
+      `No lead changes. One term stayed on top the entire time.`,
     );
   }
 
@@ -544,9 +546,11 @@ export default async function ComparePage({
             <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-5 sm:px-6 py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-                Trend Comparison Chart
+                How {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Compare Over Time
               </h2>
-              <p className="text-sm text-slate-600 mt-1">Search interest over time (0-100 scale)</p>
+              <p className="text-sm text-slate-600 mt-1">
+                Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
+              </p>
             </div>
             <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
@@ -557,7 +561,7 @@ export default async function ComparePage({
           <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-5 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
               <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-              Search Volume Breakdown
+              {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}: The Numbers
             </h2>
             <CompareStats
               totalSearches={totalSearches}
@@ -614,7 +618,7 @@ export default async function ComparePage({
           <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
             <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                📈 Key Moments
+                📈 What Happened with {prettyTerm(terms[0])} and {prettyTerm(terms[1])}
               </h2>
               <ul className="space-y-3 text-sm sm:text-base text-slate-700">
                 {insight.moments.map((m, i) => (
@@ -627,7 +631,7 @@ export default async function ComparePage({
             </div>
             <div className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                🔮 Forecast
+                🔮 Where This Is Heading
               </h2>
               <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
             </div>
@@ -637,7 +641,7 @@ export default async function ComparePage({
           <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
             <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                📝 Detailed Summary
+                📝 Breaking Down {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
               </h2>
               <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
                 <p>{human.summary}</p>
@@ -658,7 +662,7 @@ export default async function ComparePage({
 
             <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-md p-5 sm:p-6">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                ⚡ Quick Facts
+                ⚡ {prettyTerm(terms[0])} & {prettyTerm(terms[1])} at a Glance
               </h2>
               <ul className="space-y-3">
                 {human.atAGlance.map((line, i) => (
@@ -675,7 +679,7 @@ export default async function ComparePage({
           <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md overflow-hidden">
             <div className="bg-gradient-to-r from-slate-50 to-white px-5 sm:px-6 py-4 border-b-2 border-slate-200">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                📊 Side-by-Side Comparison
+                📊 {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Head-to-Head
               </h2>
             </div>
             <div className="overflow-x-auto">
@@ -703,7 +707,7 @@ export default async function ComparePage({
           {/* Deep dive */}
           <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              🔍 In-Depth Analysis
+              🔍 The Full Story: {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
             </h2>
             <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
               {human.longForm.map((p, i) => (
@@ -715,7 +719,7 @@ export default async function ComparePage({
           {/* Scale explainer */}
           <section className="rounded-xl sm:rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-md p-5 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
-              ℹ️ Understanding the Scale
+              ℹ️ How to Read This {prettyTerm(terms[0])} vs {prettyTerm(terms[1])} Data
             </h2>
             <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{human.scaleExplainer}</p>
           </section>

@@ -74,37 +74,37 @@ export default function CompareStats({
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        {/* Total searches */}
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 text-center border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group cursor-default">
-          <div className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1 group-hover:scale-110 transition-transform">
-            {formatTotalSearches(totalSearches)}
-          </div>
-          <div className="text-xs sm:text-sm font-medium text-slate-600">
-            Total Interest
-          </div>
-        </div>
-
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {/* A share */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center border border-blue-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group cursor-default">
-          <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-1 group-hover:scale-110 transition-transform">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 sm:p-5 text-center border-2 border-blue-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group cursor-default">
+          <div className="text-xs sm:text-sm text-blue-600 font-semibold mb-2 uppercase tracking-wide">
+            {aLabel}
+          </div>
+          <div className="text-3xl sm:text-4xl font-bold text-blue-600 mb-1 group-hover:scale-110 transition-transform">
             {formatPercent(aShare)}
           </div>
-          <div className="text-xs sm:text-sm font-medium text-blue-700">
-            {aLabel}
+          <div className="text-xs sm:text-sm font-medium text-slate-600">
+            Search Interest
           </div>
         </div>
 
         {/* B share */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center border border-purple-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group cursor-default">
-          <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-1 group-hover:scale-110 transition-transform">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 sm:p-5 text-center border-2 border-purple-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group cursor-default">
+          <div className="text-xs sm:text-sm text-purple-600 font-semibold mb-2 uppercase tracking-wide">
+            {bLabel}
+          </div>
+          <div className="text-3xl sm:text-4xl font-bold text-purple-600 mb-1 group-hover:scale-110 transition-transform">
             {formatPercent(bShare)}
           </div>
-          <div className="text-xs sm:text-sm font-medium text-purple-700">
-            {bLabel}
+          <div className="text-xs sm:text-sm font-medium text-slate-600">
+            Search Interest
           </div>
         </div>
       </div>
+
+      <p className="text-center text-xs sm:text-sm text-slate-500 mt-2">
+        Percentages show relative search interest. Higher % means more popular in searches.
+      </p>
     </div>
   );
 }
