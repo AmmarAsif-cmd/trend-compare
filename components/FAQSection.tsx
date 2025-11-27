@@ -2,43 +2,38 @@
 "use client";
 
 import React from "react";
+import { HelpCircle, ChevronDown } from "lucide-react";
 
 const faqs = [
   {
-    q: "How fresh is the data?",
-    a: "TrendArc uses Google Trends data. Exact freshness depends on the timeframe, but for recent views it is typically delayed by a short amount of time rather than being fully real time.",
+    q: "Where does TrendArc get its data?",
+    a: "TrendArc aggregates data from multiple sources including Google Trends, Reddit, news, and Wikipedia to provide comprehensive trend analysis.",
+  },
+  {
+    q: "How often is data updated?",
+    a: "Our data refreshes every 4 hours. Popular comparisons update hourly to ensure you always have the latest insights.",
+  },
+  {
+    q: "Is TrendArc free to use?",
+    a: "Yes! Unlimited basic comparisons forever. Pro features start at $9/month for advanced analytics and historical data.",
   },
   {
     q: "What can I compare?",
-    a: "You can compare almost any two topics that people search for on Google, such as products, people, brands, events or general terms. If a term has very little search volume, the chart may look sparse.",
-  },
-  {
-    q: "Where does the data come from?",
-    a: "All charts and scores are based on Google Trends interest over time. We normalise the values so each line goes from 0 to 100 within the selected period.",
-  },
-  {
-    q: "Is it free to use?",
-    a: "Yes. You can run comparisons and explore interest trends for free. We may add premium features later, but the core comparison view will stay free to use.",
-  },
-  {
-    q: "Why are some results slower to load?",
-    a: "When you open a comparison for the first time we fetch the data from Google Trends and generate summaries. After that, repeat visits to the same comparison should feel much faster.",
+    a: "You can compare almost any two topics that people search for - products, brands, people, events, or general terms.",
   },
   {
     q: "Can I share a comparison?",
-    a: "Yes. Each comparison has its own clean URL that you can copy and share. Anyone with the link will see the same chart and summaries.",
-  },
-  {
-    q: "Do I need an account?",
-    a: "No account is required to browse comparisons. If we add saved lists or alerts in future, those might use optional sign in.",
+    a: "Yes. Each comparison has its own clean URL that you can copy and share. Anyone with the link will see the same data.",
   },
   {
     q: "How accurate are the trends?",
-    a: "Google Trends is designed for relative interest rather than exact search counts. Use the charts to compare patterns, peaks and direction rather than as precise numbers.",
+    a: "Google Trends is designed for relative interest rather than exact search counts. Use the charts to compare patterns and direction.",
   },
 ];
 
 export default function FAQSection() {
+  const [openIndex, setOpenIndex] = React.useState<number | null>(0);
+
   const schema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -53,38 +48,50 @@ export default function FAQSection() {
   };
 
   return (
-    <section className="mx-auto mt-16 mb-10 max-w-3xl px-4">
-      <h2 className="text-center text-2xl font-semibold tracking-tight mb-2">
-        Frequently Asked Questions
-      </h2>
-      <p className="text-center text-sm text-slate-600 mb-6">
-        Quick answers to the most common questions about how TrendArc works and
-        how to read the charts.
-      </p>
+    <section className="mx-auto max-w-4xl">
+      <div className="text-center mb-12 sm:mb-16">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+          Frequently Asked
+          <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Questions
+          </span>
+        </h2>
+        <p className="text-lg sm:text-xl text-slate-600">
+          Everything you need to know about TrendArc
+        </p>
+      </div>
 
-      <div className="divide-y rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {faqs.map((item, idx) => (
-          <details
+      <div className="space-y-4">
+        {faqs.map((faq, idx) => (
+          <div
             key={idx}
-            className="group"
-            {...(idx === 0 ? { open: true } : {})}
+            className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-300"
           >
-            <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium text-slate-800">
-              <span>{item.q}</span>
-              <span className="ml-2 text-slate-400 group-open:rotate-90 transition-transform">
-                ▸
-              </span>
-            </summary>
-            <div className="px-4 pb-4 text-sm text-slate-700">
-              {item.a}
-            </div>
-          </details>
+            <button
+              onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+              className="w-full px-6 sm:px-8 py-5 sm:py-6 flex items-start justify-between gap-4 text-left hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-start gap-3 sm:gap-4 flex-1">
+                <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0 mt-1" />
+                <span className="font-bold text-base sm:text-lg text-slate-900">{faq.q}</span>
+              </div>
+              <ChevronDown
+                className={`w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0 transition-transform duration-300 ${
+                  openIndex === idx ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {openIndex === idx && (
+              <div className="px-6 sm:px-8 pb-5 sm:pb-6 border-t border-slate-100 pt-4 sm:pt-5 animate-fadeIn">
+                <p className="text-slate-600 leading-relaxed pl-8 sm:pl-10 text-sm sm:text-base">{faq.a}</p>
+              </div>
+            )}
+          </div>
         ))}
       </div>
 
       <script
         type="application/ld+json"
-        // JSON-LD for Google
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
     </section>

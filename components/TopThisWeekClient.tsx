@@ -53,36 +53,72 @@ export default function TopThisWeekClient() {
   if (!items.length) return null;
 
   return (
-    <section className="mt-10">
-      <h2 className="text-xl font-semibold mb-3">Trending comparisons this week</h2>
-      <ul className="grid gap-2 sm:grid-cols-2">
-        {items.map((it) => (
-          <li
+    <section>
+      <div className="text-center mb-12 sm:mb-16">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+          Trending Comparisons
+          <span className="block bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
+            This Week
+          </span>
+        </h2>
+        <p className="text-lg sm:text-xl text-slate-600">
+          See what topics people are comparing right now
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {items.slice(0, 6).map((it, idx) => (
+          <Link
             key={`${it.slug}|${it.tf ?? "12m"}|${it.geo ?? ""}`}
-            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2"
+            href={`/compare/${it.slug}`}
+            className="group relative bg-white border-2 border-slate-200 hover:border-blue-500 rounded-2xl p-5 sm:p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
           >
-            <div className="min-w-0">
-              <Link href={`/compare/${it.slug}`} className="font-medium hover:underline truncate block">
-                {it.title}
-              </Link>
-              {(it.tf || it.geo) && (
-                <div className="text-xs text-slate-500">
-                  {it.tf ? `tf: ${it.tf}` : ""}
-                  {it.tf && it.geo ? " • " : ""}
-                  {it.geo ? `region: ${it.geo || "WW"}` : ""}
-                </div>
-              )}
+            {idx < 3 && (
+              <div className="absolute top-3 right-3 bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z"/>
+                </svg>
+                HOT
+              </div>
+            )}
+
+            <h3 className="text-base sm:text-lg font-bold mb-3 text-slate-900 group-hover:text-blue-600 transition-colors">
+              {it.title}
+            </h3>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span>{it.count} views</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-blue-600 font-semibold text-sm group-hover:gap-3 transition-all">
+                View
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </div>
 
-            <span
-              title="Times built this week"
-              className="ml-3 shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
-            >
-              {it.count}
-            </span>
-          </li>
+            {(it.tf || it.geo) && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2 text-xs text-slate-500">
+                {it.tf && (
+                  <span className="bg-slate-100 px-2 py-1 rounded">
+                    {it.tf}
+                  </span>
+                )}
+                {it.geo && (
+                  <span className="bg-slate-100 px-2 py-1 rounded">
+                    {it.geo}
+                  </span>
+                )}
+              </div>
+            )}
+          </Link>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }
