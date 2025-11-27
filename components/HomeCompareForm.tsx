@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { toCanonicalSlug } from "@/lib/slug";
 import { cleanTerm, isTermAllowed } from "@/lib/validateTerms";
 
@@ -16,6 +17,7 @@ type ValidResult =
   | { ok: false; msg: string };
 
 export default function HomeCompareForm() {
+  // Match design: first field empty, second with "Gemini"
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +32,7 @@ export default function HomeCompareForm() {
   const boxRef = useRef<HTMLFormElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
-  // const searchParams = useSearchParams();
-  // Helper: validate a single term
+
   function validateTerm(v: string): ValidResult {
     const t = cleanTerm(v);
     if (!isTermAllowed(t)) {
@@ -44,13 +45,12 @@ export default function HomeCompareForm() {
     return { ok: true, term: t };
   }
 
-  // Click outside to close suggestions
+  // Close suggestions when clicking outside
   useEffect(() => {
-
-    const onDown = (e: MouseEvent) => {
+    const onDown = (event: MouseEvent) => {
       const el = boxRef.current;
       if (!el) return;
-      if (!el.contains(e.target as Node)) {
+      if (!el.contains(event.target as Node)) {
         setOpen(false);
         setCursor(-1);
         setActive(null);
@@ -60,17 +60,10 @@ export default function HomeCompareForm() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // Prefill from URL once (/?a=...&b=...)
-  // useEffect(() => {
-  //   const pa = (searchParams.get("a") || "").trim();
-  //   const pb = (searchParams.get("b") || "").trim();
-  //   if (pa) setA(pa);
-  //   if (pb) setB(pb);
-  // }, [searchParams]);
-  // Fetch suggestions with debounce (and query clamp)
+  // Fetch suggestions with debounce
   useEffect(() => {
     const qRaw = active === "a" ? a : active === "b" ? b : "";
-    const q = qRaw.trim().slice(0, 64); // clamp length before calling API
+    const q = qRaw.trim().slice(0, 64);
 
     if (!active || q.length < 2) {
       setItems([]);
@@ -120,27 +113,27 @@ export default function HomeCompareForm() {
     setError(null);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!open) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
       setCursor((c) => Math.min(c + 1, items.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
       setCursor((c) => Math.max(c - 1, 0));
-    } else if (e.key === "Enter") {
+    } else if (event.key === "Enter") {
       if (cursor >= 0 && items[cursor]) {
-        e.preventDefault();
+        event.preventDefault();
         apply(items[cursor]);
       }
-    } else if (e.key === "Escape") {
+    } else if (event.key === "Escape") {
       setOpen(false);
       setCursor(-1);
     }
   };
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError(null);
 
     const aV = validateTerm(a);
@@ -164,30 +157,38 @@ export default function HomeCompareForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative space-y-4" ref={boxRef} aria-labelledby="compare-form-heading">
-      <h2 id="compare-form-heading" className="sr-only">Compare two topics</h2>
+    <form
+      onSubmit={onSubmit}
+      className="relative  space-y-3 sm:space-y-4"
+      ref={boxRef}
+      aria-labelledby="compare-form-heading"
+    >
+      <h2 id="compare-form-heading" className="sr-only">
+        Compare two topics
+      </h2>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Inputs row */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
         {/* Field A */}
-        <div className="relative">
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="keyword-a">
-            Keyword 1
+        <div className="relative flex-1">
+          <label className="sr-only" htmlFor="keyword-a">
+            First keyword
           </label>
           <input
             id="keyword-a"
             value={a}
-            onChange={(e) => setA(e.target.value)}
+            onChange={(event) => setA(event.target.value)}
             onFocus={() => {
               setActive("a");
               if (items.length) setOpen(true);
             }}
             onKeyDown={onKeyDown}
-            placeholder="e.g. chatgpt"
+            placeholder="First keyword..."
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={active === "a" && open}
             aria-controls="suggest-list-a"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-200"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 sm:px-4 py-3 sm:py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           {active === "a" && open && (
@@ -211,32 +212,41 @@ export default function HomeCompareForm() {
                 </li>
               ))}
               {loading && (
-                <li className="px-3 py-2 text-xs text-slate-500">Loading…</li>
+                <li className="px-3 py-2 text-xs text-slate-500">
+                  Loading…
+                </li>
               )}
             </ul>
           )}
         </div>
 
+        {/* VS */}
+        <div className="flex items-center justify-center py-1 sm:py-0 sm:px-0">
+          <span className="text-slate-400 font-bold text-lg sm:text-xl">
+            VS
+          </span>
+        </div>
+
         {/* Field B */}
-        <div className="relative">
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="keyword-b">
-            Keyword 2
+        <div className="relative flex-1">
+          <label className="sr-only" htmlFor="keyword-b">
+            Second keyword
           </label>
           <input
             id="keyword-b"
             value={b}
-            onChange={(e) => setB(e.target.value)}
+            onChange={(event) => setB(event.target.value)}
             onFocus={() => {
               setActive("b");
               if (items.length) setOpen(true);
             }}
             onKeyDown={onKeyDown}
-            placeholder="e.g. gemini"
+            placeholder="Second Keyword..."
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={active === "b" && open}
             aria-controls="suggest-list-b"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-200"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 sm:px-4 py-3 sm:py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           {active === "b" && open && (
@@ -260,22 +270,26 @@ export default function HomeCompareForm() {
                 </li>
               ))}
               {loading && (
-                <li className="px-3 py-2 text-xs text-slate-500">Loading…</li>
+                <li className="px-3 py-2 text-xs text-slate-500">
+                  Loading…
+                </li>
               )}
             </ul>
           )}
         </div>
+
+        {/* Button */}
+        <button
+          type="submit"
+          disabled={!a.trim() || !b.trim()}
+          className="w-full sm:w-auto rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-6 sm:px-4 py-3 sm:py-3 text-base sm:text-lg font-semibold text-white shadow-md hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+        >
+          Compare Now
+          <ArrowRight className="w-5 h-5" />
+        </button>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <button
-        type="submit"
-        disabled={!a.trim() || !b.trim()}
-        className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
-      >
-        Compare
-      </button>
     </form>
   );
 }
