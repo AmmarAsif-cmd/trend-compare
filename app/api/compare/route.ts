@@ -20,12 +20,26 @@ export async function GET(request: NextRequest) {
 
     // Build slug and get comparison data
     const slug = toCanonicalSlug([a, b]);
+    if (!slug) {
+      return NextResponse.json(
+        { error: "Invalid comparison terms" },
+        { status: 400 }
+      );
+    }
+
     const comparison = await getOrBuildComparison({
       slug,
       terms: [a, b],
       timeframe: tf,
       geo,
     });
+
+    if (!comparison) {
+      return NextResponse.json(
+        { error: "Failed to generate comparison" },
+        { status: 500 }
+      );
+    }
 
     // Return simplified data for the chart
     return NextResponse.json({

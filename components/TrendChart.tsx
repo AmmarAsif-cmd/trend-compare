@@ -62,7 +62,7 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
                 padding: 16,
                 font: {
                   size: 13,
-                  weight: "600",
+                  weight: 600,
                   family: "system-ui, -apple-system, sans-serif",
                 },
                 color: "#334155", // slate-700
@@ -81,11 +81,11 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
               cornerRadius: 8,
               titleFont: {
                 size: 13,
-                weight: "600",
+                weight: 600,
               },
               bodyFont: {
                 size: 12,
-                weight: "500",
+                weight: 500,
               },
               displayColors: true,
               boxPadding: 6,
@@ -101,7 +101,7 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
                 color: "#64748b", // slate-500
                 font: {
                   size: 11,
-                  weight: "500",
+                  weight: 500,
                 },
                 maxRotation: 45,
                 minRotation: 0,
@@ -110,15 +110,17 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
             y: {
               beginAtZero: true,
               max: 100,
+              border: {
+                display: false,
+              },
               grid: {
                 color: "rgba(226, 232, 240, 0.5)", // slate-200
-                drawBorder: false,
               },
               ticks: {
                 color: "#64748b", // slate-500
                 font: {
                   size: 11,
-                  weight: "500",
+                  weight: 500,
                 },
                 padding: 8,
               },
