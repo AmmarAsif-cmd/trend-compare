@@ -1,6 +1,7 @@
 import { BRAND } from "@/lib/brand";
 import BackButton from "@/components/BackButton";
-import React from "react";
+import { Target, Zap, Users, TrendingUp } from "lucide-react";
+
 export const metadata = {
   title: `About Us — ${BRAND}`,
   description:
@@ -9,62 +10,91 @@ export const metadata = {
 
 export default function AboutPage() {
   return (
-    <main className="max-w-5xl mx-auto px-6 py-10 md:py-16">
-      <div className="mb-6">
-        <BackButton label="Go Back" />
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+        <div className="mb-8">
+          <BackButton />
+        </div>
+
+        {/* Hero Section */}
+        <section className="text-center mb-20">
+          <div className="inline-block mb-4">
+            <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm font-semibold border border-blue-200">
+              🚀 About TrendArc
+            </span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+            <span className="block text-slate-900">Making Trends</span>
+            <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Crystal Clear
+            </span>
+          </h1>
+          <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
+            We help you understand what the world is searching for. Compare topics, spot trends,
+            and make smarter decisions with beautiful, real-time data visualization.
+          </p>
+        </section>
+
+        {/* Features Grid */}
+        <section className="grid md:grid-cols-2 gap-8 mb-20">
+          <div className="bg-white rounded-2xl p-8 border-2 border-slate-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6">
+              <Zap className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-slate-900">What We Do</h2>
+            <p className="text-slate-600 leading-relaxed">
+              We transform complex Google Trends data into easy-to-understand comparisons.
+              See which topics are winning the popularity contest, track momentum shifts,
+              and discover patterns that matter to you.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-8 border-2 border-slate-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6">
+              <TrendingUp className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-slate-900">How It Works</h2>
+            <p className="text-slate-600 leading-relaxed">
+              Type in any two topics you&rsquo;re curious about. We instantly fetch real-time search data,
+              create beautiful charts, and show you exactly which one is more popular.
+              No signup required. No complicated dashboards. Just insights.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-8 border-2 border-slate-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-6">
+              <Target className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-slate-900">Why It Matters</h2>
+            <p className="text-slate-600 leading-relaxed">
+              Understanding trends helps you make better decisions. Whether you&rsquo;re choosing
+              between products, planning content, or just satisfying curiosity, knowing what
+              people care about gives you an edge.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-8 border-2 border-slate-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center mb-6">
+              <Users className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-slate-900">Our Vision</h2>
+            <p className="text-slate-600 leading-relaxed">
+              To become the #1 platform for understanding public interest and cultural trends.
+              We believe data should be accessible, beautiful, and useful for everyone—not
+              just data scientists.
+            </p>
+          </div>
+        </section>
+
+        {/* Mission Statement */}
+        <section className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-12 text-center text-white shadow-2xl">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Our Mission</h2>
+          <p className="text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed opacity-95">
+            Democratize access to trend data. Make it fast, free, and beautiful.
+            Help people make informed decisions based on what the world is actually searching for.
+          </p>
+        </section>
       </div>
-      {/* Hero Section */}
-      <section className="text-center mb-16">
-        <h1 className="text-4xl font-bold mb-4 ">About TrendArc</h1>
-        <p className="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto">
-          Comparing Trends is a simple way to see what the world is curious about.
-          We help you explore how interests rise, fall, and compete. All through
-          clean visuals and meaningful insights.
-        </p>
-      </section>
-
-      {/* What We Do */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-3 text-gray-900">What We Do</h2>
-        <p className="text-gray-600 leading-relaxed max-w-3xl">
-          We make global search trends easy to understand. By comparing topics side by side,
-          TrendArc reveals how people’s attention shifts across time and ideas.
-          Whether you’re a marketer, researcher, or just curious, you can quickly see which
-          topics are gaining momentum and which are fading away.
-        </p>
-      </section>
-<div className="border-t border-gray-200 my-8"></div>
-
-      {/* How It Works */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-3 text-gray-900">How It Works</h2>
-        <p className="text-gray-600 leading-relaxed max-w-3xl">
-          You choose the topics, we handle the rest. TrendArc instantly gathers
-          the latest insights and presents them in a clear, interactive view designed
-          for everyone. No logins, no jargon and just trends that make sense at a glance.
-        </p>
-      </section>
-<div className="border-t border-gray-200 my-8"></div>
-
-      {/* Why It Matters */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mb-3 text-gray-900">Why It Matters</h2>
-        <p className="text-gray-600 leading-relaxed max-w-3xl">
-          Online trends shape conversations, opinions, and opportunities. We make it easier
-          for anyone, from creators to curious minds to understand what’s gaining attention
-          and why it matters. TrendArc brings clarity to the noise of the internet.
-        </p>
-      </section>
-<div className="border-t border-gray-200 my-8"></div>
-
-      {/* Our Vision */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-3 text-gray-900">Our Vision</h2>
-        <p className="text-gray-600 leading-relaxed max-w-3xl">
-          To become the go-to platform for exploring public interest and cultural trends.
-          Powered by simplicity, speed, and transparency.
-        </p>
-      </section>
     </main>
   );
 }

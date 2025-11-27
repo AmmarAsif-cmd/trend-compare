@@ -159,7 +159,7 @@ export default function HomeCompareForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="relative  space-y-3 sm:space-y-4"
+      className="relative space-y-4"
       ref={boxRef}
       aria-labelledby="compare-form-heading"
     >
@@ -168,7 +168,7 @@ export default function HomeCompareForm() {
       </h2>
 
       {/* Inputs row */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+      <div className="flex flex-col sm:flex-row gap-4 items-stretch">
         {/* Field A */}
         <div className="relative flex-1">
           <label className="sr-only" htmlFor="keyword-a">
@@ -183,12 +183,12 @@ export default function HomeCompareForm() {
               if (items.length) setOpen(true);
             }}
             onKeyDown={onKeyDown}
-            placeholder="First keyword..."
+            placeholder="e.g., ChatGPT"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={active === "a" && open}
             aria-controls="suggest-list-a"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 sm:px-4 py-3 sm:py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
           />
 
           {active === "a" && open && (
@@ -221,8 +221,8 @@ export default function HomeCompareForm() {
         </div>
 
         {/* VS */}
-        <div className="flex items-center justify-center py-1 sm:py-0 sm:px-0">
-          <span className="text-slate-400 font-bold text-lg sm:text-xl">
+        <div className="flex items-center justify-center sm:pt-3">
+          <span className="text-slate-400 font-bold text-xl" aria-hidden="true">
             VS
           </span>
         </div>
@@ -241,12 +241,12 @@ export default function HomeCompareForm() {
               if (items.length) setOpen(true);
             }}
             onKeyDown={onKeyDown}
-            placeholder="Second Keyword..."
+            placeholder="e.g., Gemini"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={active === "b" && open}
             aria-controls="suggest-list-b"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 sm:px-4 py-3 sm:py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
           />
 
           {active === "b" && open && (
@@ -282,14 +282,19 @@ export default function HomeCompareForm() {
         <button
           type="submit"
           disabled={!a.trim() || !b.trim()}
-          className="w-full sm:w-auto rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-6 sm:px-4 py-3 sm:py-3 text-base sm:text-lg font-semibold text-white shadow-md hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+          className="w-full sm:w-auto rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-8 sm:px-6 py-3 text-base sm:text-lg font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 whitespace-nowrap"
+          aria-label="Compare keywords"
         >
           Compare Now
-          <ArrowRight className="w-5 h-5" />
+          <ArrowRight className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2" role="alert">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

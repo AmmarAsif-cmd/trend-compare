@@ -205,22 +205,22 @@ function buildInsightBundle(
   if (Math.abs(gapPct) <= 10) {
     headline = `${prettyTerm(A)} and ${prettyTerm(
       B,
-    )} are very close in search interest right now.`;
+    )} are basically tied — people search for both at nearly the same rate.`;
   } else if (gapPct < 30) {
     headline = `${prettyTerm(
       leader,
-    )} has a slight lead over ${prettyTerm(trailer)} at the moment.`;
+    )} gets more searches than ${prettyTerm(trailer)}, but it's not a blowout.`;
   } else {
     headline = `${prettyTerm(
       leader,
-    )} has a clear lead over ${prettyTerm(trailer)} right now.`;
+    )} crushes ${prettyTerm(trailer)} in search volume.`;
   }
 
   const subline = `Over the ${cleanTf}, ${prettyTerm(
     leader,
-  )} has averaged about ${leaderAvg} on the Google Trends scale, while ${prettyTerm(
+  )} averages ${leaderAvg} and ${prettyTerm(
     trailer,
-  )} sits around ${trailerAvg}.`;
+  )} sits at ${trailerAvg} (on a 0-100 scale). The higher the number, the more people are searching for it.`;
 
    // Badges
   const badges: string[] = [];
@@ -244,66 +244,68 @@ function buildInsightBundle(
   // Prediction hint (very soft)
   let prediction: string;
   if (Math.abs(gapPct) <= 10 && Math.abs(aSlope - bSlope) < 0.1) {
-    prediction =
-      "Right now this looks like a balanced matchup. Unless something big happens, neither term is likely to run away in the near term.";
+    prediction = `${prettyTerm(A)} and ${prettyTerm(B)} are dead even right now, and neither is pulling away. Looks like they'll stay neck-and-neck unless something big changes.`;
   } else if (leader === A && aSlope > 0.2 && bSlope <= 0) {
     prediction = `${prettyTerm(
       A,
-    )} already leads and is trending up, while ${prettyTerm(
+    )} is already ahead and still growing, while ${prettyTerm(
       B,
-    )} is flat or softening. If that continues, ${prettyTerm(
+    )} is flat or dropping. ${prettyTerm(
       A,
-    )} should stay comfortably ahead.`;
+    )} will probably keep winning.`;
   } else if (leader === B && bSlope > 0.2 && aSlope <= 0) {
     prediction = `${prettyTerm(
       B,
-    )} already leads and is trending up, while ${prettyTerm(
+    )} is already ahead and still growing, while ${prettyTerm(
       A,
-    )} is flat or softening. If that continues, ${prettyTerm(
+    )} is flat or dropping. ${prettyTerm(
       B,
-    )} should stay comfortably ahead.`;
+    )} will probably keep winning.`;
   } else if (leader === A && aSlope < 0 && bSlope > 0.2) {
     prediction = `${prettyTerm(
       A,
-    )} is ahead right now, but ${prettyTerm(
+    )} is winning now, but ${prettyTerm(
       B,
-    )} is the one trending up. Over time the gap could narrow if that pattern holds.`;
+    )} is surging. If this trend continues, ${prettyTerm(
+      B,
+    )} could overtake it soon.`;
   } else if (leader === B && bSlope < 0 && aSlope > 0.2) {
     prediction = `${prettyTerm(
       B,
-    )} is ahead right now, but ${prettyTerm(
+    )} is winning now, but ${prettyTerm(
       A,
-    )} is the one trending up. Over time the gap could narrow if that pattern holds.`;
+    )} is surging. If this trend continues, ${prettyTerm(
+      A,
+    )} could overtake it soon.`;
   } else {
-    prediction =
-      "The chart does not point to a dramatic shift either way. Think of this as a snapshot of current interest rather than a strong forecast.";
+    prediction = `Based on what we're seeing, things will probably stay about the same. Nothing dramatic happening here — just a snapshot of where ${prettyTerm(A)} and ${prettyTerm(B)} stand right now.`;
   }
 
   // Moments
   const moments: string[] = [];
   if (pkA.value) {
     moments.push(
-      `${prettyTerm(A)} peaked around ${monthYearLabel(
+      `${prettyTerm(A)} peaked in ${monthYearLabel(
         pkA.date,
-      )} at a score of ${pkA.value}.`,
+      )} at ${pkA.value}.`,
     );
   }
   if (pkB.value) {
     moments.push(
-      `${prettyTerm(B)} peaked around ${monthYearLabel(
+      `${prettyTerm(B)} peaked in ${monthYearLabel(
         pkB.date,
-      )} at a score of ${pkB.value}.`,
+      )} at ${pkB.value}.`,
     );
   }
   if (xo.count > 0) {
     moments.push(
-      `The lines crossed ${xo.count} time${xo.count === 1 ? "" : "s"}, most recently on ${shortDateLabel(
+      `They swapped leads ${xo.count} time${xo.count === 1 ? "" : "s"}. Last crossover was ${shortDateLabel(
         xo.last,
       )}.`,
     );
   } else {
     moments.push(
-      `There is no clear crossover. One term has held the lead through most of the period.`,
+      `No lead changes. One term stayed on top the entire time.`,
     );
   }
 
@@ -464,188 +466,237 @@ export default async function ComparePage({
     bShare = totalB / totalSearches;
   }
   return (
-    <main className="mx-auto max-w-5xl space-y-6">
+    <main className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6 lg:px-8 py-6">
       <BackButton label="Back to Home" />
 
-      <div className="grid gap-4 md:grid-cols-12 mt-4">
+      <div className="grid gap-6 lg:grid-cols-12">
         {/* Main content */}
-        <div className="md:col-span-9 space-y-6">
+        <div className="lg:col-span-8 space-y-6">
           {/* Header + insight */}
-          <header className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight">
-                  {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+          <header className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
+                  {prettyTerm(terms[0])} <span className="text-slate-400">vs</span> {prettyTerm(terms[1])}
                 </h1>
-                <p className="mt-1 text-slate-600">
+                <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
                   {ai?.metaDescription ??
                     `Compare ${prettyTerm(terms[0])} and ${prettyTerm(
                       terms[1],
-                    )} over the past year with a simple trend chart.`}
+                    )} search interest trends with detailed insights and analysis.`}
                 </p>
                 {region && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Region: <span className="font-medium">{region}</span>
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                    <span className="font-medium">Region:</span> {region}
                   </p>
                 )}
                 {sparse && (
-                  <p className="mt-2 text-sm text-amber-700">
-                    Most interest comes in short spikes. Try a shorter
-                    timeframe for a clearer picture.
-                  </p>
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      ⚠️ Most interest comes in short spikes. Try a shorter timeframe for a clearer picture.
+                    </p>
+                  </div>
                 )}
               </div>
               <TimeframeSelect />
             </div>
 
-            <section className="grid gap-4 md:grid-cols-5">
+            <section className="grid gap-4 sm:gap-6 md:grid-cols-5">
               {/* Headline insight */}
-              <div className="md:col-span-3 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-                <p className="text-xs font-semibold tracking-wide text-slate-500 mb-1">
-                  HEADLINE INSIGHT
-                </p>
-                <p className="font-semibold text-slate-900 mb-2">
-                  {insight.headline}
-                </p>
-                <p className="text-sm text-slate-700">{insight.subline}</p>
+              <div className="md:col-span-3 rounded-xl sm:rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative z-10">
+                  <p className="text-xs font-bold tracking-wide text-blue-600 mb-2 uppercase flex items-center gap-1.5">
+                    <span className="text-base">📊</span> Key Insight
+                  </p>
+                  <p className="text-base sm:text-lg font-bold text-slate-900 mb-3 leading-snug">
+                    {insight.headline}
+                  </p>
+                  <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.subline}</p>
+                </div>
               </div>
 
               {/* Quick context */}
-              <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-                <p className="text-xs font-semibold tracking-wide text-slate-500 mb-2">
-                  QUICK CONTEXT
-                </p>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {insight.badges.map((b) => (
-                    <span
-                      key={b}
-                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-700"
-                    >
-                      {b}
-                    </span>
-                  ))}
+              <div className="md:col-span-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative z-10">
+                  <p className="text-xs font-bold tracking-wide text-slate-600 mb-3 uppercase flex items-center gap-1.5">
+                    <span className="text-base">⚡</span> Quick Context
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {insight.badges.map((b) => (
+                      <span
+                        key={b}
+                        className="inline-flex items-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+                      >
+                        {b}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {insight.moments[0] ?? ""}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600">
-                  {insight.moments[0] ?? ""}
-                </p>
               </div>
             </section>
           </header>
 
           {/* Chart */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="p-4 sm:p-6">
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
+            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-5 sm:px-6 py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+                How {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Compare Over Time
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
+              </p>
+            </div>
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
             </div>
           </section>
-<CompareStats
-    totalSearches={totalSearches}        // replace with your real total value
-    aLabel={keyA }               // first keyword label
-    bLabel={keyB }                // second keyword label
-    aShare={aShare }                    // 62 means 62 percent
-    bShare={bShare }
-  />
+
+          {/* Compare Stats */}
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-5 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+              {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}: The Numbers
+            </h2>
+            <CompareStats
+              totalSearches={totalSearches}
+              aLabel={prettyTerm(keyA)}
+              bLabel={prettyTerm(keyB)}
+              aShare={aShare}
+              bShare={bShare}
+            />
+          </section>
           {/* Per-term insight cards */}
-          <section className="grid gap-4 md:grid-cols-2">
-            {insight.termInsights.map((ti) => (
+          <section className="grid gap-4 sm:gap-6 md:grid-cols-2">
+            {insight.termInsights.map((ti, idx) => (
               <div
                 key={ti.term}
-                className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5"
+                className={`rounded-xl sm:rounded-2xl border ${idx === 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/40' : 'border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/40'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group`}
               >
-                <h2 className="text-sm font-semibold text-slate-900 mb-1">
-                  {ti.term} insight
-                </h2>
-                <p className="text-xs text-slate-500 mb-3">
-                  Based on the same timeframe as the chart.
-                </p>
-                <ul className="space-y-1.5 text-sm text-slate-700">
-                  <li>
-                    <span className="font-medium">Average level:</span>{" "}
-                    {ti.avg}
-                  </li>
-                  <li>
-                    <span className="font-medium">Trend:</span> {ti.trendWord}
-                  </li>
-                  <li>
-                    <span className="font-medium">Stability:</span>{" "}
-                    {ti.stabilityWord}
-                  </li>
-                  <li>
-                    <span className="font-medium">Sharpest peak:</span>{" "}
-                    {ti.peakLabel}
-                  </li>
-                  <li>
-                    <span className="font-medium">Best month by average:</span>{" "}
-                    {ti.bestMonthLabel}
-                  </li>
-                </ul>
+                <div className={`absolute inset-0 bg-gradient-to-br ${idx === 0 ? 'from-blue-400/5' : 'from-purple-400/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                <div className="relative z-10">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-sm' : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-sm'} animate-pulse`}></span>
+                    {ti.term} Analysis
+                  </h3>
+                  <p className="text-xs text-slate-600 mb-4">
+                    Detailed breakdown for this keyword
+                  </p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                      <span className="text-sm font-medium text-slate-700">Average Interest</span>
+                      <span className={`text-lg font-bold ${idx === 0 ? 'text-blue-600' : 'text-purple-600'}`}>{ti.avg}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                      <span className="text-sm font-medium text-slate-700">Trend Direction</span>
+                      <span className="text-sm font-semibold text-slate-900 capitalize">{ti.trendWord}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                      <span className="text-sm font-medium text-slate-700">Volatility</span>
+                      <span className="text-sm font-semibold text-slate-900 capitalize">{ti.stabilityWord}</span>
+                    </div>
+                    <div className="pt-2">
+                      <p className="text-xs font-medium text-slate-700 mb-1">Peak Performance</p>
+                      <p className="text-sm text-slate-900 font-medium">{ti.peakLabel}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-700 mb-1">Best Month</p>
+                      <p className="text-sm text-slate-900 font-medium">{ti.bestMonthLabel}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </section>
 
           {/* Trend moments + prediction */}
-          <section className="grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-              <h2 className="text-lg font-semibold mb-2">Trend moments</h2>
-              <ul className="space-y-1.5 text-sm text-slate-700">
+          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+            <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                📈 What Happened with {prettyTerm(terms[0])} and {prettyTerm(terms[1])}
+              </h2>
+              <ul className="space-y-3 text-sm sm:text-base text-slate-700">
                 {insight.moments.map((m, i) => (
-                  <li key={i}>{m}</li>
+                  <li key={i} className="flex gap-3">
+                    <span className="text-blue-500 font-bold">•</span>
+                    <span className="leading-relaxed">{m}</span>
+                  </li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-              <h2 className="text-lg font-semibold mb-2">What might happen next</h2>
-              <p className="text-sm text-slate-700">{insight.prediction}</p>
+            <div className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                🔮 Where This Is Heading
+              </h2>
+              <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
             </div>
           </section>
 
           {/* Summary + At a glance */}
-          <section className="grid gap-6 md:grid-cols-3">
-            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-2">Full summary</h2>
-              <div className="space-y-3 text-slate-700">
+          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+            <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                📝 Breaking Down {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+              </h2>
+              <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
                 <p>{human.summary}</p>
                 {human.extraBullets.length > 0 && (
-                  <ul className="list-disc pl-5 space-y-1">
+                  <ul className="space-y-2 pl-5">
                     {human.extraBullets.map((line, i) => (
-                      <li key={i}>{line}</li>
+                      <li key={i} className="list-disc">{line}</li>
                     ))}
                   </ul>
                 )}
                 {human.infoNote && (
-                  <p className="text-sm text-amber-700">{human.infoNote}</p>
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">{human.infoNote}</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-2">At a glance</h2>
-              <ul className="space-y-2 text-slate-700">
+            <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-md p-5 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                ⚡ {prettyTerm(terms[0])} & {prettyTerm(terms[1])} at a Glance
+              </h2>
+              <ul className="space-y-3">
                 {human.atAGlance.map((line, i) => (
-                  <li key={i}>{line}</li>
+                  <li key={i} className="flex gap-3 text-sm sm:text-base text-slate-700">
+                    <span className="text-blue-500 font-bold">✓</span>
+                    <span className="leading-relaxed">{line}</span>
+                  </li>
                 ))}
               </ul>
             </div>
           </section>
 
           {/* Side by side */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-3">Side by side</h2>
+          <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-50 to-white px-5 sm:px-6 py-4 border-b-2 border-slate-200">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+                📊 {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Head-to-Head
+              </h2>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th className="p-2 text-left">Metric</th>
-                    <th className="p-2 text-left">{prettyTerm(terms[0])}</th>
-                    <th className="p-2 text-left">{prettyTerm(terms[1])}</th>
+              <table className="w-full text-sm sm:text-base">
+                <thead>
+                  <tr className="bg-gradient-to-r from-slate-100 to-slate-50">
+                    <th className="p-3 sm:p-4 text-left font-bold text-slate-700">Metric</th>
+                    <th className="p-3 sm:p-4 text-left font-bold text-blue-600">{prettyTerm(terms[0])}</th>
+                    <th className="p-3 sm:p-4 text-left font-bold text-purple-600">{prettyTerm(terms[1])}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {human.table.rows.map((r, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="p-2 text-slate-600">{r.label}</td>
-                      <td className="p-2">{r.a}</td>
-                      <td className="p-2">{r.b}</td>
+                    <tr key={i} className="border-t border-slate-200 hover:bg-slate-50 transition-colors">
+                      <td className="p-3 sm:p-4 font-medium text-slate-700">{r.label}</td>
+                      <td className="p-3 sm:p-4 text-slate-900">{r.a}</td>
+                      <td className="p-3 sm:p-4 text-slate-900">{r.b}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -654,9 +705,11 @@ export default async function ComparePage({
           </section>
 
           {/* Deep dive */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-2">Deep dive</h2>
-            <div className="space-y-3 text-slate-700">
+          <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              🔍 The Full Story: {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+            </h2>
+            <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
               {human.longForm.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
@@ -664,16 +717,18 @@ export default async function ComparePage({
           </section>
 
           {/* Scale explainer */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-2">What this scale means</h2>
-            <p className="text-slate-700">{human.scaleExplainer}</p>
+          <section className="rounded-xl sm:rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-md p-5 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              ℹ️ How to Read This {prettyTerm(terms[0])} vs {prettyTerm(terms[1])} Data
+            </h2>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{human.scaleExplainer}</p>
           </section>
         </div>
 
         {/* Sidebar */}
-        <aside className="md:col-span-3 space-y-6">
-          <div className="md:sticky md:top-20 space-y-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <aside className="lg:col-span-4 space-y-6">
+          <div className="lg:sticky lg:top-24 space-y-6">
+            <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
               <TopThisWeekServer />
             </section>
           </div>
@@ -681,8 +736,10 @@ export default async function ComparePage({
       </div>
 
       {/* Related comparisons + FAQ */}
-      <RelatedComparisons currentSlug={canonical} terms={terms} />
-      <FAQSection />
+      <div className="space-y-8">
+        <RelatedComparisons currentSlug={canonical} terms={terms} />
+        <FAQSection />
+      </div>
     </main>
   );
 }

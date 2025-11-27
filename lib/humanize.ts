@@ -208,13 +208,13 @@ export function buildHumanCopy(
 
   let summary: string;
   if (aAvg === bAvg) {
-    summary = `${A} and ${B} sit very close to each other ${tfLabel}. On average there is almost no gap between them.`;
+    summary = `Looking at ${A} and ${B} ${tfLabel}, they're basically tied. Search volume is nearly identical for both terms.`;
   } else if (gapPct < 15) {
-    summary = `${leader} has a slight edge over ${trailer} ${tfLabel}, with only a small average gap of around ${gapPct} percent.`;
+    summary = `${leader} edges out ${trailer} ${tfLabel}, but it's close. We're looking at around a ${gapPct}% difference in average search volume.`;
   } else if (gapPct < 40) {
-    summary = `${leader} is clearly ahead of ${trailer} ${tfLabel}, with an average lead of roughly ${gapPct} percent.`;
+    summary = `${leader} pulls ahead of ${trailer} ${tfLabel} with a solid ${gapPct}% lead in search volume. That's a clear difference but not overwhelming.`;
   } else {
-    summary = `${leader} dominates searches compared with ${trailer} ${tfLabel}, with an average lead of about ${gapPct} percent.`;
+    summary = `${leader} absolutely crushes ${trailer} in search volume ${tfLabel}. We're talking about a ${gapPct}% difference — that's a huge gap.`;
   }
 
   /* ------------ core stats ------------ */
@@ -245,39 +245,39 @@ export function buildHumanCopy(
   const atAGlance: string[] = [];
 
   atAGlance.push(
-    `Average interest: ${A} ${aAvg}, ${B} ${bAvg}. ${leader} comes out ahead on most weeks.`
+    `On average, ${A} scores ${aAvg} and ${B} scores ${bAvg}. ${leader} wins most weeks.`
   );
 
   if (aPeak.value || bPeak.value) {
     const aPeakText = aPeak.value
-      ? `${A} peaked in ${monthName(new Date(aPeak.date))} at ${aPeak.value}.`
-      : `${A} never really spikes on this chart.`;
+      ? `${A} hit its peak in ${monthName(new Date(aPeak.date))} at ${aPeak.value}.`
+      : `${A} never has a major spike in this timeframe.`;
     const bPeakText = bPeak.value
       ? `${B} peaked in ${monthName(new Date(bPeak.date))} at ${bPeak.value}.`
-      : `${B} never really spikes on this chart.`;
+      : `${B} stays pretty flat with no big spikes.`;
     atAGlance.push(`${aPeakText} ${bPeakText}`);
   }
 
   atAGlance.push(
-    `Recent trend: ${A} looks ${aTrend}, while ${B} looks ${bTrend}.`
+    `Right now, ${A} is ${aTrend} and ${B} is ${bTrend}.`
   );
   atAGlance.push(
-    `Stability: ${A} is ${aVol}, and ${B} is ${bVol}. Higher volatility usually means more short lived spikes.`
+    `${A} is ${aVol}, ${B} is ${bVol}. Choppy patterns mean short bursts of interest, steady lines mean consistent searches.`
   );
 
   atAGlance.push(
-    `Head to head: ${A} leads in about ${leadShare.aPct} percent of points, while ${B} leads in about ${leadShare.bPct} percent.`
+    `${A} leads ${leadShare.aPct}% of the time, ${B} leads ${leadShare.bPct}% of the time.`
   );
 
   if (xo.count > 0) {
     atAGlance.push(
-      `The lines cross ${xo.count} time${xo.count === 1 ? "" : "s"}, with the latest crossover on ${
-        xo.last ? dayName(new Date(xo.last)) : "a recent date"
+      `They swap the lead ${xo.count} time${xo.count === 1 ? "" : "s"}. Last flip was ${
+        xo.last ? dayName(new Date(xo.last)) : "recently"
       }.`
     );
   } else {
     atAGlance.push(
-      `There is no clear crossover in this view. One term keeps the lead from start to finish.`
+      `No lead changes here. One term stays on top the whole time.`
     );
   }
 
@@ -324,30 +324,26 @@ export function buildHumanCopy(
   const growB = pctChange(firstB, lastB);
 
   if (growA === 0) {
-    extraBullets.push(`${A} stays roughly flat from the start to the end.`);
+    extraBullets.push(`${A} stays flat from start to finish.`);
   } else if (growA > 0) {
     extraBullets.push(
-      `${A} has climbed by about ${growA} percent from the early part of the chart to the most recent section.`
+      `${A} is up ${growA}% from where it started.`
     );
   } else {
     extraBullets.push(
-      `${A} has eased off by around ${Math.abs(
-        growA
-      )} percent between the early and late parts of the chart.`
+      `${A} dropped ${Math.abs(growA)}% from start to finish.`
     );
   }
 
   if (growB === 0) {
-    extraBullets.push(`${B} also stays fairly level across the period.`);
+    extraBullets.push(`${B} also stays level the whole time.`);
   } else if (growB > 0) {
     extraBullets.push(
-      `${B} has grown by roughly ${growB} percent from early to late in the chart.`
+      `${B} grew ${growB}% over this period.`
     );
   } else {
     extraBullets.push(
-      `${B} has dropped by roughly ${Math.abs(
-        growB
-      )} percent between the start and the end of the period.`
+      `${B} fell ${Math.abs(growB)}% over this period.`
     );
   }
 
@@ -356,7 +352,7 @@ export function buildHumanCopy(
   const longForm: string[] = [];
 
   longForm.push(
-    `This chart shows how often people searched for ${A} and ${B} ${tfLabel}. Values go from zero to one hundred for each term, where one hundred is that term’s own highest point in the selected period.`
+    `This chart tracks search volume for ${A} and ${B} ${tfLabel}. Each term gets its own line scaled 0-100, where 100 represents that term's peak moment.`
   );
 
   const third = Math.max(3, Math.floor(series.length / 3));
@@ -371,45 +367,45 @@ export function buildHumanCopy(
   };
 
   longForm.push(
-    `If you split the period into three chunks, the early averages look like this: ${A} ${early.a} and ${B} ${early.b}. In the middle section they move to ${A} ${mid.a} and ${B} ${mid.b}. By the most recent third they sit around ${A} ${late.a} and ${B} ${late.b}.`
+    `Breaking it into thirds: early on, ${A} averaged ${early.a} and ${B} averaged ${early.b}. Mid-period, ${A} was at ${mid.a} and ${B} at ${mid.b}. Recently, ${A} sits around ${late.a} and ${B} around ${late.b}.`
   );
 
   if (aPeak.value || bPeak.value) {
     longForm.push(
-      `${A} hits its sharpest peak in ${
-        aPeak.value ? monthName(new Date(aPeak.date)) : "no obvious month"
+      `${A} peaks in ${
+        aPeak.value ? monthName(new Date(aPeak.date)) : "no clear month"
       }. ${B} peaks in ${
-        bPeak.value ? monthName(new Date(bPeak.date)) : "no obvious month"
-      }. These spikes often line up with big news, events or marketing pushes.`
+        bPeak.value ? monthName(new Date(bPeak.date)) : "no clear month"
+      }. Big spikes usually come from news cycles, product launches, or viral moments.`
     );
   }
 
   if (xo.count > 0) {
     longForm.push(
-      `The two lines swap the lead ${xo.count} time${
+      `They swap leads ${xo.count} time${
         xo.count === 1 ? "" : "s"
-      }. The latest crossover appears around ${
-        xo.last ? dayName(new Date(xo.last)) : "a recent date"
-      }, which hints at shifting interest between the two topics.`
+      }. Last crossover was ${
+        xo.last ? dayName(new Date(xo.last)) : "recently"
+      } — that means interest keeps shifting back and forth.`
     );
   } else {
     longForm.push(
-      `There is no clear crossover here. One term keeps the lead almost the entire way, which usually points to a more durable long run advantage.`
+      `No crossovers here. One term dominates the entire period, which usually means it has a more stable, lasting advantage.`
     );
   }
 
   longForm.push(
-    `${A} looks ${aVol} overall with a ${aTrend} trend. ${B} looks ${bVol} with a ${bTrend} trend. Steady, slow moving lines usually reflect stable evergreen interest, while choppier lines tend to follow news and social media spikes.`
+    `${A} is ${aVol} and ${aTrend}. ${B} is ${bVol} and ${bTrend}. Steady lines = consistent interest. Choppy lines = driven by news cycles and trending topics.`
   );
 
   /* ------------ scale explainer and hints ------------ */
 
   const scaleExplainer =
-    "Scores come from Google Trends. Each line is scaled to that term’s own peak in the selected period, so focus on the shape of the lines, the timing of peaks and who is ahead rather than the raw numbers.";
+    "Numbers come from Google Trends. Each line scales to its own peak (100 = that term's highest point). So don't compare the raw numbers directly — look at who's ahead, the shape of the lines, and when peaks happen.";
 
   const broad = looksBroad(A) && looksBroad(B);
   const infoNote = broad
-    ? "These are broad topics, so the chart mostly reflects general curiosity. If you want a more focused view, try comparing more specific phrases or product names."
+    ? "These are pretty broad search terms, so you're seeing general interest patterns. For sharper insights, try comparing specific product names or longer phrases."
     : null;
 
   const suggestions: string[] = [];

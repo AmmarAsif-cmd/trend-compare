@@ -23,19 +23,19 @@ export default function SiteHeader() {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200">
       <nav className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         {/* Brand */}
-        <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {BRAND}
-              </span>
-              <span className="text-xs sm:text-sm text-slate-500">
-                {TAGLINE}
-              </span>
-            </div>
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
+            <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
+          <div className="flex flex-col">
+            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {BRAND}
+            </span>
+            <span className="text-xs sm:text-sm text-slate-500 hidden sm:block">
+              {TAGLINE}
+            </span>
+          </div>
+        </Link>
 
         {/* Desktop links */}
         <ul className="hidden md:flex items-center gap-6">
