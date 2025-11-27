@@ -11,7 +11,7 @@ import { buildHumanCopy } from "@/lib/humanize";
 import TopThisWeekServer from "@/components/TopThisWeekServer";
 import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
-
+import CompareStats from "@/components/CompareStats";
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -446,7 +446,23 @@ export default async function ComparePage({
   }
 
   const insight = buildInsightBundle(series as any, terms, timeframe);
+// compute totals and shares for stats
+  const keyA = terms[0];
+  const keyB = terms[1];
 
+  const aVals = (series as any[]).map((row) => Number(row[keyA] ?? 0));
+  const bVals = (series as any[]).map((row) => Number(row[keyB] ?? 0));
+
+  const totalA = aVals.reduce((sum, v) => sum + v, 0);
+  const totalB = bVals.reduce((sum, v) => sum + v, 0);
+  const totalSearches = totalA + totalB;
+
+  let aShare = 0;
+  let bShare = 0;
+  if (totalSearches > 0) {
+    aShare = totalA / totalSearches;
+    bShare = totalB / totalSearches;
+  }
   return (
     <main className="mx-auto max-w-5xl space-y-6">
       <BackButton label="Back to Home" />
@@ -522,7 +538,13 @@ export default async function ComparePage({
               <TrendChart series={series} />
             </div>
           </section>
-
+<CompareStats
+    totalSearches={totalSearches}        // replace with your real total value
+    aLabel={keyA }               // first keyword label
+    bLabel={keyB }                // second keyword label
+    aShare={aShare }                    // 62 means 62 percent
+    bShare={bShare }
+  />
           {/* Per-term insight cards */}
           <section className="grid gap-4 md:grid-cols-2">
             {insight.termInsights.map((ti) => (
