@@ -11,6 +11,7 @@ import { findEventsNearDate, type TechEvent } from './tech-events';
 import { getWikipediaEventsNearDate, type WikipediaEvent } from './wikipedia-events';
 import { getGDELTEventsNearDate, type GDELTEvent } from './gdelt-events';
 import { fetchNewsForDate, newsToEvent } from './news-detector';
+import { expandKeywords } from './keyword-expander';
 
 export interface UnifiedEvent {
   date: string;
@@ -33,29 +34,37 @@ export async function detectEventsMultiSource(
 ): Promise<UnifiedEvent[]> {
   const targetDate = new Date(date);
 
+  // Expand keywords to improve search (e.g., "honey-singh" → "honey singh", "honey singh documentary", etc.)
+  const expandedKeywords = expandKeywords(keywords);
+
+  console.log('[Multi-Source] Original keywords:', keywords);
+  console.log('[Multi-Source] Expanded keywords:', expandedKeywords.slice(0, 10)); // Log first 10
+
   // Fetch from all sources in parallel
   const [techEvents, wikiEvents, gdeltEvents, newsArticles] = await Promise.all([
     // Source 1: Tech events database (instant, curated)
     Promise.resolve(findEventsNearDate(targetDate, keywords, windowDays)),
 
     // Source 2: Wikipedia current events (free, reliable, structured)
-    getWikipediaEventsNearDate(targetDate, keywords, windowDays).catch(err => {
-      console.warn('Wikipedia events failed:', err.message);
+    getWikipediaEventsNearDate(targetDate, expandedKeywords, windowDays).catch(err => {
+      console.warn('[Multi-Source] Wikipedia API failed:', err.message);
       return [];
     }),
 
     // Source 3: GDELT global news (free, comprehensive, real-time)
-    getGDELTEventsNearDate(targetDate, keywords, windowDays, 20).catch(err => {
-      console.warn('GDELT events failed:', err.message);
+    getGDELTEventsNearDate(targetDate, expandedKeywords, windowDays, 20).catch(err => {
+      console.warn('[Multi-Source] GDELT API failed:', err.message);
       return [];
     }),
 
     // Source 4: NewsAPI (optional, requires API key)
-    fetchNewsForDate(targetDate, keywords, windowDays).catch(err => {
-      console.warn('NewsAPI failed:', err.message);
+    fetchNewsForDate(targetDate, expandedKeywords, windowDays).catch(err => {
+      console.warn('[Multi-Source] NewsAPI failed:', err.message);
       return [];
     }),
   ]);
+
+  console.log(`[Multi-Source] Results: Tech=${techEvents.length}, Wiki=${wikiEvents.length}, GDELT=${gdeltEvents.length}, News=${newsArticles.length}`);
 
   // Convert NewsAPI articles to event format
   const newsEvents = newsArticles.map(article => newsToEvent(article, keywords));

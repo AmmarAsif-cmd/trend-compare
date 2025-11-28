@@ -166,8 +166,27 @@ export default function ContentEngineInsights({
                                     event.match(/On ([^,]+), (.+)\./);
                       if (!parts) return null;
 
-                      const hasRealEvent = event.includes('likely due to:') || event.includes('Product Launch') ||
-                                           event.includes('Announcement') || event.includes('Conference');
+                      // Check if this is a REAL event (not generic calendar fallback)
+                      // Real events include: Product Launch, Announcement, Conference, Verified, Documentary, Netflix, etc.
+                      // NOT: "Christmas shopping", "New Year", "Black Friday" (unless it's about actual retail news)
+                      const isGenericCalendarEvent =
+                        event.includes('Christmas holiday shopping') ||
+                        event.includes('New Year resolutions and shopping') ||
+                        event.includes('Black Friday shopping event') ||
+                        event.includes('Cyber Monday online shopping');
+
+                      const hasVerifiedMarkers =
+                        event.includes('Product Launch') ||
+                        event.includes('Announcement') ||
+                        event.includes('Conference') ||
+                        event.includes('Verified by multiple sources') ||
+                        event.includes('Documentary') ||
+                        event.includes('Netflix') ||
+                        event.includes('Album') ||
+                        event.includes('Release') ||
+                        event.includes('Event');
+
+                      const hasRealEvent = hasVerifiedMarkers && !isGenericCalendarEvent;
 
                       return (
                         <div

@@ -137,55 +137,40 @@ export async function detectAnomalies(
 
 /**
  * Infer context for why a spike might have occurred
- * Uses MULTI-SOURCE detection - Wikipedia, GDELT, tech database
+ * Uses MULTI-SOURCE detection - Wikipedia, GDELT, NewsAPI, tech database
+ * If nothing is found, returns undefined - NO GUESSING!
  */
 async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): Promise<string | undefined> {
   const date = new Date(point.date);
 
+  // Log what we're searching for
+  console.log(`[Event Detection] Searching for events on ${point.date} with keywords:`, keywords);
+
   try {
-    // Try multi-source event detection first (Wikipedia + GDELT + tech DB)
+    // Try multi-source event detection (Wikipedia + GDELT + NewsAPI + Tech DB)
     const event = await getBestEventExplanation(point.date, keywords, 7);
 
     if (event) {
+      console.log(`[Event Detection] ✓ Found event:`, event.title, `(${event.sources.length} sources)`);
       return formatEventForDisplay(event);
     }
+
+    console.log(`[Event Detection] ✗ No events found from any API source`);
   } catch (error) {
-    console.warn('Multi-source event detection failed, falling back to tech DB:', error);
+    console.error('[Event Detection] API error:', error);
   }
 
   // Fallback to tech database only (instant, no API calls)
   const techEvent = getBestMatchingEvent(point.date, keywords, 7);
 
   if (techEvent) {
+    console.log(`[Event Detection] ✓ Found in tech DB:`, techEvent.title);
     return getEventContext(techEvent);
   }
 
-  // If no specific event found, check for major calendar events only
-  // (but DON'T use generic "back-to-school" or "fall season" nonsense)
-  const month = point.month ?? date.getMonth();
-  const dayOfMonth = point.dayOfMonth ?? date.getDate();
-
-  // Black Friday
-  if (month === 10 && dayOfMonth >= 23 && dayOfMonth <= 29) {
-    return 'Black Friday shopping event';
-  }
-
-  // Cyber Monday
-  if (month === 10 && dayOfMonth >= 26 && dayOfMonth <= 30) {
-    return 'Cyber Monday online shopping';
-  }
-
-  // Christmas shopping
-  if (month === 11 && dayOfMonth >= 20) {
-    return 'Christmas holiday shopping';
-  }
-
-  // New Year
-  if (month === 0 && dayOfMonth <= 7) {
-    return 'New Year resolutions and shopping';
-  }
-
-  // No generic seasonal context - if we don't know, we don't know
+  // NO GENERIC FALLBACKS!
+  // If we don't know, we don't know - don't make up wrong answers
+  console.log(`[Event Detection] ✗ No explanation found - returning undefined`);
   return undefined;
 }
 
