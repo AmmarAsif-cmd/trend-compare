@@ -428,7 +428,6 @@ export default async function ComparePage({
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
   const series = smoothSeries(rawSeries as any[], smoothingWindow);
-  const human = buildHumanCopy(terms, series as any, { timeframe });
   const sparse = nonZeroRatio(rawSeries as any[]) < 0.1;
 
   if (!series?.length || series.length < 8) {
@@ -456,7 +455,7 @@ export default async function ComparePage({
   try {
     contentEngineResult = await generateComparisonContent(terms, rawSeries as any[], {
       deepAnalysis: true,
-      useMultiSource: false, // Skip multi-source for now
+      useMultiSource: true, // Enable multi-source for better reasoning
     });
   } catch (error) {
     console.error('Content Engine error:', error);
@@ -585,6 +584,7 @@ export default async function ComparePage({
               bShare={bShare}
             />
           </section>
+
           {/* Per-term insight cards */}
           <section className="grid gap-4 sm:gap-6 md:grid-cols-2">
             {insight.termInsights.map((ti, idx) => (
@@ -598,10 +598,7 @@ export default async function ComparePage({
                     <span className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-sm' : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-sm'} animate-pulse`}></span>
                     {ti.term} Analysis
                   </h3>
-                  <p className="text-xs text-slate-600 mb-4">
-                    Detailed breakdown for this keyword
-                  </p>
-                  <div className="space-y-3">
+                  <div className="space-y-3 mt-4">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                       <span className="text-sm font-medium text-slate-700">Average Interest</span>
                       <span className={`text-lg font-bold ${idx === 0 ? 'text-blue-600' : 'text-purple-600'}`}>{ti.avg}</span>
@@ -618,124 +615,18 @@ export default async function ComparePage({
                       <p className="text-xs font-medium text-slate-700 mb-1">Peak Performance</p>
                       <p className="text-sm text-slate-900 font-medium">{ti.peakLabel}</p>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-700 mb-1">Best Month</p>
-                      <p className="text-sm text-slate-900 font-medium">{ti.bestMonthLabel}</p>
-                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </section>
 
-          {/* Trend moments + prediction */}
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                📈 What Happened with {prettyTerm(terms[0])} and {prettyTerm(terms[1])}
-              </h2>
-              <ul className="space-y-3 text-sm sm:text-base text-slate-700">
-                {insight.moments.map((m, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="text-blue-500 font-bold">•</span>
-                    <span className="leading-relaxed">{m}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                🔮 Where This Is Heading
-              </h2>
-              <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
-            </div>
-          </section>
-
-          {/* Summary + At a glance */}
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                📝 Breaking Down {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
-              </h2>
-              <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
-                <p>{human.summary}</p>
-                {human.extraBullets.length > 0 && (
-                  <ul className="space-y-2 pl-5">
-                    {human.extraBullets.map((line, i) => (
-                      <li key={i} className="list-disc">{line}</li>
-                    ))}
-                  </ul>
-                )}
-                {human.infoNote && (
-                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-800">{human.infoNote}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                ⚡ {prettyTerm(terms[0])} & {prettyTerm(terms[1])} at a Glance
-              </h2>
-              <ul className="space-y-3">
-                {human.atAGlance.map((line, i) => (
-                  <li key={i} className="flex gap-3 text-sm sm:text-base text-slate-700">
-                    <span className="text-blue-500 font-bold">✓</span>
-                    <span className="leading-relaxed">{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-
-          {/* Side by side */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-white px-5 sm:px-6 py-4 border-b-2 border-slate-200">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                📊 {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Head-to-Head
-              </h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm sm:text-base">
-                <thead>
-                  <tr className="bg-gradient-to-r from-slate-100 to-slate-50">
-                    <th className="p-3 sm:p-4 text-left font-bold text-slate-700">Metric</th>
-                    <th className="p-3 sm:p-4 text-left font-bold text-blue-600">{prettyTerm(terms[0])}</th>
-                    <th className="p-3 sm:p-4 text-left font-bold text-purple-600">{prettyTerm(terms[1])}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {human.table.rows.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-200 hover:bg-slate-50 transition-colors">
-                      <td className="p-3 sm:p-4 font-medium text-slate-700">{r.label}</td>
-                      <td className="p-3 sm:p-4 text-slate-900">{r.a}</td>
-                      <td className="p-3 sm:p-4 text-slate-900">{r.b}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Deep dive */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
+          {/* Prediction */}
+          <section className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              🔍 The Full Story: {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+              🔮 Where This Is Heading
             </h2>
-            <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
-              {human.longForm.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-            </div>
-          </section>
-
-          {/* Scale explainer */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-md p-5 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
-              ℹ️ How to Read This {prettyTerm(terms[0])} vs {prettyTerm(terms[1])} Data
-            </h2>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{human.scaleExplainer}</p>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
           </section>
         </div>
 
@@ -757,7 +648,7 @@ export default async function ComparePage({
               Deeper Insights
             </h2>
             <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto mt-2">
-              We analyzed the search data to find meaningful patterns and trends
+              Advanced pattern detection with real event analysis from multiple verified sources
             </p>
           </div>
           <ContentEngineInsights

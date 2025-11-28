@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { toCanonicalSlug } from "@/lib/slug";
 import { cleanTerm, isTermAllowed } from "@/lib/validateTerms";
 
@@ -16,11 +16,17 @@ type ValidResult =
   | { ok: true; term: string }
   | { ok: false; msg: string };
 
+// Quick example suggestions
+const QUICK_EXAMPLES = {
+  a: ["ChatGPT", "iPhone", "Tesla", "Netflix", "Bitcoin", "React"],
+  b: ["Gemini", "Android", "Toyota", "Disney+", "Ethereum", "Vue"],
+};
+
 export default function HomeCompareForm() {
-  // Match design: first field empty, second with "Gemini"
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [active, setActive] = useState<Field | null>(null);
   const [open, setOpen] = useState(false);
@@ -132,9 +138,10 @@ export default function HomeCompareForm() {
     }
   };
 
-  function onSubmit(event: React.FormEvent) {
+  async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
     const aV = validateTerm(a);
     const bV = validateTerm(b);
@@ -144,15 +151,18 @@ export default function HomeCompareForm() {
       if (!aV.ok) msg = aV.msg;
       else if (!bV.ok) msg = bV.msg;
       setError(msg);
+      setIsSubmitting(false);
       return;
     }
 
     const slug = toCanonicalSlug([aV.term, bV.term]);
     if (!slug) {
       setError("Could not build a valid comparison from those terms.");
+      setIsSubmitting(false);
       return;
     }
 
+    // Keep loading state while navigating
     router.push(`/compare/${slug}`);
   }
 
@@ -188,14 +198,31 @@ export default function HomeCompareForm() {
             aria-autocomplete="list"
             aria-expanded={active === "a" && open}
             aria-controls="suggest-list-a"
-            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+            disabled={isSubmitting}
+            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
+
+          {/* Quick examples for Field A */}
+          {!a && active !== "a" && (
+            <div className="absolute left-0 right-0 top-full mt-2 flex flex-wrap gap-1.5 z-10">
+              {QUICK_EXAMPLES.a.slice(0, 3).map((example) => (
+                <button
+                  key={example}
+                  type="button"
+                  onClick={() => setA(example)}
+                  className="text-xs px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors font-medium"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          )}
 
           {active === "a" && open && (
             <ul
               id="suggest-list-a"
               role="listbox"
-              className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow"
+              className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
             >
               {items.map((s, i) => (
                 <li
@@ -246,14 +273,31 @@ export default function HomeCompareForm() {
             aria-autocomplete="list"
             aria-expanded={active === "b" && open}
             aria-controls="suggest-list-b"
-            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+            disabled={isSubmitting}
+            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
+
+          {/* Quick examples for Field B */}
+          {!b && active !== "b" && (
+            <div className="absolute left-0 right-0 top-full mt-2 flex flex-wrap gap-1.5 z-10">
+              {QUICK_EXAMPLES.b.slice(0, 3).map((example) => (
+                <button
+                  key={example}
+                  type="button"
+                  onClick={() => setB(example)}
+                  className="text-xs px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-md transition-colors font-medium"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          )}
 
           {active === "b" && open && (
             <ul
               id="suggest-list-b"
               role="listbox"
-              className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow"
+              className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
             >
               {items.map((s, i) => (
                 <li
@@ -281,12 +325,21 @@ export default function HomeCompareForm() {
         {/* Button */}
         <button
           type="submit"
-          disabled={!a.trim() || !b.trim()}
+          disabled={!a.trim() || !b.trim() || isSubmitting}
           className="w-full sm:w-auto rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-8 sm:px-6 py-3 text-base sm:text-lg font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 whitespace-nowrap"
           aria-label="Compare keywords"
         >
-          Compare Now
-          <ArrowRight className="w-5 h-5" aria-hidden="true" />
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+              Analyzing...
+            </>
+          ) : (
+            <>
+              Compare Now
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
+            </>
+          )}
         </button>
       </div>
 
