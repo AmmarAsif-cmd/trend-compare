@@ -749,23 +749,21 @@ export default async function ComparePage({
         </aside>
       </div>
 
-      {/* Content Engine Advanced Insights */}
+      {/* Deeper Insights Section */}
       {contentEngineResult && (
-        <div className="space-y-6">
-          <div className="border-t-2 border-slate-200 pt-8">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
-                🔬 Advanced Pattern Analysis
-              </h2>
-              <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto">
-                Powered by statistical analysis and pattern detection algorithms. Generated in {contentEngineResult.performance.totalMs}ms.
-              </p>
-            </div>
-            <ContentEngineInsights
-              narrative={contentEngineResult.narrative}
-              terms={terms}
-            />
+        <div className="border-t-2 border-slate-200 pt-8 space-y-6">
+          <div className="text-center mb-2">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
+              Deeper Insights
+            </h2>
+            <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto mt-2">
+              We analyzed the search data to find meaningful patterns and trends
+            </p>
           </div>
+          <ContentEngineInsights
+            narrative={contentEngineResult.narrative}
+            terms={terms}
+          />
         </div>
       )}
 

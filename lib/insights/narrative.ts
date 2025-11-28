@@ -123,43 +123,59 @@ function generateTrendSection(termInsight: any): NarrativeSection {
 
   let content = '';
 
-  // Main trend description
-  content += `${trend.description}. `;
+  // Main trend description - simplify it
+  const simplifiedTrend = trend.description
+    .replace(/with \d+% growth and \d+% momentum/gi, 'with steady growth')
+    .replace(/showing \d+% growth/gi, 'showing growth')
+    .replace(/with \d+% decline/gi, 'with declining interest')
+    .replace(/Relatively stable with \d+% variation/gi, 'Search interest is fairly stable');
 
-  // Momentum details
+  content += `${simplifiedTrend}. `;
+
+  // Momentum details - more human
   if (Math.abs(trend.momentum) > 10) {
-    const direction = trend.momentum > 0 ? 'accelerating' : 'decelerating';
-    content += `Current momentum is ${direction} at ${Math.abs(Math.round(trend.momentum))}%. `;
+    const direction = trend.momentum > 0 ? 'picking up steam' : 'slowing down';
+    content += `The trend is ${direction}. `;
   }
 
-  // Strength and confidence
-  content += `Trend strength is ${getTrendStrengthLabel(trend.strength)} (${trend.strength}/100) `;
-  content += `with ${getConfidenceLabel(trend.confidence)} confidence. `;
-
-  // Volatility context
+  // Volatility context - simplify
   if (volatility) {
-    content += `Interest levels are ${volatility.level.replace('-', ' ')}, `;
-    content += `showing ${Math.round(volatility.stability)}% stability. `;
+    const level = volatility.level.replace('-', ' ');
+    if (level.includes('stable')) {
+      content += 'Search volume stays pretty consistent from day to day. ';
+    } else if (level.includes('volatile')) {
+      content += 'Search volume tends to jump around quite a bit. ';
+    } else {
+      content += 'Search volume has some ups and downs, but nothing too extreme. ';
+    }
   }
 
-  // Trend changes
+  // Trend changes - simplify
   if (trendChanges.length > 0) {
-    content += 'Notable trend changes: ';
+    content += 'We noticed some shifts: ';
     const changes = trendChanges.slice(0, 2).map((tc: any) => {
       const date = formatDate(tc.date, 'short');
-      return `${tc.description} on ${date}`;
+      const desc = tc.description
+        .replace(/Trend reversed from/gi, 'switched from')
+        .replace(/acceleration/gi, 'growth sped up')
+        .replace(/deceleration/gi, 'growth slowed');
+      return `${desc} around ${date}`;
     });
-    content += changes.join('; ') + '. ';
+    content += changes.join(', and ') + '. ';
   }
 
-  // Projection (if available and strong trend)
+  // Projection - make it clearer
   if (trend.projectedChange30d && trend.rSquared > 0.5) {
-    const direction = trend.projectedChange30d > 0 ? 'increase' : 'decrease';
-    content += `If current trends continue, expect a ${Math.abs(Math.round(trend.projectedChange30d))}% ${direction} over the next 30 days.`;
+    const change = Math.abs(Math.round(trend.projectedChange30d));
+    if (trend.projectedChange30d > 0) {
+      content += `If things keep going this way, we might see about ${change}% more searches in the next month.`;
+    } else {
+      content += `If the current pattern continues, searches could drop by around ${change}% in the next month.`;
+    }
   }
 
   return {
-    title: `Trend Analysis: ${term}`,
+    title: `${term}`,
     content,
     type: 'trend',
     confidence: trend.confidence,
@@ -175,40 +191,38 @@ function generateComparisonSection(insight: InsightPackage): NarrativeSection {
 
   let content = '';
 
-  // Leader
+  // Leader - make it clear and simple
   if (comp.leader) {
-    content += `${comp.leader} is currently trending stronger, `;
-    content += `with a ${Math.round(comp.gap)}% momentum advantage. `;
+    const gap = Math.round(comp.gap);
+    content += `Right now, ${comp.leader} is getting about ${gap}% more searches than the other. `;
   } else {
-    content += `Both terms show similar momentum levels. `;
+    content += `Both terms are getting a similar amount of searches. `;
   }
 
-  // Trend comparison
+  // Trend comparison - simplify
   if (comp.trend) {
-    content += `The trends are ${comp.trend.convergence}, `;
-
     if (comp.trend.convergence === 'converging') {
-      content += 'indicating the gap in popularity is narrowing. ';
+      content += 'The gap between them is getting smaller over time. ';
     } else if (comp.trend.convergence === 'diverging') {
-      content += 'with the leader pulling further ahead. ';
+      content += 'The gap between them is getting bigger. ';
     } else {
-      content += 'maintaining a relatively stable gap. ';
+      content += 'The gap between them has stayed about the same. ';
     }
   }
 
   // Correlation
   if (Math.abs(comp.correlation) > 0.7) {
-    content += `High correlation (${Math.round(Math.abs(comp.correlation) * 100)}%) `;
-    content += 'suggests these trends move together, likely influenced by similar factors. ';
+    content += 'These two terms tend to rise and fall together, ';
+    content += 'which means they\'re likely influenced by similar events or factors. ';
   } else if (Math.abs(comp.correlation) < 0.3) {
-    content += `Low correlation (${Math.round(Math.abs(comp.correlation) * 100)}%) `;
-    content += 'indicates independent trends driven by different factors. ';
+    content += 'These trends move independently of each other, ';
+    content += 'suggesting different factors drive interest in each term. ';
   }
 
   // Volatility comparison
   if (comp.volatility) {
-    content += `${comp.volatility.moreStable} shows more consistent interest patterns `;
-    content += `(${comp.volatility.stabilitygap}% more stable). `;
+    content += `${comp.volatility.moreStable} has more consistent search volumes, `;
+    content += 'with less ups and downs over time. ';
   }
 
   // Additional insights
@@ -217,7 +231,7 @@ function generateComparisonSection(insight: InsightPackage): NarrativeSection {
   }
 
   return {
-    title: `${termA} vs ${termB}: Comparative Analysis`,
+    title: `${termA} vs ${termB}`,
     content,
     type: 'comparison',
     confidence: 75, // Default confidence for comparison
@@ -232,35 +246,35 @@ function generateSeasonalSection(insight: InsightPackage): NarrativeSection | nu
 
   if (seasonalPatterns.length === 0) return null;
 
-  let content = 'Detected recurring patterns in search interest: ';
+  let content = 'We found some repeating patterns in when people search for these terms. ';
 
   const descriptions: string[] = [];
 
   for (const pattern of seasonalPatterns.slice(0, 3)) {
-    const { term, period, peakMonths, strength, confidence } = pattern as any;
+    const { term, period, peakMonths, strength } = pattern as any;
 
     if (period === 'annual' && peakMonths) {
-      const months = peakMonths.join(', ');
+      const months = peakMonths.join(' and ');
       descriptions.push(
-        `${term} shows annual peaks during ${months} (${strength}% above average, ${Math.round(confidence * 100)}% confidence)`
+        `${term} gets significantly more searches during ${months}, with interest about ${strength}% higher than usual`
       );
     } else if (period === 'weekly') {
       descriptions.push(
-        `${term} exhibits weekly patterns (${strength}% variation)`
+        `${term} shows a weekly pattern, where certain days of the week get noticeably more or less searches`
       );
     } else if (period === 'quarterly') {
       descriptions.push(
-        `${term} follows quarterly cycles (${strength}% strength)`
+        `${term} follows a quarterly pattern throughout the year`
       );
     }
   }
 
   content += descriptions.join('. ') + '. ';
 
-  content += 'These patterns can help predict future interest and plan timing for related activities.';
+  content += 'Knowing these patterns can help you understand when interest typically peaks.';
 
   return {
-    title: 'Seasonal Patterns',
+    title: 'Recurring Patterns',
     content,
     type: 'seasonal',
     confidence: 70,
@@ -282,23 +296,29 @@ function generateEventsSection(insight: InsightPackage): NarrativeSection | null
   // Sort by magnitude
   events.sort((a, b) => b.magnitude - a.magnitude);
 
-  let content = 'Notable interest surges and anomalies detected: ';
+  let content = 'Here are the most notable moments when search interest jumped significantly: ';
 
   const descriptions: string[] = [];
 
   for (const event of events.slice(0, 5)) {
     const date = formatDate(event.date, 'long');
+    // Make description more user-friendly
+    const friendlyDesc = event.description
+      .replace(/surge/gi, 'increase in searches')
+      .replace(/drop/gi, 'decrease in searches')
+      .replace(/detected/gi, 'happened');
+
     descriptions.push(
-      `${event.term}: ${event.description}`
+      `On ${date}, ${event.term} saw ${friendlyDesc}`
     );
   }
 
-  content += descriptions.join('; ') + '. ';
+  content += descriptions.join('. ') + '. ';
 
-  content += 'These events may represent product launches, news coverage, seasonal events, or other external factors driving interest.';
+  content += 'These spikes often happen because of news events, product launches, holidays, or other things that get people searching.';
 
   return {
-    title: 'Notable Events & Spikes',
+    title: 'Standout Moments',
     content,
     type: 'events',
     confidence: 85,
