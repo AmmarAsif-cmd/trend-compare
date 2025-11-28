@@ -149,19 +149,23 @@ async function analyzeTerm(
 
     // Spikes and anomalies
     if (config.enableSpikes) {
-      insights.spikes = detectSpikes(
-        series,
-        term,
-        config.spikeThresholdStdDev,
-        config.minSpikeMagnitude,
-        allTerms // Pass all terms for better event matching
-      ).slice(0, config.maxInsightsPerType);
+      const [spikes, anomalies] = await Promise.all([
+        detectSpikes(
+          series,
+          term,
+          config.spikeThresholdStdDev,
+          config.minSpikeMagnitude,
+          allTerms // Pass all terms for better event matching
+        ),
+        detectAnomalies(
+          series,
+          term,
+          allTerms // Pass all terms for better event matching
+        ),
+      ]);
 
-      insights.anomalies = detectAnomalies(
-        series,
-        term,
-        allTerms // Pass all terms for better event matching
-      ).slice(0, config.maxInsightsPerType);
+      insights.spikes = spikes.slice(0, config.maxInsightsPerType);
+      insights.anomalies = anomalies.slice(0, config.maxInsightsPerType);
     }
 
     // Trend analysis

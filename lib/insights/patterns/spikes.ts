@@ -14,17 +14,18 @@ import {
   getDayName,
 } from '../core/temporal';
 import { findEventsNearDate, getBestMatchingEvent, getEventContext } from '../events/tech-events';
+import { getBestEventExplanation, formatEventForDisplay } from '../events/multi-source-detector';
 
 /**
  * Detect spikes (unusual surges)
  */
-export function detectSpikes(
+export async function detectSpikes(
   series: EnrichedDataPoint[],
   term: string,
   thresholdStdDev: number = 2,
   minMagnitude: number = 20,
   allTerms: string[] = []
-): SpikeEvent[] {
+): Promise<SpikeEvent[]> {
   if (series.length < 7) return []; // Need minimum data
 
   const values = series.map(p => p[term] as number);
@@ -36,7 +37,7 @@ export function detectSpikes(
   // Statistical threshold (2 standard deviations above mean)
   const threshold = mean + (thresholdStdDev * stdDev);
 
-  const spikes: SpikeEvent[] = [];
+  const potentialSpikes: Array<{ point: EnrichedDataPoint; index: number; magnitude: number; zScore: number }> = [];
 
   series.forEach((point, index) => {
     const value = point[term] as number;
@@ -48,29 +49,34 @@ export function detectSpikes(
       // Only consider significant spikes
       if (magnitude >= minMagnitude) {
         const zScore = calculateZScore(value, mean, stdDev);
-        const keywords = allTerms.length > 0 ? allTerms : [term];
-        const context = inferSpikeContext(point, keywords);
-
-        spikes.push({
-          type: 'spike',
-          date: point.date,
-          value,
-          magnitude,
-          zScore,
-          context,
-          confidence: Math.min(100, Math.round(zScore * 25)),
-          strength: Math.round(magnitude),
-          description: generateSpikeDescription(magnitude, point, context),
-          dataPoints: [index],
-          metadata: {
-            baseline: mean,
-            threshold,
-            stdDev,
-          },
-        });
+        potentialSpikes.push({ point, index, magnitude, zScore });
       }
     }
   });
+
+  // Fetch contexts for all spikes in parallel
+  const keywords = allTerms.length > 0 ? allTerms : [term];
+  const contextPromises = potentialSpikes.map(s => inferSpikeContext(s.point, keywords));
+  const contexts = await Promise.all(contextPromises);
+
+  // Build spike events with contexts
+  const spikes: SpikeEvent[] = potentialSpikes.map((spike, i) => ({
+    type: 'spike',
+    date: spike.point.date,
+    value: spike.point[term] as number,
+    magnitude: spike.magnitude,
+    zScore: spike.zScore,
+    context: contexts[i],
+    confidence: Math.min(100, Math.round(spike.zScore * 25)),
+    strength: Math.round(spike.magnitude),
+    description: generateSpikeDescription(spike.magnitude, spike.point, contexts[i]),
+    dataPoints: [spike.index],
+    metadata: {
+      baseline: mean,
+      threshold,
+      stdDev,
+    },
+  }));
 
   // Sort by magnitude (strongest first)
   spikes.sort((a, b) => b.magnitude - a.magnitude);
@@ -83,26 +89,31 @@ export function detectSpikes(
  * Detect anomalies (outliers using IQR method)
  * More conservative than spike detection
  */
-export function detectAnomalies(
+export async function detectAnomalies(
   series: EnrichedDataPoint[],
   term: string,
   allTerms: string[] = []
-): SpikeEvent[] {
+): Promise<SpikeEvent[]> {
   if (series.length < 10) return [];
 
   const values = series.map(p => p[term] as number);
   const outlierIndices = detectOutliers(values);
 
   const keywords = allTerms.length > 0 ? allTerms : [term];
+  const mean = calculateMean(values);
+  const stdDev = calculateStdDev(values);
 
-  const anomalies: SpikeEvent[] = outlierIndices.map(index => {
+  // Fetch contexts for all anomalies in parallel
+  const points = outlierIndices.map(index => series[index]);
+  const contextPromises = points.map(point => inferSpikeContext(point, keywords));
+  const contexts = await Promise.all(contextPromises);
+
+  const anomalies: SpikeEvent[] = outlierIndices.map((index, i) => {
     const point = series[index];
     const value = point[term] as number;
-
-    const mean = calculateMean(values);
-    const stdDev = calculateStdDev(values);
     const magnitude = ((value - mean) / mean) * 100;
     const zScore = calculateZScore(value, mean, stdDev);
+    const context = contexts[i];
 
     return {
       type: 'anomaly',
@@ -110,10 +121,10 @@ export function detectAnomalies(
       value,
       magnitude,
       zScore,
-      context: inferSpikeContext(point, keywords),
+      context,
       confidence: Math.min(100, Math.round(Math.abs(zScore) * 25)),
       strength: Math.round(Math.abs(magnitude)),
-      description: generateAnomalyDescription(magnitude, point, inferSpikeContext(point, keywords)),
+      description: generateAnomalyDescription(magnitude, point, context),
       dataPoints: [index],
       metadata: {
         detectionMethod: 'IQR',
@@ -126,19 +137,30 @@ export function detectAnomalies(
 
 /**
  * Infer context for why a spike might have occurred
- * Uses REAL EVENTS - product launches, news, actual happenings
+ * Uses MULTI-SOURCE detection - Wikipedia, GDELT, tech database
  */
-function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): string | undefined {
+async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): Promise<string | undefined> {
   const date = new Date(point.date);
 
-  // First, try to find a real tech event
-  const matchedEvent = getBestMatchingEvent(point.date, keywords, 7);
+  try {
+    // Try multi-source event detection first (Wikipedia + GDELT + tech DB)
+    const event = await getBestEventExplanation(point.date, keywords, 7);
 
-  if (matchedEvent) {
-    return getEventContext(matchedEvent);
+    if (event) {
+      return formatEventForDisplay(event);
+    }
+  } catch (error) {
+    console.warn('Multi-source event detection failed, falling back to tech DB:', error);
   }
 
-  // If no specific tech event, check for major calendar events only
+  // Fallback to tech database only (instant, no API calls)
+  const techEvent = getBestMatchingEvent(point.date, keywords, 7);
+
+  if (techEvent) {
+    return getEventContext(techEvent);
+  }
+
+  // If no specific event found, check for major calendar events only
   // (but DON'T use generic "back-to-school" or "fall season" nonsense)
   const month = point.month ?? date.getMonth();
   const dayOfMonth = point.dayOfMonth ?? date.getDate();

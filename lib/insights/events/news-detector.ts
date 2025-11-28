@@ -17,55 +17,68 @@ interface NewsArticle {
 
 /**
  * Fetch news articles for a specific date and keywords
- * This would integrate with NewsAPI, GDELT, or other news sources
+ * Integrates with NewsAPI (requires API key in .env)
  */
 export async function fetchNewsForDate(
   date: string | Date,
   keywords: string[],
   windowDays: number = 3
 ): Promise<NewsArticle[]> {
-  // TODO: Integrate with real news APIs
-  // For now, return empty - will be populated when we add API keys
-
-  /* Example NewsAPI integration:
   const apiKey = process.env.NEWS_API_KEY;
-  if (!apiKey) return [];
 
-  const targetDate = new Date(date);
-  const fromDate = new Date(targetDate);
-  fromDate.setDate(fromDate.getDate() - windowDays);
-  const toDate = new Date(targetDate);
-  toDate.setDate(toDate.getDate() + windowDays);
-
-  const query = keywords.join(' OR ');
-  const url = `https://newsapi.org/v2/everything?` +
-    `q=${encodeURIComponent(query)}&` +
-    `from=${fromDate.toISOString().split('T')[0]}&` +
-    `to=${toDate.toISOString().split('T')[0]}&` +
-    `sortBy=relevancy&` +
-    `language=en&` +
-    `apiKey=${apiKey}`;
+  // If no API key, skip NewsAPI (Wikipedia and GDELT still work)
+  if (!apiKey) {
+    return [];
+  }
 
   try {
-    const response = await fetch(url);
+    const targetDate = new Date(date);
+    const fromDate = new Date(targetDate);
+    fromDate.setDate(fromDate.getDate() - windowDays);
+    const toDate = new Date(targetDate);
+    toDate.setDate(toDate.getDate() + windowDays);
+
+    const query = keywords.join(' OR ');
+    const url = `https://newsapi.org/v2/everything?` +
+      `q=${encodeURIComponent(query)}&` +
+      `from=${fromDate.toISOString().split('T')[0]}&` +
+      `to=${toDate.toISOString().split('T')[0]}&` +
+      `sortBy=relevancy&` +
+      `language=en&` +
+      `pageSize=20&` +
+      `apiKey=${apiKey}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'TrendCompare/1.0 (Trend Analysis Tool)',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('NewsAPI request failed:', response.status);
+      return [];
+    }
+
     const data = await response.json();
 
-    if (data.status === 'ok' && data.articles) {
-      return data.articles.map((article: any) => ({
-        title: article.title,
-        description: article.description,
+    if (data.status === 'ok' && data.articles && data.articles.length > 0) {
+      const articles: NewsArticle[] = data.articles.map((article: any) => ({
+        title: article.title || '',
+        description: article.description || '',
         publishedAt: article.publishedAt,
-        source: article.source.name,
+        source: article.source?.name || 'Unknown',
         url: article.url,
         relevance: calculateRelevance(article, keywords),
-      })).sort((a, b) => b.relevance - a.relevance);
-    }
-  } catch (error) {
-    console.error('News API error:', error);
-  }
-  */
+      }));
 
-  return [];
+      return articles.sort((a, b) => b.relevance - a.relevance);
+    }
+
+    return [];
+  } catch (error) {
+    console.error('NewsAPI error:', error);
+    return [];
+  }
 }
 
 /**
