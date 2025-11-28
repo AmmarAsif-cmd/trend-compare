@@ -136,8 +136,48 @@ export async function detectAnomalies(
 }
 
 /**
+ * Calculate relevance score for an event to a keyword
+ * Returns 0-100, higher = more relevant
+ */
+function calculateEventRelevance(event: { title: string; description: string }, keyword: string): number {
+  const kw = keyword.toLowerCase();
+  const title = event.title.toLowerCase();
+  const desc = event.description.toLowerCase();
+
+  let score = 0;
+
+  // Exact match in title = very relevant
+  if (title === kw || title.includes(` ${kw} `) || title.startsWith(kw + ' ') || title.endsWith(' ' + kw)) {
+    score += 50;
+  }
+
+  // Title contains keyword
+  if (title.includes(kw)) {
+    score += 30;
+  }
+
+  // Description contains keyword
+  if (desc.includes(kw)) {
+    score += 10;
+  }
+
+  // Penalize if event is about specific content when searching for platforms
+  // e.g., "honey singh documentary" shouldn't match "netflix" search
+  const platformKeywords = ['netflix', 'disney', 'hulu', 'amazon', 'apple', 'google', 'microsoft', 'meta', 'aws', 'azure'];
+  if (platformKeywords.includes(kw)) {
+    // If title is about specific content/people, penalize
+    const isSpecificContent = title.match(/\b(documentary|movie|show|series|fight|match|vs|concert|album)\b/);
+    if (isSpecificContent && !title.includes(kw)) {
+      score = Math.max(0, score - 40); // Heavy penalty
+    }
+  }
+
+  return Math.min(100, score);
+}
+
+/**
  * Infer context for why a spike might have occurred
- * Uses MULTI-SOURCE detection - Wikipedia, GDELT, NewsAPI, tech database
+ * PRIORITIZES APIs over database, uses relevance scoring
  * If nothing is found, returns undefined - NO GUESSING!
  */
 async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): Promise<string | undefined> {
@@ -147,30 +187,53 @@ async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): 
   console.log(`[Event Detection] Searching for events on ${point.date} with keywords:`, keywords);
 
   try {
-    // Try multi-source event detection (Wikipedia + GDELT + NewsAPI + Tech DB)
+    // STRATEGY 1: Try APIs first (Wikipedia + GDELT + NewsAPI)
+    // These are live, comprehensive, and always up-to-date
     const event = await getBestEventExplanation(point.date, keywords, 7);
 
     if (event) {
-      console.log(`[Event Detection] ✓ Found event:`, event.title, `(${event.sources.length} sources)`);
-      return formatEventForDisplay(event);
+      // Calculate relevance score for this event
+      const relevanceScores = keywords.map(kw => calculateEventRelevance(event, kw));
+      const maxRelevance = Math.max(...relevanceScores);
+
+      console.log(`[Event Detection] API event relevance: ${maxRelevance}/100 for "${event.title}"`);
+
+      // Only use if relevance is decent (>30)
+      if (maxRelevance > 30) {
+        console.log(`[Event Detection] ✓ Using API event:`, event.title, `(${event.sources.length} sources, ${maxRelevance}% relevant)`);
+        return formatEventForDisplay(event);
+      } else {
+        console.log(`[Event Detection] ✗ API event too generic (${maxRelevance}% relevance), trying fallback`);
+      }
     }
 
-    console.log(`[Event Detection] ✗ No events found from any API source`);
+    console.log(`[Event Detection] ✗ No relevant events from APIs`);
   } catch (error) {
     console.error('[Event Detection] API error:', error);
   }
 
-  // Fallback to tech database only (instant, no API calls)
+  // STRATEGY 2: Fallback to curated tech database (only for high-impact, broad events)
   const techEvent = getBestMatchingEvent(point.date, keywords, 7);
 
   if (techEvent) {
-    console.log(`[Event Detection] ✓ Found in tech DB:`, techEvent.title);
-    return getEventContext(techEvent);
+    // Calculate relevance for tech database event
+    const relevanceScores = keywords.map(kw => calculateEventRelevance(techEvent, kw));
+    const maxRelevance = Math.max(...relevanceScores);
+
+    console.log(`[Event Detection] Tech DB event relevance: ${maxRelevance}/100 for "${techEvent.title}"`);
+
+    // Only use if highly relevant (>40) - database events must be more relevant
+    if (maxRelevance > 40) {
+      console.log(`[Event Detection] ✓ Using tech DB event:`, techEvent.title, `(${maxRelevance}% relevant)`);
+      return getEventContext(techEvent);
+    } else {
+      console.log(`[Event Detection] ✗ Tech DB event not relevant enough (${maxRelevance}%)`);
+    }
   }
 
   // NO GENERIC FALLBACKS!
-  // If we don't know, we don't know - don't make up wrong answers
-  console.log(`[Event Detection] ✗ No explanation found - returning undefined`);
+  // Better to show no explanation than a wrong one
+  console.log(`[Event Detection] ✗ No relevant explanation found - returning undefined`);
   return undefined;
 }
 

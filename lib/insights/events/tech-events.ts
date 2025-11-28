@@ -186,19 +186,19 @@ export const TECH_EVENTS_2024: TechEvent[] = [
     date: '2024-12-22',
     title: 'Yo Yo Honey Singh Netflix Documentary Release',
     description: 'Netflix releases documentary on Yo Yo Honey Singh',
-    keywords: ['honey-singh', 'yo-yo-honey-singh', 'netflix', 'documentary', 'honey singh'],
+    keywords: ['honey-singh', 'yo-yo-honey-singh', 'documentary', 'honey singh'],
     category: 'news',
     company: 'Netflix',
-    impact: 'high',
+    impact: 'medium', // Changed from high - it's specific content, not platform-wide
   },
   {
     date: '2024-11-15',
     title: 'Netflix Mike Tyson vs Jake Paul Fight',
     description: 'Netflix livestreams Jake Paul vs Mike Tyson boxing match',
-    keywords: ['netflix', 'jake-paul', 'mike-tyson', 'boxing', 'fight'],
+    keywords: ['jake-paul', 'mike-tyson', 'boxing', 'fight', 'tyson'],
     category: 'news',
     company: 'Netflix',
-    impact: 'high',
+    impact: 'medium', // Specific event, not platform-wide
   },
   {
     date: '2024-07-18',
@@ -363,6 +363,46 @@ export const TECH_EVENTS_2024: TechEvent[] = [
     keywords: ['apple', 'vision-pro', 'vr', 'ar'],
     category: 'product-launch',
     company: 'Apple',
+    impact: 'high',
+  },
+
+  // Cloud & Infrastructure Events (platform-level)
+  {
+    date: '2024-06-13',
+    title: 'AWS Global Outage',
+    description: 'Amazon Web Services experiences widespread service disruption affecting multiple regions',
+    keywords: ['aws', 'amazon-web-services', 'outage', 'down', 'amazon'],
+    category: 'news',
+    company: 'Amazon',
+    impact: 'high',
+  },
+  {
+    date: '2024-03-08',
+    title: 'Azure Service Disruption',
+    description: 'Microsoft Azure cloud services experience outage affecting enterprise customers',
+    keywords: ['azure', 'microsoft', 'cloud', 'outage', 'down'],
+    category: 'news',
+    company: 'Microsoft',
+    impact: 'high',
+  },
+
+  // Streaming Platform Events (platform-level)
+  {
+    date: '2024-11-01',
+    title: 'Netflix Password Sharing Crackdown Expansion',
+    description: 'Netflix expands password sharing restrictions to more countries',
+    keywords: ['netflix', 'password-sharing', 'subscription'],
+    category: 'announcement',
+    company: 'Netflix',
+    impact: 'high',
+  },
+  {
+    date: '2024-12-08',
+    title: 'Disney+ Price Increase Announced',
+    description: 'Disney announces subscription price increases across all tiers',
+    keywords: ['disney', 'disney+', 'disney-plus', 'price', 'subscription'],
+    category: 'announcement',
+    company: 'Disney',
     impact: 'high',
   },
 ];
