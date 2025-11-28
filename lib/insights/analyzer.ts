@@ -73,7 +73,7 @@ export async function analyzeComparison(
 
   // Analyze each term individually
   const termInsights = await Promise.all(
-    terms.slice(0, 2).map(term => analyzeTerm(term, enrichedSeries, cfg))
+    terms.slice(0, 2).map(term => analyzeTerm(term, enrichedSeries, cfg, terms))
   );
 
   // If we have 2 terms, do comparative analysis
@@ -114,7 +114,8 @@ export async function analyzeComparison(
 async function analyzeTerm(
   term: string,
   series: EnrichedDataPoint[],
-  config: Required<AnalyzerConfig>
+  config: Required<AnalyzerConfig>,
+  allTerms: string[] = []
 ) {
   const insights: {
     seasonal: SeasonalPattern[];
@@ -152,11 +153,15 @@ async function analyzeTerm(
         series,
         term,
         config.spikeThresholdStdDev,
-        config.minSpikeMagnitude
+        config.minSpikeMagnitude,
+        allTerms // Pass all terms for better event matching
       ).slice(0, config.maxInsightsPerType);
 
-      insights.anomalies = detectAnomalies(series, term)
-        .slice(0, config.maxInsightsPerType);
+      insights.anomalies = detectAnomalies(
+        series,
+        term,
+        allTerms // Pass all terms for better event matching
+      ).slice(0, config.maxInsightsPerType);
     }
 
     // Trend analysis

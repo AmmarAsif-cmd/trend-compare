@@ -136,6 +136,77 @@ export default function ContentEngineInsights({
               .replace(/trending stronger/gi, 'getting more popular')
               .replace(/momentum advantage/gi, 'search growth lead');
 
+            // Special handling for events section - parse out individual events
+            if (isEvents && humanContent.includes('On ')) {
+              const eventMatches = humanContent.match(/On [^.]+\./g) || [];
+              const intro = humanContent.split('On ')[0];
+              const outro = humanContent.split('.').slice(-1)[0];
+
+              return (
+                <div key={idx} className="p-6 bg-gradient-to-br from-amber-50/30 to-orange-50/20 border-t-2 border-amber-200/50">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="text-2xl flex-shrink-0">{icon}</span>
+                    <div className="flex-1">
+                      <div className="flex items-baseline justify-between gap-3 mb-1">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {cleanTitle}
+                        </h3>
+                        <span className="text-xs font-medium text-amber-700 uppercase tracking-wide flex-shrink-0 bg-amber-100 px-2 py-1 rounded">
+                          {label}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 text-sm mb-3">{intro.trim()}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 ml-11">
+                    {eventMatches.map((event, i) => {
+                      // Extract date and description
+                      const parts = event.match(/On ([^,]+), ([^-]+) - (.+)\./) ||
+                                    event.match(/On ([^,]+), (.+)\./);
+                      if (!parts) return null;
+
+                      const hasRealEvent = event.includes('likely due to:') || event.includes('Product Launch') ||
+                                           event.includes('Announcement') || event.includes('Conference');
+
+                      return (
+                        <div
+                          key={i}
+                          className={`p-3 rounded-lg border ${
+                            hasRealEvent
+                              ? 'bg-white border-emerald-200 shadow-sm'
+                              : 'bg-white/50 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex gap-2 items-start">
+                            <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-slate-400 mt-2"></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-slate-700 leading-relaxed">
+                                {event.replace(/^On /, '').replace(/\.$/, '')}
+                              </p>
+                              {hasRealEvent && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                    Real Event Identified
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }).filter(Boolean)}
+                  </div>
+
+                  {outro && (
+                    <p className="text-xs text-slate-600 mt-3 ml-11 italic">
+                      {outro.trim()}
+                    </p>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div key={idx} className="p-6 hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-start gap-3 mb-3">

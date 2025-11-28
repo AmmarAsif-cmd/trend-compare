@@ -6,6 +6,7 @@
 
 import type { InsightPackage } from './core/types';
 import { formatDate } from './core/temporal';
+import { deduplicateEvents, sortByImportance, isMeaningfulInsight } from './utils/dedup';
 
 export type NarrativeSection = {
   title: string;
@@ -286,42 +287,60 @@ function generateSeasonalSection(insight: InsightPackage): NarrativeSection | nu
  */
 function generateEventsSection(insight: InsightPackage): NarrativeSection | null {
   // Collect all spikes and anomalies
-  const events = insight.termInsights.flatMap(ti => [
+  let events = insight.termInsights.flatMap(ti => [
     ...(ti.spikes || []).map((s: any) => ({ ...s, term: ti.term, eventType: 'spike' })),
     ...(ti.anomalies || []).map((a: any) => ({ ...a, term: ti.term, eventType: 'anomaly' })),
   ]);
 
   if (events.length === 0) return null;
 
-  // Sort by magnitude
-  events.sort((a, b) => b.magnitude - a.magnitude);
+  // DEDUPLICATE - remove duplicate events
+  events = deduplicateEvents(events);
+
+  // SORT by importance (magnitude + context + recency)
+  events = sortByImportance(events);
+
+  // Only show events with context (real explanations), or top 3 without context
+  const eventsWithContext = events.filter(e => e.context);
+  const eventsWithoutContext = events.filter(e => !e.context);
+
+  const finalEvents = [
+    ...eventsWithContext.slice(0, 3),
+    ...eventsWithoutContext.slice(0, Math.max(0, 3 - eventsWithContext.length)),
+  ];
+
+  if (finalEvents.length === 0) return null;
 
   let content = 'Here are the most notable moments when search interest jumped significantly: ';
 
   const descriptions: string[] = [];
 
-  for (const event of events.slice(0, 5)) {
+  for (const event of finalEvents) {
     const date = formatDate(event.date, 'long');
-    // Make description more user-friendly
+    // The description now includes the event context from our database
     const friendlyDesc = event.description
       .replace(/surge/gi, 'increase in searches')
       .replace(/drop/gi, 'decrease in searches')
       .replace(/detected/gi, 'happened');
 
     descriptions.push(
-      `On ${date}, ${event.term} saw ${friendlyDesc}`
+      `On ${date}, ${event.term} - ${friendlyDesc}`
     );
   }
 
   content += descriptions.join('. ') + '. ';
 
-  content += 'These spikes often happen because of news events, product launches, holidays, or other things that get people searching.';
+  if (eventsWithContext.length > 0) {
+    content += 'These spikes are linked to real product launches, announcements, and industry events.';
+  } else {
+    content += 'These spikes may be related to news events, product launches, or trending topics - we\'re working on identifying the specific causes.';
+  }
 
   return {
     title: 'Standout Moments',
     content,
     type: 'events',
-    confidence: 85,
+    confidence: eventsWithContext.length > 0 ? 90 : 70,
   };
 }
 
@@ -379,52 +398,60 @@ function generateHeadlines(insight: InsightPackage): { headline: string; subtitl
 function generateKeyTakeaways(insight: InsightPackage, sections: NarrativeSection[]): string[] {
   const takeaways: string[] = [];
 
-  // Overall trend
-  for (const ti of insight.termInsights) {
-    if (ti.trend && takeaways.length < 5) {
+  // Comparison winner (most important)
+  if (insight.comparison?.leader && takeaways.length < 5) {
+    const gap = Math.round(insight.comparison.gap);
+    if (gap >= 10) { // Only show if gap is significant
       takeaways.push(
-        `${ti.term} is ${ti.trend.direction.replace('-', ' ')} with ${ti.trend.strength}% trend strength`
+        `${insight.comparison.leader} is currently trending ${gap}% stronger`
       );
     }
   }
 
-  // Comparison winner
-  if (insight.comparison?.leader && takeaways.length < 5) {
-    takeaways.push(
-      `${insight.comparison.leader} is currently trending ${Math.round(insight.comparison.gap)}% stronger`
-    );
-  }
-
-  // Top spike
+  // Top spike (with context if available)
   for (const ti of insight.termInsights) {
     if (ti.spikes && ti.spikes.length > 0 && takeaways.length < 5) {
       const topSpike = ti.spikes[0];
-      takeaways.push(
-        `Largest spike: ${Math.round(topSpike.magnitude)}% surge in ${ti.term} on ${formatDate(topSpike.date, 'short')}`
-      );
+      if (topSpike.magnitude >= 30) { // Only show significant spikes
+        takeaways.push(
+          `Biggest jump: ${Math.round(topSpike.magnitude)}% increase in searches in ${ti.term} on ${formatDate(topSpike.date, 'short')}`
+        );
+      }
     }
   }
 
-  // Seasonal pattern
+  // Overall trend (ONLY if strength > 10%)
+  for (const ti of insight.termInsights) {
+    if (ti.trend && ti.trend.strength > 10 && takeaways.length < 5) {
+      const direction = ti.trend.direction;
+      if (direction.includes('growth')) {
+        takeaways.push(
+          `${ti.term} is showing ${ti.trend.strength}% growth trend`
+        );
+      } else if (direction.includes('decline')) {
+        takeaways.push(
+          `${ti.term} is showing ${ti.trend.strength}% decline`
+        );
+      }
+    }
+  }
+
+  // Seasonal pattern (only if strong)
   for (const ti of insight.termInsights) {
     if (ti.seasonal && ti.seasonal.length > 0 && takeaways.length < 5) {
       const pattern = ti.seasonal[0];
-      takeaways.push(
-        `${ti.term} shows ${pattern.period} seasonality with ${pattern.strength}% variation`
-      );
+      if (pattern.strength >= 20) { // Only show strong seasonal patterns
+        takeaways.push(
+          `${ti.term} shows ${pattern.period} seasonality with ${pattern.strength}% variation`
+        );
+      }
     }
   }
 
-  // Volatility
-  for (const ti of insight.termInsights) {
-    if (ti.volatility && takeaways.length < 5) {
-      takeaways.push(
-        `${ti.term} interest is ${ti.volatility.level.replace('-', ' ')} (${ti.volatility.stability}% stability score)`
-      );
-    }
-  }
+  // Filter out weak/meaningless takeaways
+  const filtered = takeaways.filter(t => isMeaningfulInsight(t));
 
-  return takeaways.slice(0, 5);
+  return filtered.slice(0, 5);
 }
 
 /**

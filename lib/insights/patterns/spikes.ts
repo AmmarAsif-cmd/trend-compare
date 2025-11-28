@@ -13,6 +13,7 @@ import {
   getMonthName,
   getDayName,
 } from '../core/temporal';
+import { findEventsNearDate, getBestMatchingEvent, getEventContext } from '../events/tech-events';
 
 /**
  * Detect spikes (unusual surges)
@@ -21,7 +22,8 @@ export function detectSpikes(
   series: EnrichedDataPoint[],
   term: string,
   thresholdStdDev: number = 2,
-  minMagnitude: number = 20
+  minMagnitude: number = 20,
+  allTerms: string[] = []
 ): SpikeEvent[] {
   if (series.length < 7) return []; // Need minimum data
 
@@ -46,7 +48,8 @@ export function detectSpikes(
       // Only consider significant spikes
       if (magnitude >= minMagnitude) {
         const zScore = calculateZScore(value, mean, stdDev);
-        const context = inferSpikeContext(point);
+        const keywords = allTerms.length > 0 ? allTerms : [term];
+        const context = inferSpikeContext(point, keywords);
 
         spikes.push({
           type: 'spike',
@@ -82,12 +85,15 @@ export function detectSpikes(
  */
 export function detectAnomalies(
   series: EnrichedDataPoint[],
-  term: string
+  term: string,
+  allTerms: string[] = []
 ): SpikeEvent[] {
   if (series.length < 10) return [];
 
   const values = series.map(p => p[term] as number);
   const outlierIndices = detectOutliers(values);
+
+  const keywords = allTerms.length > 0 ? allTerms : [term];
 
   const anomalies: SpikeEvent[] = outlierIndices.map(index => {
     const point = series[index];
@@ -104,10 +110,10 @@ export function detectAnomalies(
       value,
       magnitude,
       zScore,
-      context: inferSpikeContext(point),
+      context: inferSpikeContext(point, keywords),
       confidence: Math.min(100, Math.round(Math.abs(zScore) * 25)),
       strength: Math.round(Math.abs(magnitude)),
-      description: generateAnomalyDescription(magnitude, point),
+      description: generateAnomalyDescription(magnitude, point, inferSpikeContext(point, keywords)),
       dataPoints: [index],
       metadata: {
         detectionMethod: 'IQR',
@@ -120,83 +126,45 @@ export function detectAnomalies(
 
 /**
  * Infer context for why a spike might have occurred
- * Uses GENERIC calendar events - NO keyword-specific logic
+ * Uses REAL EVENTS - product launches, news, actual happenings
  */
-function inferSpikeContext(point: EnrichedDataPoint): string | undefined {
+function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): string | undefined {
   const date = new Date(point.date);
+
+  // First, try to find a real tech event
+  const matchedEvent = getBestMatchingEvent(point.date, keywords, 7);
+
+  if (matchedEvent) {
+    return getEventContext(matchedEvent);
+  }
+
+  // If no specific tech event, check for major calendar events only
+  // (but DON'T use generic "back-to-school" or "fall season" nonsense)
   const month = point.month ?? date.getMonth();
   const dayOfMonth = point.dayOfMonth ?? date.getDate();
-  const dayOfWeek = point.dayOfWeek ?? date.getDay();
 
-  // Check for generic calendar patterns
-  const contexts: string[] = [];
+  // Black Friday
+  if (month === 10 && dayOfMonth >= 23 && dayOfMonth <= 29) {
+    return 'Black Friday shopping event';
+  }
 
-  // Holiday season
+  // Cyber Monday
+  if (month === 10 && dayOfMonth >= 26 && dayOfMonth <= 30) {
+    return 'Cyber Monday online shopping';
+  }
+
+  // Christmas shopping
   if (month === 11 && dayOfMonth >= 20) {
-    contexts.push('Holiday shopping period');
-  } else if (month === 10 && dayOfMonth >= 20) {
-    contexts.push('Black Friday/Cyber Monday period');
+    return 'Christmas holiday shopping';
   }
 
   // New Year
   if (month === 0 && dayOfMonth <= 7) {
-    contexts.push('New Year period');
+    return 'New Year resolutions and shopping';
   }
 
-  // Back to school
-  if ((month === 7 && dayOfMonth >= 15) || (month === 8 && dayOfMonth <= 15)) {
-    contexts.push('Back-to-school season');
-  }
-
-  // Spring season (tax refunds, spring shopping)
-  if (month >= 2 && month <= 4) {
-    contexts.push('Spring season');
-  }
-
-  // Summer vacation
-  if (month >= 5 && month <= 7) {
-    contexts.push('Summer period');
-  }
-
-  // Fall season
-  if (month >= 8 && month <= 10) {
-    contexts.push('Fall season');
-  }
-
-  // Payday patterns (beginning/end of month)
-  if (dayOfMonth <= 5) {
-    contexts.push('Beginning of month');
-  } else if (dayOfMonth >= 25) {
-    contexts.push('End of month');
-  }
-
-  // Weekend patterns
-  if (point.isWeekend || dayOfWeek === 0 || dayOfWeek === 6) {
-    contexts.push('Weekend');
-  }
-
-  // Mid-week (Tuesday-Thursday typically higher for B2B)
-  if (dayOfWeek >= 2 && dayOfWeek <= 4) {
-    contexts.push('Mid-week period');
-  }
-
-  // Major shopping days
-  if (isShoppingSeason(date)) {
-    contexts.push('Major shopping season');
-  }
-
-  // Holiday
-  if (isHoliday(date)) {
-    contexts.push('Major holiday');
-  }
-
-  // Quarter end (business reporting)
-  const isQuarterEnd = (month + 1) % 3 === 0 && dayOfMonth >= 25;
-  if (isQuarterEnd) {
-    contexts.push('Quarter-end period');
-  }
-
-  return contexts.length > 0 ? contexts[0] : undefined;
+  // No generic seasonal context - if we don't know, we don't know
+  return undefined;
 }
 
 /**
@@ -211,10 +179,10 @@ function generateSpikeDescription(
   const rounded = Math.round(magnitude);
 
   if (context) {
-    return `${rounded}% surge on ${date}, coinciding with ${context.toLowerCase()}`;
+    return `${rounded}% increase in searches on ${date} - likely due to: ${context}`;
   }
 
-  return `${rounded}% increase observed on ${date}`;
+  return `${rounded}% increase in searches on ${date}`;
 }
 
 /**
@@ -222,15 +190,22 @@ function generateSpikeDescription(
  */
 function generateAnomalyDescription(
   magnitude: number,
-  point: EnrichedDataPoint
+  point: EnrichedDataPoint,
+  context?: string
 ): string {
   const date = formatDate(point.date, 'long');
   const rounded = Math.round(Math.abs(magnitude));
 
   if (magnitude > 0) {
-    return `Unusual ${rounded}% surge detected on ${date}`;
+    if (context) {
+      return `Unusual ${rounded}% increase in searches on ${date} - likely due to: ${context}`;
+    }
+    return `Unusual ${rounded}% increase in searches on ${date}`;
   } else {
-    return `Unusual ${rounded}% drop detected on ${date}`;
+    if (context) {
+      return `Unusual ${rounded}% drop in searches on ${date} - possibly related to: ${context}`;
+    }
+    return `Unusual ${rounded}% drop in searches on ${date}`;
   }
 }
 
