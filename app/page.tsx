@@ -7,6 +7,7 @@ import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
 import TopGoogleSearches from "@/components/TopGoogleSearches";
 import LiveTrendingDashboard from "@/components/LiveTrendingDashboard";
+import DataSources from "@/components/DataSources";
 
 export default function Home() {
   return (
@@ -14,10 +15,19 @@ export default function Home() {
       <HeroSection />
 
       {/* Trending This Week + Live Dashboard */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-        <div className="grid lg:grid-cols-2 gap-8">
-          <TopThisWeekWrapper />
-          <LiveTrendingDashboard />
+      <div className="bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-8">
+            <TopThisWeekWrapper />
+            <LiveTrendingDashboard />
+          </div>
+        </div>
+      </div>
+
+      {/* Data Sources - Build Trust */}
+      <div className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-20">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <DataSources />
         </div>
       </div>
 
@@ -26,8 +36,10 @@ export default function Home() {
       <HowItWorksSection />
       <UseCasesSection />
 
-      <div id="faq" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-        <FAQSection />
+      <div id="faq" className="bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <FAQSection />
+        </div>
       </div>
 
       <CTASection />

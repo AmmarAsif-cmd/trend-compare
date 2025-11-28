@@ -14,6 +14,7 @@ import RelatedComparisons from "@/components/RelatedComparisons";
 import CompareStats from "@/components/CompareStats";
 import ContentEngineInsights from "@/components/ContentEngineInsights";
 import { generateComparisonContent } from "@/lib/content-engine";
+import SearchBreakdown from "@/components/SearchBreakdown";
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -620,6 +621,9 @@ export default async function ComparePage({
               </div>
             ))}
           </section>
+
+          {/* Search Interest Breakdown */}
+          <SearchBreakdown series={series} termA={keyA} termB={keyB} />
 
           {/* Prediction */}
           <section className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">

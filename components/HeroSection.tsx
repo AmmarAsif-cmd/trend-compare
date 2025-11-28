@@ -4,7 +4,7 @@ import DynamicHeroChart from "@/components/DynamicHeroChart";
 
 export default function HeroSection() {
   return (
-    <section className="bg-gradient-to-b from-slate-50 to-white py-12 sm:py-16 lg:py-20">
+    <section className="bg-gradient-to-b from-slate-50 to-white py-16 sm:py-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           {/* Badge */}

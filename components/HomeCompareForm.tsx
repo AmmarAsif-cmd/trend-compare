@@ -202,9 +202,9 @@ export default function HomeCompareForm() {
             className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
-          {/* Quick examples for Field A */}
-          {!a && active !== "a" && (
-            <div className="absolute left-0 right-0 top-full mt-2 flex flex-wrap gap-1.5 z-10">
+          {/* Quick examples for Field A - only show when not active and no suggestions */}
+          {!a && active !== "a" && !open && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {QUICK_EXAMPLES.a.slice(0, 3).map((example) => (
                 <button
                   key={example}
@@ -277,9 +277,9 @@ export default function HomeCompareForm() {
             className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
-          {/* Quick examples for Field B */}
-          {!b && active !== "b" && (
-            <div className="absolute left-0 right-0 top-full mt-2 flex flex-wrap gap-1.5 z-10">
+          {/* Quick examples for Field B - only show when not active and no suggestions */}
+          {!b && active !== "b" && !open && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {QUICK_EXAMPLES.b.slice(0, 3).map((example) => (
                 <button
                   key={example}
