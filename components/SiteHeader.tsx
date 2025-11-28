@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { TrendingUp, ArrowRight } from "lucide-react";
+import { BRAND, TAGLINE } from "@/lib/brand";
 
 function isActive(pathname: string, href: string) {
   return pathname === href;
@@ -19,11 +21,19 @@ export default function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200">
-      <nav className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+      <nav className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-12 w-12 rounded-lg bg-slate-900 text-white grid place-items-center text-2xl font-bold">
-            TA
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
+            <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {BRAND}
+            </span>
+            <span className="text-xs sm:text-sm text-slate-500 hidden sm:block">
+              {TAGLINE}
+            </span>
           </div>
         </Link>
 
