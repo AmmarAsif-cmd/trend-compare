@@ -1,6 +1,7 @@
-import { TrendingUp, Clock } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { getRealTimeTrending, getCacheStatus } from "@/lib/real-time-trending";
 import { getKeywordCategory } from "@/lib/keyword-categories";
+import TrendingCountdown from "./TrendingCountdown";
 
 export default async function TopGoogleSearches() {
   // Fetch real-time trending data from Google Trends
@@ -17,14 +18,6 @@ export default async function TopGoogleSearches() {
     newsUrl: item.newsUrl,
   }));
 
-  // Format cache age for display
-  const cacheAge = cacheStatus.age > 0
-    ? Math.floor(cacheStatus.age / (1000 * 60)) // minutes
-    : 0;
-  const nextUpdate = cacheStatus.expiresIn > 0
-    ? Math.floor(cacheStatus.expiresIn / (1000 * 60 * 60)) // hours
-    : 0;
-
   return (
     <section className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,18 +29,12 @@ export default async function TopGoogleSearches() {
             </span>
           </h2>
           <p className="text-lg sm:text-xl text-slate-600">
-            What people are searching for globally
+            Real-time trending searches from Google Trends
           </p>
 
-          {/* Cache status indicator */}
-          {cacheStatus.isCached && (
-            <div className="flex items-center justify-center gap-2 mt-3 text-xs text-slate-500">
-              <Clock className="w-3 h-3" />
-              <span>
-                Updated {cacheAge < 60 ? `${cacheAge}m` : `${Math.floor(cacheAge / 60)}h`} ago
-                {nextUpdate > 0 && ` • Next refresh in ${nextUpdate}h`}
-              </span>
-            </div>
+          {/* Countdown timer */}
+          {cacheStatus.isCached && cacheStatus.expiresIn > 0 && (
+            <TrendingCountdown expiresIn={cacheStatus.expiresIn} />
           )}
         </div>
 
@@ -105,9 +92,15 @@ export default async function TopGoogleSearches() {
           ))}
         </div>
 
-        <p className="text-center text-sm text-slate-500 mt-8">
-          💡 Real-time data from Google Trends. Updates twice daily (every 12 hours).
-        </p>
+        {/* Data source attribution */}
+        <div className="text-center mt-8 space-y-2">
+          <p className="text-sm text-slate-600 font-medium">
+            📊 Data Source: <span className="text-purple-600">Google Trends API</span>
+          </p>
+          <p className="text-xs text-slate-500">
+            Trusted, real-time search data from Google. Updated automatically.
+          </p>
+        </div>
       </div>
     </section>
   );

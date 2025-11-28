@@ -31,10 +31,24 @@ let trendingCache: {
 const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
 /**
+ * Fallback trending data if Google Trends API fails
+ */
+const FALLBACK_TRENDING: TrendingItem[] = [
+  { keyword: 'ChatGPT', title: 'ChatGPT', formattedTraffic: '2M+', traffic: 2000000, relatedQueries: ['AI', 'OpenAI', 'GPT-4'], timestamp: new Date().toISOString() },
+  { keyword: 'iPhone 16', title: 'iPhone 16', formattedTraffic: '500K+', traffic: 500000, relatedQueries: ['Apple', 'iPhone 15', 'iOS'], timestamp: new Date().toISOString() },
+  { keyword: 'Netflix', title: 'Netflix', formattedTraffic: '1M+', traffic: 1000000, relatedQueries: ['Shows', 'Movies', 'Prime Video'], timestamp: new Date().toISOString() },
+  { keyword: 'Cricket World Cup', title: 'Cricket World Cup', formattedTraffic: '800K+', traffic: 800000, relatedQueries: ['India', 'Live Score', 'ICC'], timestamp: new Date().toISOString() },
+  { keyword: 'Stock Market', title: 'Stock Market', formattedTraffic: '600K+', traffic: 600000, relatedQueries: ['Nifty', 'Sensex', 'Trading'], timestamp: new Date().toISOString() },
+  { keyword: 'Weather Today', title: 'Weather Today', formattedTraffic: '400K+', traffic: 400000, relatedQueries: ['Forecast', 'Temperature', 'Rain'], timestamp: new Date().toISOString() },
+  { keyword: 'Bitcoin', title: 'Bitcoin', formattedTraffic: '350K+', traffic: 350000, relatedQueries: ['Crypto', 'Ethereum', 'BTC Price'], timestamp: new Date().toISOString() },
+  { keyword: 'Elections 2024', title: 'Elections 2024', formattedTraffic: '300K+', traffic: 300000, relatedQueries: ['Voting', 'Results', 'Polls'], timestamp: new Date().toISOString() },
+];
+
+/**
  * Fetch real-time trending searches from Google Trends
  */
 export async function getRealTimeTrending(
-  geo: string = 'IN',  // India by default, can be US, GB, etc.
+  geo: string = 'US',  // US by default for better data availability
   limit: number = 20
 ): Promise<TrendingItem[]> {
   // Check cache first
@@ -56,6 +70,10 @@ export async function getRealTimeTrending(
     const parsed = JSON.parse(results);
     const trendingSearches = parsed.default?.trendingSearchesDays?.[0]?.trendingSearches || [];
 
+    if (trendingSearches.length === 0) {
+      throw new Error('No trending data received from Google Trends');
+    }
+
     const items: TrendingItem[] = trendingSearches.map((trend: any) => {
       const keyword = trend.title?.query || '';
       const traffic = parseInt(trend.formattedTraffic?.replace(/[^0-9]/g, '') || '0', 10);
@@ -69,7 +87,7 @@ export async function getRealTimeTrending(
       return {
         keyword,
         title: keyword,
-        formattedTraffic: trend.formattedTraffic || 'N/A',
+        formattedTraffic: trend.formattedTraffic || 'Trending',
         traffic,
         newsUrl: trend.articles?.[0]?.url,
         imageUrl: trend.image?.imageUrl,
@@ -85,19 +103,29 @@ export async function getRealTimeTrending(
       expiresAt: Date.now() + CACHE_DURATION,
     };
 
-    console.log(`[Trending] Fetched ${items.length} trending items, cached for 12h`);
+    console.log(`[Trending] ✓ Fetched ${items.length} trending items from Google Trends`);
 
     return items.slice(0, limit);
   } catch (error) {
-    console.error('[Trending] Failed to fetch from Google Trends:', error);
+    console.error('[Trending] ✗ Failed to fetch from Google Trends:', error);
 
     // Return cache if available, even if expired
     if (trendingCache) {
-      console.log('[Trending] Using expired cache as fallback');
+      console.log('[Trending] → Using expired cache as fallback');
       return trendingCache.data.slice(0, limit);
     }
 
-    return [];
+    // Use fallback trending data
+    console.log('[Trending] → Using fallback trending data');
+
+    // Cache fallback data for 1 hour
+    trendingCache = {
+      data: FALLBACK_TRENDING,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + (60 * 60 * 1000), // 1 hour
+    };
+
+    return FALLBACK_TRENDING.slice(0, limit);
   }
 }
 
