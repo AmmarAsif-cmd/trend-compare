@@ -12,6 +12,7 @@ import { getWikipediaEventsNearDate, type WikipediaEvent } from './wikipedia-eve
 import { getGDELTEventsNearDate, type GDELTEvent } from './gdelt-events';
 import { fetchNewsForDate, newsToEvent } from './news-detector';
 import { expandKeywords } from './keyword-expander';
+import { getIntelligentKeywords, recordEventDetection } from './event-intelligence';
 
 export interface UnifiedEvent {
   date: string;
@@ -34,11 +35,14 @@ export async function detectEventsMultiSource(
 ): Promise<UnifiedEvent[]> {
   const targetDate = new Date(date);
 
-  // Expand keywords to improve search (e.g., "honey-singh" → "honey singh", "honey singh documentary", etc.)
-  const expandedKeywords = expandKeywords(keywords);
+  // Step 1: Get base expanded keywords
+  const baseExpanded = expandKeywords(keywords);
+
+  // Step 2: Enhance with intelligent keywords from historical success
+  const expandedKeywords = getIntelligentKeywords(keywords, baseExpanded);
 
   console.log('[Multi-Source] Original keywords:', keywords);
-  console.log('[Multi-Source] Expanded keywords:', expandedKeywords.slice(0, 10)); // Log first 10
+  console.log('[Multi-Source] Intelligent + Expanded keywords:', expandedKeywords.slice(0, 15)); // Log first 15
 
   // Fetch from all sources in parallel
   const [techEvents, wikiEvents, gdeltEvents, newsArticles] = await Promise.all([
@@ -74,6 +78,25 @@ export async function detectEventsMultiSource(
 
   // Cross-verify between sources
   const verified = crossVerifyEvents(unified);
+
+  // Record successful detections for learning (asynchronously, don't block)
+  if (verified.length > 0) {
+    // Record each verified event to improve future searches
+    for (const event of verified.filter(e => e.verified)) {
+      try {
+        // Determine which keyword variation led to this event
+        // Use the title to match against our expanded keywords
+        const matchingKeyword = expandedKeywords.find(kw =>
+          event.title.toLowerCase().includes(kw.toLowerCase()) ||
+          event.description.toLowerCase().includes(kw.toLowerCase())
+        ) || expandedKeywords[0];
+
+        recordEventDetection(keywords, expandedKeywords, event, matchingKeyword);
+      } catch (error) {
+        console.warn('[Intelligence] Failed to record detection:', error);
+      }
+    }
+  }
 
   // Sort by confidence and relevance
   return verified.sort((a, b) => {
