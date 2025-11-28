@@ -14,11 +14,20 @@ type SearchBreakdownProps = {
   termB: string;
 };
 
+type QuarterData = {
+  label: string;
+  period: string;
+  avgA: number;
+  avgB: number;
+  leader: string;
+  gap: number;
+};
+
 export default function SearchBreakdown({ series, termA, termB }: SearchBreakdownProps) {
   if (series.length < 12) return null; // Need enough data
 
   // Calculate quarterly averages
-  const quarters = [];
+  const quarters: QuarterData[] = [];
   const quarterSize = Math.floor(series.length / 4);
 
   for (let i = 0; i < 4; i++) {
