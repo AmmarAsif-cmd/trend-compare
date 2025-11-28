@@ -13,10 +13,10 @@ import type { SeriesPoint } from '@/lib/trends';
  * Time series data point with metadata
  * Format supports ML feature engineering
  */
-export interface EnrichedDataPoint extends SeriesPoint {
+export interface EnrichedDataPoint {
   // Original data
   date: string;
-  [term: string]: number | string;
+  [term: string]: number | string | boolean | undefined;
 
   // ML-ready metadata (added during preprocessing)
   dayOfWeek?: number;        // 0-6 (ML feature)
@@ -110,34 +110,17 @@ export interface ComparisonMetrics {
  * Complete insight package for a comparison
  */
 export interface InsightPackage {
-  // Metadata
-  generatedAt: Date;
-  dataQuality: DataQuality;
-
-  // Per-term insights
-  termInsights: Map<string, TermInsight>;
-
-  // Comparative insights
-  comparison: ComparisonMetrics;
-
-  // Detected patterns
-  patterns: {
-    seasonal: SeasonalPattern[];
-    spikes: SpikeEvent[];
-    trends: Map<string, TrendMetrics>;
-    volatility: Map<string, VolatilityMetrics>;
+  terms: string[];
+  dataPoints: number;
+  dateRange: {
+    start: string;
+    end: string;
   };
-
-  // Generated narratives
-  story: {
-    headline: string;
-    summary: string;
-    keyFindings: string[];
-    deepDive: string;
-  };
-
-  // ML-ready data (for future use)
-  mlFeatures?: MLFeatures;
+  summary: string;
+  confidence: number;
+  termInsights: any[];
+  comparison: any;
+  generatedAt: string;
 }
 
 /**

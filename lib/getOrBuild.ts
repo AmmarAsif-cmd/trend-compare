@@ -1,4 +1,3 @@
-import type { Comparison, Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { fetchSeriesUnified } from "./trends-router";
 import { computeStats, type Stats } from "./stats";
@@ -7,6 +6,20 @@ import type { SeriesPoint } from "./trends";
 import { stableHash } from "./hash";
 
 type Args = { slug: string; terms: string[]; timeframe: string; geo: string };
+
+type Comparison = {
+  id: string;
+  slug: string;
+  terms: any;
+  series: any;
+  stats: any;
+  ai: any;
+  timeframe: string;
+  geo: string;
+  dataHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export type ComparisonPayload = {
   id: string;
@@ -25,12 +38,12 @@ export type ComparisonPayload = {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
-function parseTerms(value: Prisma.JsonValue): string[] | null {
+function parseTerms(value: any): string[] | null {
   if (!Array.isArray(value)) return null;
-  return value.every((v) => typeof v === "string") ? (value as string[]) : null;
+  return value.every((v: any) => typeof v === "string") ? (value as string[]) : null;
 }
 
-function parseSeries(value: Prisma.JsonValue): SeriesPoint[] | null {
+function parseSeries(value: any): SeriesPoint[] | null {
   if (!Array.isArray(value)) return null;
   const entries = value as unknown[];
   const valid = entries.every((entry) => {
@@ -42,7 +55,7 @@ function parseSeries(value: Prisma.JsonValue): SeriesPoint[] | null {
   return valid ? (entries as SeriesPoint[]) : null;
 }
 
-function parseStats(value: Prisma.JsonValue): Stats | null {
+function parseStats(value: any): Stats | null {
   if (!isObject(value)) return null;
   const { global_avg, peaks } = value as Record<string, unknown>;
   if (!isObject(global_avg) || !Array.isArray(peaks)) return null;
@@ -60,7 +73,7 @@ function parseStats(value: Prisma.JsonValue): Stats | null {
   } satisfies Stats;
 }
 
-function parseAICopy(value: Prisma.JsonValue | null): AICopy | null {
+function parseAICopy(value: any): AICopy | null {
   if (!value || !isObject(value)) return null;
   const { title, metaDescription, summary, verdict, insights, faq } =
     value as Record<string, unknown>;

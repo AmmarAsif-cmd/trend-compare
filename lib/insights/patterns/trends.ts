@@ -10,7 +10,6 @@ import {
   calculateMean,
   calculateStdDev,
   rollingAverage,
-  calculatePercentChange,
 } from '../core/statistics';
 
 export type TrendDirection = 'strong-growth' | 'growth' | 'stable' | 'decline' | 'strong-decline';

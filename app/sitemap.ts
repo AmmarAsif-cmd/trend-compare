@@ -119,8 +119,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const seen = new Set<string>(seeds);
     dynamicPages = rows
-      .filter((r) => r.slug && !seen.has(r.slug))
-      .map((r) => ({
+      .filter((r: { slug: string | null; updatedAt: Date | null }) => r.slug && !seen.has(r.slug))
+      .map((r: { slug: string | null; updatedAt: Date | null }) => ({
         url: `${base}/compare/${r.slug}`,
         changeFrequency: "weekly" as const,
         priority: 0.6,

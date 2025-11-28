@@ -4,7 +4,7 @@
  * Single entry point for the compare page
  */
 
-import type { SeriesPoint } from './types';
+import type { SeriesPoint } from './trends';
 import type { InsightPackage } from './insights/core/types';
 import type { GeneratedNarrative } from './insights/narrative';
 import type { MultiSourceData } from './sources/types';

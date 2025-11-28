@@ -4,7 +4,7 @@
  * NO AI - Pure statistical analysis
  */
 
-import type { SeriesPoint } from '@/lib/types';
+import type { SeriesPoint } from '@/lib/trends';
 import type {
   EnrichedDataPoint,
   InsightPackage,

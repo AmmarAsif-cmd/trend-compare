@@ -4,7 +4,8 @@
  * ML-ready feature extraction from dates
  */
 
-import type { SeriesPoint, EnrichedDataPoint } from './types';
+import type { SeriesPoint } from '@/lib/trends';
+import type { EnrichedDataPoint } from './types';
 
 /**
  * Enrich data points with temporal features (ML-ready)
