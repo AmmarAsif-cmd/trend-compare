@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { toCanonicalSlug } from "@/lib/slug";
 
+// Mark as dynamic to prevent build-time pre-rendering
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Fetch comparison data
