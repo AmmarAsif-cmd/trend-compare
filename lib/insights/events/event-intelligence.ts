@@ -5,6 +5,7 @@
  */
 
 import type { UnifiedEvent } from './multi-source-detector';
+import { getKeywordCategory, getRelatedKeywords, learnKeyword, type KeywordCategory } from '../../keyword-categories';
 
 export interface EventMapping {
   id: string;
@@ -17,6 +18,7 @@ export interface EventMapping {
     sources: string[];
   };
   successfulKeyword: string; // Which specific keyword led to the match
+  category?: KeywordCategory; // Category of the keyword for better learning
   timestamp: string;
   searchVolume?: number; // How big was the spike
 }
@@ -41,8 +43,13 @@ class EventIntelligenceStore {
    */
   recordSuccess(mapping: Omit<EventMapping, 'id' | 'timestamp'>): void {
     const id = `${mapping.keywords.join('-')}-${mapping.event.date}`;
+
+    // Determine category from keywords
+    const category = mapping.category || getKeywordCategory(mapping.keywords[0]);
+
     const fullMapping: EventMapping = {
       ...mapping,
+      category,
       id,
       timestamp: new Date().toISOString(),
     };
@@ -50,16 +57,20 @@ class EventIntelligenceStore {
     this.mappings.set(id, fullMapping);
 
     // Update keyword patterns
-    this.updatePatterns(mapping.keywords[0], mapping.successfulKeyword);
+    this.updatePatterns(mapping.keywords[0], mapping.successfulKeyword, category);
+
+    // Learn this keyword in the category system
+    const relatedFromEvent = mapping.keywords.slice(1); // Use other keywords as related
+    learnKeyword(mapping.keywords[0], category, relatedFromEvent);
 
     console.log(`[Intelligence] Recorded successful detection: ${mapping.event.title}`);
-    console.log(`[Intelligence] Successful keyword: "${mapping.successfulKeyword}"`);
+    console.log(`[Intelligence] Successful keyword: "${mapping.successfulKeyword}" in category: ${category}`);
   }
 
   /**
    * Update keyword success patterns
    */
-  private updatePatterns(baseKeyword: string, successfulVariation: string): void {
+  private updatePatterns(baseKeyword: string, successfulVariation: string, category?: KeywordCategory): void {
     const normalized = baseKeyword.toLowerCase();
     const pattern = this.patterns.get(normalized) || {
       baseKeyword: normalized,
@@ -74,6 +85,12 @@ class EventIntelligenceStore {
     pattern.lastUpdated = new Date().toISOString();
 
     this.patterns.set(normalized, pattern);
+
+    // Also learn from related keywords in same category
+    if (category) {
+      const related = getRelatedKeywords(normalized, 5);
+      console.log(`[Intelligence] Cross-learning from ${related.length} related keywords in ${category}`);
+    }
   }
 
   /**
@@ -84,7 +101,29 @@ class EventIntelligenceStore {
     const pattern = this.patterns.get(normalized);
 
     if (!pattern) {
-      return []; // No historical data, use default expansion
+      // No historical data for this specific keyword
+      // But try to learn from similar keywords in same category
+      const category = getKeywordCategory(normalized);
+      const related = getRelatedKeywords(normalized, 3);
+
+      const fromRelated: string[] = [];
+      for (const relatedKw of related) {
+        const relatedPattern = this.patterns.get(relatedKw);
+        if (relatedPattern) {
+          // Use successful patterns from related keywords
+          const topFromRelated = Array.from(relatedPattern.successfulVariations.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([kw]) => kw.replace(relatedKw, normalized)); // Adapt to current keyword
+          fromRelated.push(...topFromRelated);
+        }
+      }
+
+      if (fromRelated.length > 0) {
+        console.log(`[Intelligence] Learning from related ${category} keywords:`, fromRelated.slice(0, 3));
+      }
+
+      return fromRelated;
     }
 
     // Return variations sorted by success rate
