@@ -163,7 +163,11 @@ export class RedditAdapter implements DataSourceAdapter {
         // Respect rate limit
         await this.sleep(1000);
       } catch (error) {
-        console.error(`Error fetching from r/${subreddit}:`, error);
+        // Reddit API often returns 403 without auth - this is expected
+        // Only log in development to avoid noise in production logs
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Reddit API unavailable for r/${subreddit}:`, error instanceof Error ? error.message : 'Unknown error');
+        }
       }
     }
 
