@@ -16,6 +16,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
+import { ensureDatabaseMigration } from "./ensureDatabaseMigration";
 
 const prisma = new PrismaClient();
 
@@ -61,6 +62,13 @@ const MONTHLY_LIMIT = 6000;
  * Get or create usage record for today
  */
 async function getUsageRecord() {
+  // Ensure database migration has run
+  const migrationOk = await ensureDatabaseMigration();
+  if (!migrationOk) {
+    console.error('[AI Budget] ❌ Database migration failed - using fallback');
+    return { dailyCount: 0, monthlyCount: 0, recordId: null };
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset to midnight
 
