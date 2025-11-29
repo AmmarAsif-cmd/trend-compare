@@ -88,7 +88,7 @@ async function getUsageRecord() {
       where: { month },
     });
 
-    const monthlyTotal = monthlyRecords.reduce((sum, r) => sum + r.dailyCount, 0);
+    const monthlyTotal = monthlyRecords.reduce((sum: number, r: any) => sum + r.dailyCount, 0);
 
     return {
       dailyCount: record.dailyCount,
