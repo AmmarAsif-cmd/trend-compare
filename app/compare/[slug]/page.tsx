@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { fromSlug, toCanonicalSlug } from "@/lib/slug";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
+import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
@@ -16,6 +17,8 @@ import ContentEngineInsights from "@/components/ContentEngineInsights";
 import { generateComparisonContent } from "@/lib/content-engine";
 import SearchBreakdown from "@/components/SearchBreakdown";
 import ReportActions from "@/components/ReportActions";
+import RealTimeContext from "@/components/RealTimeContext";
+import StructuredData from "@/components/StructuredData";
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -358,7 +361,7 @@ export async function generateMetadata({
   searchParams: { tf?: string; geo?: string };
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { tf } = await searchParams;
+  const { tf, geo } = await searchParams;
 
   const raw = fromSlug(slug);
   const checked = raw.map(validateTopic);
@@ -371,6 +374,55 @@ export async function generateMetadata({
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return { title: "Not available", robots: { index: false } };
 
+  const timeframe = tf ?? "12m";
+  const region = geo ?? "";
+
+  // Fetch comparison data to generate dynamic meta content
+  try {
+    const row = await getOrBuildComparison({
+      slug: canonical,
+      terms,
+      timeframe,
+      geo: region,
+    });
+
+    if (row && row.series && row.series.length > 0) {
+      // Calculate comparison data from series
+      const comparisonData = calculateComparisonData(
+        terms[0],
+        terms[1],
+        row.series as Array<{ date: string; [key: string]: any }>
+      );
+
+      // Generate dynamic meta content based on actual data
+      const { title, description } = generateDynamicMeta(
+        comparisonData,
+        terms[0],
+        terms[1]
+      );
+
+      return {
+        title: `${title} | TrendArc`,
+        description,
+        alternates: { canonical: `/compare/${canonical}` },
+        openGraph: {
+          title: `${title} | TrendArc`,
+          description,
+          type: "website",
+          url: `/compare/${canonical}`,
+        },
+        twitter: {
+          card: "summary_large_image",
+          title: `${title} | TrendArc`,
+          description,
+        },
+      };
+    }
+  } catch (error) {
+    console.error("Error generating dynamic metadata:", error);
+  }
+
+  // Fallback to simple meta if dynamic generation fails
   const pretty = (t: string) => t.replace(/-/g, " ");
   const cleanTerms = terms.map(pretty);
 
@@ -520,6 +572,14 @@ export default async function ComparePage({
             <ReportActions
               title={`${prettyTerm(terms[0])} vs ${prettyTerm(terms[1])} - Trend Comparison`}
               url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
+            />
+
+            {/* Real-Time Context - Live comparison status */}
+            <RealTimeContext
+              termA={terms[0]}
+              termB={terms[1]}
+              series={series as any[]}
+              timeframe={timeframe}
             />
 
             <section className="grid gap-4 sm:gap-6 md:grid-cols-5">
@@ -674,6 +734,16 @@ export default async function ComparePage({
         <RelatedComparisons currentSlug={canonical} terms={terms} />
         <FAQSection />
       </div>
+
+      {/* Structured Data for SEO */}
+      <StructuredData
+        termA={terms[0]}
+        termB={terms[1]}
+        slug={canonical}
+        series={series as any[]}
+        leader={aShare > bShare ? terms[0] : terms[1]}
+        advantage={Math.round(Math.abs((aShare - bShare) * 100))}
+      />
     </main>
   );
 }
