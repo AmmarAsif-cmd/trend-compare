@@ -1,20 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Share2, Check, Copy } from "lucide-react";
+import { Download, Share2, Check } from "lucide-react";
 
 type ReportActionsProps = {
   title: string;
   url: string;
+  termA: string;
+  termB: string;
 };
 
-export default function ReportActions({ title, url }: ReportActionsProps) {
-  const [isSharing, setIsSharing] = useState(false);
+export default function ReportActions({ title, url, termA, termB }: ReportActionsProps) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
-    setIsSharing(true);
-
     // Use Web Share API if available
     if (navigator.share) {
       try {
@@ -24,19 +23,13 @@ export default function ReportActions({ title, url }: ReportActionsProps) {
           url: url,
         });
       } catch (error) {
-        // User cancelled or error occurred
         if ((error as Error).name !== 'AbortError') {
-          console.error('Error sharing:', error);
-          // Fallback to copy
           copyToClipboard();
         }
       }
     } else {
-      // Fallback to copying URL
       copyToClipboard();
     }
-
-    setIsSharing(false);
   };
 
   const copyToClipboard = async () => {
@@ -50,60 +43,45 @@ export default function ReportActions({ title, url }: ReportActionsProps) {
   };
 
   const handleDownloadPDF = () => {
-    // Use browser's print dialog which allows saving as PDF
+    // Add print-specific class to body
+    document.body.classList.add('generating-pdf');
+
+    // Trigger print dialog
     window.print();
+
+    // Remove class after print dialog closes
+    setTimeout(() => {
+      document.body.classList.remove('generating-pdf');
+    }, 1000);
   };
 
   return (
-    <div className="flex flex-wrap gap-3 items-center">
-      {/* PDF Download Button */}
+    <div className="flex flex-wrap gap-2 items-center print:hidden">
+      {/* PDF Download Button - Smaller and prettier */}
       <button
         onClick={handleDownloadPDF}
-        className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-lg font-medium transition-all hover:shadow-md"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-slate-700 hover:text-blue-600 rounded-lg text-sm font-medium transition-all hover:shadow-sm"
         aria-label="Download as PDF"
       >
-        <Download className="w-4 h-4" />
-        <span className="hidden sm:inline">Download PDF</span>
-        <span className="sm:hidden">PDF</span>
+        <Download className="w-3.5 h-3.5" />
+        <span>PDF</span>
       </button>
 
-      {/* Share Button */}
+      {/* Share Button - Smaller and prettier */}
       <button
         onClick={handleShare}
-        disabled={isSharing}
-        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all hover:shadow-md disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-lg text-sm font-medium transition-all hover:shadow-sm"
         aria-label="Share this report"
       >
         {copied ? (
           <>
-            <Check className="w-4 h-4" />
-            <span className="hidden sm:inline">Link Copied!</span>
-            <span className="sm:hidden">Copied!</span>
+            <Check className="w-3.5 h-3.5" />
+            <span>Copied!</span>
           </>
         ) : (
           <>
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Share Report</span>
-            <span className="sm:hidden">Share</span>
-          </>
-        )}
-      </button>
-
-      {/* Copy Link Button (always visible on desktop) */}
-      <button
-        onClick={copyToClipboard}
-        className="hidden md:flex items-center gap-2 px-4 py-2 bg-white border-2 border-slate-300 hover:border-purple-500 hover:bg-purple-50 text-slate-700 hover:text-purple-700 rounded-lg font-medium transition-all hover:shadow-md"
-        aria-label="Copy link to clipboard"
-      >
-        {copied ? (
-          <>
-            <Check className="w-4 h-4" />
-            Copied!
-          </>
-        ) : (
-          <>
-            <Copy className="w-4 h-4" />
-            Copy Link
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Share</span>
           </>
         )}
       </button>

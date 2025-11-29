@@ -592,6 +592,8 @@ export default async function ComparePage({
             <ReportActions
               title={`${prettyTerm(terms[0])} vs ${prettyTerm(terms[1])} - Trend Comparison`}
               url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
+              termA={terms[0]}
+              termB={terms[1]}
             />
 
             {/* Real-Time Context - Live comparison status */}
