@@ -60,7 +60,10 @@ export async function searchGDELTEvents(
     });
 
     if (!response.ok) {
-      console.warn('GDELT API request failed:', response.status);
+      // GDELT API occasionally fails or has rate limits - fallback handles this
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('GDELT API unavailable:', response.status);
+      }
       return [];
     }
 
@@ -86,7 +89,10 @@ export async function searchGDELTEvents(
 
     return events;
   } catch (error) {
-    console.error('GDELT API error:', error);
+    // GDELT sometimes returns malformed JSON - fallback system handles this gracefully
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('GDELT API parsing error:', error instanceof Error ? error.message : 'Unknown error');
+    }
     return [];
   }
 }

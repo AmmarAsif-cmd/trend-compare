@@ -55,7 +55,10 @@ export async function fetchNewsForDate(
     });
 
     if (!response.ok) {
-      console.warn('NewsAPI request failed:', response.status);
+      // NewsAPI free tier has limitations (426 = upgrade required) - this is expected
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('NewsAPI unavailable:', response.status);
+      }
       return [];
     }
 
