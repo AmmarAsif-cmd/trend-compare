@@ -23,3 +23,14 @@ model Comparison {
   @@unique([slug, timeframe, geo], name: "slug_timeframe_geo")
   @@index([slug])
 }
+
+model AIInsightUsage {
+  id           String   @id @default(cuid())
+  date         DateTime @unique // YYYY-MM-DD for daily tracking
+  dailyCount   Int      @default(0)
+  monthlyCount Int      @default(0)
+  month        String   @unique // YYYY-MM for monthly tracking
+  lastReset    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

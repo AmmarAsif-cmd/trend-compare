@@ -1,5 +1,5 @@
 /**
- * Cost-Optimized AI Insights Generator
+ * Cost-Optimized AI Insights Generator with Database Persistence
  * Budget: <$10/month with Claude Haiku
  *
  * Cost Breakdown:
@@ -11,10 +11,13 @@
  * - Only generate for comparisons with >5 views in last 30 days
  * - Cache for 7 days (weekly regeneration)
  * - Hard limit: 200 insights/day, 6000 insights/month
- * - Track usage and stop when budget reached
+ * - Track usage in database (persists across deployments)
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 type ComparisonInsightData = {
   termA: string;
@@ -51,23 +54,86 @@ type AIInsightResult = {
   prediction: string;
 };
 
-// Budget control - stored in environment or database
-let monthlyInsightsGenerated = 0;
-let dailyInsightsGenerated = 0;
 const DAILY_LIMIT = 200;
 const MONTHLY_LIMIT = 6000;
 
 /**
+ * Get or create usage record for today
+ */
+async function getUsageRecord() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to midnight
+
+  const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  try {
+    let record = await prisma.aIInsightUsage.findUnique({
+      where: { date: today },
+    });
+
+    if (!record) {
+      // Create new daily record
+      record = await prisma.aIInsightUsage.create({
+        data: {
+          date: today,
+          month,
+          dailyCount: 0,
+          monthlyCount: 0,
+        },
+      });
+    }
+
+    // Get monthly total across all records this month
+    const monthlyRecords = await prisma.aIInsightUsage.findMany({
+      where: { month },
+    });
+
+    const monthlyTotal = monthlyRecords.reduce((sum, r) => sum + r.dailyCount, 0);
+
+    return {
+      dailyCount: record.dailyCount,
+      monthlyCount: monthlyTotal,
+      recordId: record.id,
+    };
+  } catch (error) {
+    console.error("[AI Budget] Database error:", error);
+    // Fallback to allowing generation if DB fails
+    return { dailyCount: 0, monthlyCount: 0, recordId: null };
+  }
+}
+
+/**
+ * Increment usage counter in database
+ */
+async function incrementUsage(recordId: string | null) {
+  if (!recordId) return;
+
+  try {
+    await prisma.aIInsightUsage.update({
+      where: { id: recordId },
+      data: {
+        dailyCount: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error("[AI Budget] Failed to increment usage:", error);
+  }
+}
+
+/**
  * Check if we're within budget
  */
-export function canGenerateInsight(): boolean {
-  if (dailyInsightsGenerated >= DAILY_LIMIT) {
-    console.log(`[AI Budget] Daily limit reached: ${dailyInsightsGenerated}/${DAILY_LIMIT}`);
+export async function canGenerateInsight(): Promise<boolean> {
+  const usage = await getUsageRecord();
+
+  if (usage.dailyCount >= DAILY_LIMIT) {
+    console.log(`[AI Budget] Daily limit reached: ${usage.dailyCount}/${DAILY_LIMIT}`);
     return false;
   }
 
-  if (monthlyInsightsGenerated >= MONTHLY_LIMIT) {
-    console.log(`[AI Budget] Monthly limit reached: ${monthlyInsightsGenerated}/${MONTHLY_LIMIT}`);
+  if (usage.monthlyCount >= MONTHLY_LIMIT) {
+    console.log(`[AI Budget] Monthly limit reached: ${usage.monthlyCount}/${MONTHLY_LIMIT}`);
     return false;
   }
 
@@ -204,8 +270,9 @@ function calculateVolatility(values: number[]): number {
 export async function generateAIInsights(
   data: ComparisonInsightData
 ): Promise<AIInsightResult | null> {
-  // Check budget
-  if (!canGenerateInsight()) {
+  // Check budget (now uses database)
+  const canGenerate = await canGenerateInsight();
+  if (!canGenerate) {
     console.log("[AI Budget] Skipping insight generation - budget limit reached");
     return null;
   }
@@ -266,12 +333,12 @@ CRITICAL: Use ONLY the specific data provided. Include exact dates, numbers, and
       messages: [{ role: "user", content: prompt }],
     });
 
-    // Increment usage counters
-    dailyInsightsGenerated++;
-    monthlyInsightsGenerated++;
+    // Increment usage in database
+    const usage = await getUsageRecord();
+    await incrementUsage(usage.recordId);
 
     console.log(
-      `[AI Budget] Generated insight. Daily: ${dailyInsightsGenerated}/${DAILY_LIMIT}, Monthly: ${monthlyInsightsGenerated}/${MONTHLY_LIMIT}`
+      `[AI Budget] Generated insight. Daily: ${usage.dailyCount + 1}/${DAILY_LIMIT}, Monthly: ${usage.monthlyCount + 1}/${MONTHLY_LIMIT}`
     );
 
     // Parse response
@@ -293,34 +360,19 @@ CRITICAL: Use ONLY the specific data provided. Include exact dates, numbers, and
 }
 
 /**
- * Reset daily counter (call this from a cron job at midnight)
- */
-export function resetDailyCounter() {
-  dailyInsightsGenerated = 0;
-  console.log("[AI Budget] Daily counter reset");
-}
-
-/**
- * Reset monthly counter (call this from a cron job on 1st of month)
- */
-export function resetMonthlyCounter() {
-  monthlyInsightsGenerated = 0;
-  console.log("[AI Budget] Monthly counter reset");
-}
-
-/**
  * Get current budget status
  */
-export function getBudgetStatus() {
-  const dailyRemaining = DAILY_LIMIT - dailyInsightsGenerated;
-  const monthlyRemaining = MONTHLY_LIMIT - monthlyInsightsGenerated;
-  const estimatedMonthlyCost = (monthlyInsightsGenerated * 0.0014).toFixed(2);
+export async function getBudgetStatus() {
+  const usage = await getUsageRecord();
+  const dailyRemaining = DAILY_LIMIT - usage.dailyCount;
+  const monthlyRemaining = MONTHLY_LIMIT - usage.monthlyCount;
+  const estimatedMonthlyCost = (usage.monthlyCount * 0.0014).toFixed(2);
 
   return {
-    dailyUsed: dailyInsightsGenerated,
+    dailyUsed: usage.dailyCount,
     dailyLimit: DAILY_LIMIT,
     dailyRemaining,
-    monthlyUsed: monthlyInsightsGenerated,
+    monthlyUsed: usage.monthlyCount,
     monthlyLimit: MONTHLY_LIMIT,
     monthlyRemaining,
     estimatedCost: `$${estimatedMonthlyCost}`,
