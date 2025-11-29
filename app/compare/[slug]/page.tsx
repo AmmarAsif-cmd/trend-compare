@@ -22,6 +22,8 @@ import StructuredData from "@/components/StructuredData";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
+import DataSpecificAIInsights from "@/components/DataSpecificAIInsights";
+import { prepareInsightData, generateAIInsights, canGenerateInsight } from "@/lib/aiInsightsGenerator";
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -521,6 +523,20 @@ export default async function ComparePage({
   // Get geographic breakdown (FREE - no API costs)
   const geographicData = await getGeographicBreakdown(terms[0], terms[1], series as any[]);
 
+  // Generate AI insights (cost-optimized with budget controls <$10/month)
+  let aiInsights = null;
+  if (canGenerateInsight()) {
+    try {
+      const insightData = prepareInsightData(terms[0], terms[1], series as any[]);
+      aiInsights = await generateAIInsights(insightData);
+      console.log('[AI Insights] Generated for comparison:', terms.join(' vs '));
+    } catch (error) {
+      console.error('[AI Insights] Generation failed:', error);
+    }
+  } else {
+    console.log('[AI Insights] Skipped - budget limit reached');
+  }
+
   // compute totals and shares for stats
   const keyA = terms[0];
   const keyB = terms[1];
@@ -748,6 +764,15 @@ export default async function ComparePage({
         termA={terms[0]}
         termB={terms[1]}
       />
+
+      {/* AI-Powered Data-Specific Insights (cost-optimized <$10/month) */}
+      {aiInsights && (
+        <DataSpecificAIInsights
+          insights={aiInsights}
+          termA={terms[0]}
+          termB={terms[1]}
+        />
+      )}
 
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">
