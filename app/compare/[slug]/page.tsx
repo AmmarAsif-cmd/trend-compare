@@ -525,14 +525,25 @@ export default async function ComparePage({
 
   // Generate AI insights (cost-optimized with budget controls <$10/month)
   let aiInsights = null;
+  let aiInsightsError = null;
+
   try {
     const insightData = prepareInsightData(terms[0], terms[1], series as any[]);
     aiInsights = await generateAIInsights(insightData);
+
     if (aiInsights) {
-      console.log('[AI Insights] Generated for comparison:', terms.join(' vs '));
+      console.log('[AI Insights] ✅ Generated successfully for:', terms.join(' vs '));
+    } else {
+      console.log('[AI Insights] ⚠️ Not generated - check budget limits or API key');
+      if (!process.env.ANTHROPIC_API_KEY) {
+        aiInsightsError = 'API key not configured';
+      } else {
+        aiInsightsError = 'Budget limit reached or generation failed';
+      }
     }
   } catch (error) {
-    console.error('[AI Insights] Generation failed:', error);
+    console.error('[AI Insights] ❌ Generation error:', error);
+    aiInsightsError = error instanceof Error ? error.message : 'Unknown error';
   }
 
   // compute totals and shares for stats
@@ -766,12 +777,43 @@ export default async function ComparePage({
       />
 
       {/* AI-Powered Data-Specific Insights (cost-optimized <$10/month) */}
-      {aiInsights && (
+      {aiInsights ? (
         <DataSpecificAIInsights
           insights={aiInsights}
           termA={terms[0]}
           termB={terms[1]}
         />
+      ) : (
+        <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 shadow-lg p-6 print:hidden">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                AI-Powered Insights Unavailable
+              </h3>
+              <p className="text-slate-600 text-sm mb-3">
+                {aiInsightsError === 'API key not configured'
+                  ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable Claude-powered analysis.'
+                  : aiInsightsError
+                  ? `Generation failed: ${aiInsightsError}`
+                  : 'Daily or monthly budget limit reached. AI insights will be available again soon.'}
+              </p>
+              <div className="bg-white/60 rounded-lg p-3 text-xs text-slate-600">
+                <p className="font-semibold mb-1">What you're missing:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Data-specific analysis with exact numbers and dates</li>
+                  <li>Volatility insights and trend predictions</li>
+                  <li>Practical implications for your use case</li>
+                  <li>AI-powered pattern detection</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Related comparisons + FAQ */}
