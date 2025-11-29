@@ -19,6 +19,9 @@ import SearchBreakdown from "@/components/SearchBreakdown";
 import ReportActions from "@/components/ReportActions";
 import RealTimeContext from "@/components/RealTimeContext";
 import StructuredData from "@/components/StructuredData";
+import HistoricalTimeline from "@/components/HistoricalTimeline";
+import GeographicBreakdown from "@/components/GeographicBreakdown";
+import { getGeographicBreakdown } from "@/lib/getGeographicData";
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -515,6 +518,9 @@ export default async function ComparePage({
     console.error('Content Engine error:', error);
   }
 
+  // Get geographic breakdown (FREE - no API costs)
+  const geographicData = await getGeographicBreakdown(terms[0], terms[1], series as any[]);
+
   // compute totals and shares for stats
   const keyA = terms[0];
   const keyB = terms[1];
@@ -728,6 +734,20 @@ export default async function ComparePage({
           />
         </div>
       )}
+
+      {/* Historical Timeline - Key moments */}
+      <HistoricalTimeline
+        termA={terms[0]}
+        termB={terms[1]}
+        series={series as any[]}
+      />
+
+      {/* Geographic Breakdown - Regional preferences */}
+      <GeographicBreakdown
+        geoData={geographicData}
+        termA={terms[0]}
+        termB={terms[1]}
+      />
 
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">
