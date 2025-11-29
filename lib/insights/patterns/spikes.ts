@@ -144,21 +144,37 @@ function calculateEventRelevance(event: { title: string; description: string }, 
   const title = event.title.toLowerCase();
   const desc = event.description.toLowerCase();
 
+  // Also check keyword without hyphens
+  const kwNoHyphen = kw.replace(/-/g, ' ');
+
   let score = 0;
 
   // Exact match in title = very relevant
-  if (title === kw || title.includes(` ${kw} `) || title.startsWith(kw + ' ') || title.endsWith(' ' + kw)) {
+  if (title === kw || title === kwNoHyphen ||
+      title.includes(` ${kw} `) || title.includes(` ${kwNoHyphen} `) ||
+      title.startsWith(kw + ' ') || title.startsWith(kwNoHyphen + ' ') ||
+      title.endsWith(' ' + kw) || title.endsWith(' ' + kwNoHyphen)) {
     score += 50;
   }
 
-  // Title contains keyword
-  if (title.includes(kw)) {
+  // Title contains keyword (with or without hyphens)
+  if (title.includes(kw) || title.includes(kwNoHyphen)) {
     score += 30;
   }
 
-  // Description contains keyword
-  if (desc.includes(kw)) {
-    score += 10;
+  // Description contains keyword (with or without hyphens)
+  if (desc.includes(kw) || desc.includes(kwNoHyphen)) {
+    score += 15; // Increased from 10
+  }
+
+  // Partial word matching for better coverage
+  const kwParts = kwNoHyphen.split(' ');
+  if (kwParts.length > 1) {
+    const allPartsInTitle = kwParts.every(part => title.includes(part));
+    const allPartsInDesc = kwParts.every(part => desc.includes(part));
+
+    if (allPartsInTitle) score += 20;
+    else if (allPartsInDesc) score += 10;
   }
 
   // Penalize if event is about specific content when searching for platforms
@@ -198,8 +214,8 @@ async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): 
 
       console.log(`[Event Detection] API event relevance: ${maxRelevance}/100 for "${event.title}"`);
 
-      // Only use if relevance is decent (>30)
-      if (maxRelevance > 30) {
+      // Only use if relevance is decent (>20) - lowered threshold for better detection
+      if (maxRelevance > 20) {
         console.log(`[Event Detection] ✓ Using API event:`, event.title, `(${event.sources.length} sources, ${maxRelevance}% relevant)`);
         return formatEventForDisplay(event);
       } else {
@@ -222,8 +238,8 @@ async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): 
 
     console.log(`[Event Detection] Tech DB event relevance: ${maxRelevance}/100 for "${techEvent.title}"`);
 
-    // Only use if highly relevant (>40) - database events must be more relevant
-    if (maxRelevance > 40) {
+    // Only use if highly relevant (>30) - database events must be more relevant than APIs
+    if (maxRelevance > 30) {
       console.log(`[Event Detection] ✓ Using tech DB event:`, techEvent.title, `(${maxRelevance}% relevant)`);
       return getEventContext(techEvent);
     } else {

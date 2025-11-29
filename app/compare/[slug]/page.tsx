@@ -15,6 +15,7 @@ import CompareStats from "@/components/CompareStats";
 import ContentEngineInsights from "@/components/ContentEngineInsights";
 import { generateComparisonContent } from "@/lib/content-engine";
 import SearchBreakdown from "@/components/SearchBreakdown";
+import ReportActions from "@/components/ReportActions";
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -514,6 +515,12 @@ export default async function ComparePage({
               </div>
               <TimeframeSelect />
             </div>
+
+            {/* Report Actions - PDF and Share */}
+            <ReportActions
+              title={`${prettyTerm(terms[0])} vs ${prettyTerm(terms[1])} - Trend Comparison`}
+              url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
+            />
 
             <section className="grid gap-4 sm:gap-6 md:grid-cols-5">
               {/* Headline insight */}

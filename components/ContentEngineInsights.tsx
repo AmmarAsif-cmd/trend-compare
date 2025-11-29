@@ -176,16 +176,24 @@ export default function ContentEngineInsights({
                         event.includes('Black Friday shopping event') ||
                         event.includes('Cyber Monday online shopping');
 
+                      // Check for verified events OR events with specific context (from APIs or database)
                       const hasVerifiedMarkers =
+                        event.includes('Verified by multiple sources') ||
                         event.includes('Product Launch') ||
                         event.includes('Announcement') ||
                         event.includes('Conference') ||
-                        event.includes('Verified by multiple sources') ||
                         event.includes('Documentary') ||
-                        event.includes('Netflix') ||
                         event.includes('Album') ||
                         event.includes('Release') ||
-                        event.includes('Event');
+                        event.includes('Event') ||
+                        event.includes('Outage') ||
+                        event.includes('Update') ||
+                        event.includes('Launch') ||
+                        event.includes('expansion') ||
+                        event.includes('crackdown') ||
+                        event.includes('shutdown') ||
+                        event.includes('acquired') ||
+                        event.includes('partnership');
 
                       const hasRealEvent = hasVerifiedMarkers && !isGenericCalendarEvent;
 
