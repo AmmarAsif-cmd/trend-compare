@@ -66,12 +66,15 @@ async function getUsageRecord() {
 
   const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
+  console.log(`[AI Budget] 🗄️ Fetching usage record for ${today.toISOString().split('T')[0]}`);
+
   try {
     let record = await prisma.aIInsightUsage.findUnique({
       where: { date: today },
     });
 
     if (!record) {
+      console.log("[AI Budget] 📝 Creating new daily record...");
       // Create new daily record
       record = await prisma.aIInsightUsage.create({
         data: {
@@ -81,6 +84,9 @@ async function getUsageRecord() {
           monthlyCount: 0,
         },
       });
+      console.log(`[AI Budget] ✅ Created record: ${record.id}`);
+    } else {
+      console.log(`[AI Budget] ✅ Found existing record: ${record.id}`);
     }
 
     // Get monthly total across all records this month
@@ -90,14 +96,20 @@ async function getUsageRecord() {
 
     const monthlyTotal = monthlyRecords.reduce((sum: number, r: any) => sum + r.dailyCount, 0);
 
+    console.log(`[AI Budget] Monthly total for ${month}: ${monthlyTotal} (from ${monthlyRecords.length} records)`);
+
     return {
       dailyCount: record.dailyCount,
       monthlyCount: monthlyTotal,
       recordId: record.id,
     };
   } catch (error) {
-    console.error("[AI Budget] Database error:", error);
+    console.error("[AI Budget] ❌ Database error:", error);
+    if (error instanceof Error) {
+      console.error("[AI Budget] Error details:", error.message);
+    }
     // Fallback to allowing generation if DB fails
+    console.log("[AI Budget] ⚠️ Using fallback values (0/0) - database unavailable");
     return { dailyCount: 0, monthlyCount: 0, recordId: null };
   }
 }
@@ -125,18 +137,22 @@ async function incrementUsage(recordId: string | null) {
  * Check if we're within budget
  */
 export async function canGenerateInsight(): Promise<boolean> {
+  console.log("[AI Budget] 📊 Checking budget limits...");
   const usage = await getUsageRecord();
 
+  console.log(`[AI Budget] Current usage - Daily: ${usage.dailyCount}/${DAILY_LIMIT}, Monthly: ${usage.monthlyCount}/${MONTHLY_LIMIT}`);
+
   if (usage.dailyCount >= DAILY_LIMIT) {
-    console.log(`[AI Budget] Daily limit reached: ${usage.dailyCount}/${DAILY_LIMIT}`);
+    console.log(`[AI Budget] ❌ Daily limit reached: ${usage.dailyCount}/${DAILY_LIMIT}`);
     return false;
   }
 
   if (usage.monthlyCount >= MONTHLY_LIMIT) {
-    console.log(`[AI Budget] Monthly limit reached: ${usage.monthlyCount}/${MONTHLY_LIMIT}`);
+    console.log(`[AI Budget] ❌ Monthly limit reached: ${usage.monthlyCount}/${MONTHLY_LIMIT}`);
     return false;
   }
 
+  console.log("[AI Budget] ✅ Within budget limits");
   return true;
 }
 
@@ -270,20 +286,27 @@ function calculateVolatility(values: number[]): number {
 export async function generateAIInsights(
   data: ComparisonInsightData
 ): Promise<AIInsightResult | null> {
+  console.log(`[AI Insights] 🚀 Starting generation for: ${data.termA} vs ${data.termB}`);
+
   // Check budget (now uses database)
   const canGenerate = await canGenerateInsight();
+  console.log(`[AI Insights] 📊 Budget check result: ${canGenerate}`);
+
   if (!canGenerate) {
-    console.log("[AI Budget] Skipping insight generation - budget limit reached");
+    console.log("[AI Budget] ❌ Skipping insight generation - budget limit reached");
     return null;
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error("[AI Insights] ANTHROPIC_API_KEY not found");
+    console.error("[AI Insights] ❌ ANTHROPIC_API_KEY not found in environment");
     return null;
   }
 
+  console.log(`[AI Insights] ✅ API key found: ${apiKey.slice(0, 10)}...`);
+
   try {
+    console.log("[AI Insights] 🔧 Initializing Anthropic client...");
     const client = new Anthropic({ apiKey });
 
     const prettyTermA = data.termA.replace(/-/g, " ");
@@ -327,34 +350,49 @@ Provide insights in JSON format with these exact keys:
 
 CRITICAL: Use ONLY the specific data provided. Include exact dates, numbers, and percentages. Be concise and actionable.`;
 
+    console.log("[AI Insights] 📡 Calling Anthropic API...");
     const message = await client.messages.create({
       model: "claude-haiku-3-5-20241022", // Haiku - cheaper model
       max_tokens: 1000, // Limit output to control costs
       messages: [{ role: "user", content: prompt }],
     });
 
+    console.log("[AI Insights] ✅ API call successful!");
+
     // Increment usage in database
     const usage = await getUsageRecord();
     await incrementUsage(usage.recordId);
 
     console.log(
-      `[AI Budget] Generated insight. Daily: ${usage.dailyCount + 1}/${DAILY_LIMIT}, Monthly: ${usage.monthlyCount + 1}/${MONTHLY_LIMIT}`
+      `[AI Budget] ✅ Generated insight. Daily: ${usage.dailyCount + 1}/${DAILY_LIMIT}, Monthly: ${usage.monthlyCount + 1}/${MONTHLY_LIMIT}`
     );
 
     // Parse response
     const content = message.content[0];
+    console.log(`[AI Insights] 📝 Response type: ${content.type}`);
+
     if (content.type === "text") {
       // Extract JSON from response (Claude might wrap it in markdown)
       const jsonMatch = content.text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
+        console.log("[AI Insights] ✅ JSON extracted successfully");
         const result = JSON.parse(jsonMatch[0]);
+        console.log("[AI Insights] ✅ JSON parsed successfully");
         return result;
+      } else {
+        console.error("[AI Insights] ❌ No JSON found in response:", content.text.slice(0, 200));
       }
     }
 
+    console.error("[AI Insights] ❌ Failed to extract insights from response");
     return null;
   } catch (error) {
-    console.error("[AI Insights] Generation error:", error);
+    console.error("[AI Insights] ❌ Generation error:", error);
+    if (error instanceof Error) {
+      console.error("[AI Insights] Error name:", error.name);
+      console.error("[AI Insights] Error message:", error.message);
+      console.error("[AI Insights] Error stack:", error.stack);
+    }
     return null;
   }
 }
