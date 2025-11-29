@@ -360,7 +360,7 @@ CRITICAL: Use ONLY the specific data provided. Include exact dates, numbers, and
 
     console.log("[AI Insights] 📡 Calling Anthropic API...");
     const message = await client.messages.create({
-      model: "claude-haiku-3-5-20241022", // Haiku - cheaper model
+      model: "claude-3-5-haiku-20241022", // Haiku - cost-optimized model
       max_tokens: 1000, // Limit output to control costs
       messages: [{ role: "user", content: prompt }],
     });
