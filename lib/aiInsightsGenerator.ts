@@ -320,9 +320,31 @@ export async function generateAIInsights(
     const prettyTermA = data.termA.replace(/-/g, " ");
     const prettyTermB = data.termB.replace(/-/g, " ");
 
-    // Construct data-specific prompt
-    const prompt = `Analyze this specific trend comparison data and provide SPECIFIC insights based ONLY on the data provided.
+    // Construct intelligent, data-specific prompt
+    const prompt = `You are analyzing a trend comparison between "${prettyTermA}" vs "${prettyTermB}".
 
+STEP 1: ANALYZE THE KEYWORDS
+First, determine what category these terms belong to:
+- Tech/Software? (e.g., React vs Vue, iPhone vs Android)
+- Business/Finance? (e.g., stocks, companies, economic terms)
+- Entertainment/Media? (e.g., movies, shows, celebrities, music)
+- Consumer Products? (e.g., brands, food items, physical products)
+- Health/Lifestyle? (e.g., diet trends, fitness, wellness)
+- Education/Career? (e.g., programming languages, certifications, skills)
+- Other categories?
+
+STEP 2: IDENTIFY RELEVANT AUDIENCES
+Based on the keyword category, identify 1-3 SPECIFIC, RELEVANT audiences who would care about this comparison.
+DO NOT default to generic audiences like "content creators" unless it's actually relevant.
+
+Examples of good audience targeting:
+- For "React vs Vue": "WebDevelopers", "TechLeads", "StartupFounders"
+- For "iPhone vs Android": "Consumers", "MobileDevelopers", "TechReviewers"
+- For "Nutella vs Peanut Butter": "Parents", "HealthConsciousConsumers", "FoodBloggers"
+- For "Tesla vs Toyota": "CarBuyers", "EnvironmentalAdvocates", "Investors"
+- For "Netflix vs Disney+": "Families", "StreamingSubscribers", "EntertainmentIndustry"
+
+STEP 3: ANALYZE THE DATA
 COMPARISON: ${prettyTermA} vs ${prettyTermB}
 
 CURRENT WEEK DATA:
@@ -344,24 +366,37 @@ COMPETITIVE DYNAMICS:
 - Leadership changes: ${data.crossoverCount} times
 - Trend: ${data.trendDirection}
 
-Provide insights in JSON format with these exact keys:
+STEP 4: GENERATE INSIGHTS
+Provide insights in this EXACT JSON format:
 {
-  "whatDataTellsUs": ["insight1 with exact numbers and dates", "insight2 with exact numbers and dates", "insight3 with exact numbers and dates"],
-  "whyThisMatters": "brief explanation based on the data patterns",
-  "keyDifferences": "specific differences between the two terms with data",
-  "volatilityAnalysis": "what the volatility numbers mean practically",
+  "whatDataTellsUs": [
+    "First key insight with exact numbers and dates from the data above",
+    "Second key insight with exact numbers and dates from the data above",
+    "Third key insight with exact numbers and dates from the data above"
+  ],
+  "whyThisMatters": "Explain why this comparison matters in the real world, based on what these terms represent",
+  "keyDifferences": "Highlight the most important differences between the two trends using specific data points",
+  "volatilityAnalysis": "Explain what the volatility numbers mean practically - is one more predictable? More seasonal? More event-driven?",
   "practicalImplications": {
-    "forContentCreators": "specific timing/strategy advice based on patterns"
+    "AudienceName1": "Specific, actionable advice for this audience based on the trend data",
+    "AudienceName2": "Specific, actionable advice for this audience based on the trend data"
   },
-  "prediction": "data-driven short-term forecast"
+  "prediction": "Data-driven forecast for the next 1-3 months based on observed patterns"
 }
 
-CRITICAL: Use ONLY the specific data provided. Include exact dates, numbers, and percentages. Be concise and actionable.`;
+CRITICAL REQUIREMENTS:
+1. In practicalImplications, use camelCase audience names (e.g., "webDevelopers", "healthConsciousConsumers", "parents")
+2. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
+3. DO NOT use generic audiences like "content creators" unless the terms are about content creation
+4. Every insight must include specific numbers, dates, or percentages from the data
+5. Be concise but insightful - quality over quantity
+6. Return ONLY the JSON, no markdown formatting or additional text`;
+
 
     console.log("[AI Insights] 📡 Calling Anthropic API...");
     const message = await client.messages.create({
       model: "claude-3-5-haiku-20241022", // Haiku - cost-optimized model
-      max_tokens: 1000, // Limit output to control costs
+      max_tokens: 1500, // Increased for smarter, more detailed insights
       messages: [{ role: "user", content: prompt }],
     });
 
