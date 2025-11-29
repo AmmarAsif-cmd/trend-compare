@@ -24,6 +24,12 @@ import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
 import DataSpecificAIInsights from "@/components/DataSpecificAIInsights";
 import { prepareInsightData, generateAIInsights } from "@/lib/aiInsightsGenerator";
+
+// Force dynamic rendering to ensure AI insights are generated fresh
+// Revalidate every 30 minutes to balance freshness with budget
+export const dynamic = 'force-dynamic';
+export const revalidate = 1800; // 30 minutes
+
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
