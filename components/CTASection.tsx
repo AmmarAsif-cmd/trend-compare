@@ -76,7 +76,7 @@ export default function CTASection() {
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="font-bold text-white mb-2">AI-Powered Insights</h3>
-                <p className="text-sm text-white/80">Smart analysis with Claude AI for deeper understanding</p>
+                <p className="text-sm text-white/80">Smart AI analysis for deeper understanding</p>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all">

@@ -1,6 +1,6 @@
 /**
  * Data-Specific AI Insights Component
- * Shows Claude AI-generated insights based on actual comparison data
+ * Shows AI-generated insights based on actual comparison data
  */
 
 import { Sparkles, TrendingUp, Target, Lightbulb, BarChart3, Users, Brain } from "lucide-react";
@@ -55,7 +55,6 @@ export default function DataSpecificAIInsights({
               <h3 className="text-xl sm:text-2xl font-bold text-white">
                 AI-Powered Analysis
               </h3>
-              <span className="text-xs font-normal bg-white/20 px-2 py-0.5 rounded-full">Claude 3.5 Haiku</span>
               {insights.category && (
                 <span className="text-xs font-semibold bg-yellow-400/20 text-yellow-100 px-2 py-0.5 rounded-full">
                   {insights.category}
@@ -195,12 +194,6 @@ export default function DataSpecificAIInsights({
             <h4 className="font-bold text-lg text-white">Forecast & Prediction</h4>
           </div>
           <p className="text-slate-100 leading-relaxed text-base">{insights.prediction}</p>
-        </div>
-
-        {/* AI Attribution */}
-        <div className="flex items-center justify-center gap-2 pt-2 text-xs text-slate-500">
-          <Sparkles className="w-3 h-3" />
-          <span>Analysis powered by Claude 3.5 Haiku AI</span>
         </div>
       </div>
     </section>

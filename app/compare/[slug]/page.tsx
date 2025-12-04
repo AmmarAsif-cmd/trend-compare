@@ -682,7 +682,7 @@ export default async function ComparePage({
                   </h3>
                   <p className="text-slate-600 text-sm mb-3">
                     {aiInsightsError === 'API key not configured'
-                      ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable Claude-powered analysis.'
+                      ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable AI-powered analysis.'
                       : aiInsightsError
                       ? `Generation failed: ${aiInsightsError}`
                       : 'Daily or monthly budget limit reached. AI insights will be available again soon.'}
