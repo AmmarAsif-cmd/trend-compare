@@ -2,13 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Flame, TrendingUp, Clock, Sparkles } from "lucide-react";
+import { Flame, TrendingUp, Clock, Sparkles, Tag } from "lucide-react";
+import slugify from "slugify";
 
 interface GoogleTrendingItem {
   title: string;
   formattedTraffic: string;
   relatedQueries?: string[];
   news?: { title: string; source: string }[];
+}
+
+// Helper to create comparison slug from keyword
+function createComparisonSlug(keyword: string): string {
+  return slugify(`${keyword} vs`, { lower: true, strict: true });
 }
 
 export default function LiveTrendingDashboard() {
@@ -85,35 +91,58 @@ export default function LiveTrendingDashboard() {
           <h4 className="font-semibold text-slate-900">Top Google Searches Right Now</h4>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {trending.map((item, idx) => (
             <div
               key={idx}
-              className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
+              className={`p-3 rounded-lg border transition-all duration-300 ${
                 idx === 0
                   ? 'bg-gradient-to-r from-orange-100 to-yellow-100 border-orange-300'
                   : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-orange-300'
               }`}
             >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                  {idx + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-slate-900 transition-colors truncate">
-                    {item.title}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {idx + 1}
                   </div>
-                  {idx === 0 && (
-                    <span className="text-xs text-orange-600 font-semibold">
-                      🔥 Trending globally
-                    </span>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      href={`/compare/${createComparisonSlug(item.title)}`}
+                      className="font-medium text-slate-900 hover:text-orange-600 transition-colors truncate block"
+                    >
+                      {item.title}
+                    </Link>
+                    {idx === 0 && (
+                      <span className="text-xs text-orange-600 font-semibold">
+                        🔥 Trending globally
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm font-bold text-orange-600">{item.formattedTraffic}</span>
+                  <TrendingUp className="w-4 h-4 text-orange-600" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-sm font-bold text-orange-600">{item.formattedTraffic}</span>
-                <TrendingUp className="w-4 h-4 text-orange-600" />
-              </div>
+
+              {/* Related Keywords */}
+              {item.relatedQueries && item.relatedQueries.length > 0 && (
+                <div className="flex items-start gap-2 pt-2 border-t border-orange-100">
+                  <Tag className="w-3 h-3 text-slate-400 mt-1 flex-shrink-0" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.relatedQueries.slice(0, 4).map((keyword, kidx) => (
+                      <Link
+                        key={kidx}
+                        href={`/compare/${createComparisonSlug(keyword)}`}
+                        className="inline-block px-2 py-0.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs rounded-full transition-colors border border-orange-200 hover:border-orange-300"
+                      >
+                        {keyword}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -128,7 +157,7 @@ export default function LiveTrendingDashboard() {
       {/* CTA */}
       <div className="mt-4 text-center">
         <p className="text-xs text-slate-600">
-          Compare any of these trends to discover insights
+          💡 Click any trending topic or keyword to start comparing
         </p>
       </div>
     </div>

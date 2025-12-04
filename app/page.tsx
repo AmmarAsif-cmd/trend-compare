@@ -5,7 +5,6 @@ import FeaturesSection from "@/components/FeaturesSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
-import TopGoogleSearches from "@/components/TopGoogleSearches";
 import LiveTrendingDashboard from "@/components/LiveTrendingDashboard";
 import DataSources from "@/components/DataSources";
 
@@ -31,7 +30,6 @@ export default function Home() {
         </div>
       </div>
 
-      <TopGoogleSearches />
       <FeaturesSection />
       <HowItWorksSection />
       <UseCasesSection />

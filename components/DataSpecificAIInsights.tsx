@@ -6,10 +6,15 @@
 import { Sparkles, TrendingUp, Target, Lightbulb, BarChart3, Users, Brain } from "lucide-react";
 
 type AIInsightResult = {
+  category: string;
   whatDataTellsUs: string[];
   whyThisMatters: string;
   keyDifferences: string;
   volatilityAnalysis: string;
+  peakExplanations: {
+    termA?: string;
+    termB?: string;
+  };
   practicalImplications: {
     [key: string]: string; // Dynamic audience keys
   };
@@ -46,11 +51,18 @@ export default function DataSpecificAIInsights({
             <Brain className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-              AI-Powered Analysis
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xl sm:text-2xl font-bold text-white">
+                AI-Powered Analysis
+              </h3>
               <span className="text-xs font-normal bg-white/20 px-2 py-0.5 rounded-full">Claude 3.5 Haiku</span>
-            </h3>
-            <p className="text-white/90 text-sm">
+              {insights.category && (
+                <span className="text-xs font-semibold bg-yellow-400/20 text-yellow-100 px-2 py-0.5 rounded-full">
+                  {insights.category}
+                </span>
+              )}
+            </div>
+            <p className="text-white/90 text-sm mt-1">
               Deep analysis of {prettyTerm(termA)} vs {prettyTerm(termB)} trends
             </p>
           </div>
@@ -117,6 +129,38 @@ export default function DataSpecificAIInsights({
             {insights.volatilityAnalysis}
           </p>
         </div>
+
+        {/* Peak Explanations - Why They Peaked */}
+        {(insights.peakExplanations?.termA || insights.peakExplanations?.termB) && (
+          <div className="bg-rose-50 border-l-4 border-rose-600 rounded-lg p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-rose-600" />
+              <h4 className="font-bold text-slate-900 text-lg">Standout Moments - Why They Peaked</h4>
+            </div>
+            <div className="space-y-4">
+              {insights.peakExplanations.termA && (
+                <div className="bg-white rounded-lg p-4 border border-rose-200">
+                  <p className="font-semibold text-sm text-rose-700 mb-2">
+                    📈 {prettyTerm(termA)} Peak
+                  </p>
+                  <p className="text-slate-700 text-sm leading-relaxed">
+                    {insights.peakExplanations.termA}
+                  </p>
+                </div>
+              )}
+              {insights.peakExplanations.termB && (
+                <div className="bg-white rounded-lg p-4 border border-rose-200">
+                  <p className="font-semibold text-sm text-rose-700 mb-2">
+                    📈 {prettyTerm(termB)} Peak
+                  </p>
+                  <p className="text-slate-700 text-sm leading-relaxed">
+                    {insights.peakExplanations.termB}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Practical Implications - Dynamic Audiences */}
         {Object.keys(insights.practicalImplications).length > 0 && (

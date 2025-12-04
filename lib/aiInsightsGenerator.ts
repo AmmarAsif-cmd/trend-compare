@@ -43,14 +43,17 @@ type ComparisonInsightData = {
 };
 
 type AIInsightResult = {
+  category: string; // e.g., "Technology", "Consumer Products", "Entertainment", etc.
   whatDataTellsUs: string[];
   whyThisMatters: string;
   keyDifferences: string;
   volatilityAnalysis: string;
+  peakExplanations: {
+    termA?: string; // Why termA peaked on that date
+    termB?: string; // Why termB peaked on that date
+  };
   practicalImplications: {
-    forInvestors?: string;
-    forContentCreators?: string;
-    forSEOExperts?: string;
+    [key: string]: string; // Dynamic audience keys
   };
   prediction: string;
 };
@@ -369,6 +372,7 @@ COMPETITIVE DYNAMICS:
 STEP 4: GENERATE INSIGHTS
 Provide insights in this EXACT JSON format:
 {
+  "category": "One word category: Technology, Business, Entertainment, ConsumerProducts, Health, Education, Finance, etc.",
   "whatDataTellsUs": [
     "First key insight with exact numbers and dates from the data above",
     "Second key insight with exact numbers and dates from the data above",
@@ -377,6 +381,10 @@ Provide insights in this EXACT JSON format:
   "whyThisMatters": "Explain why this comparison matters in the real world, based on what these terms represent",
   "keyDifferences": "Highlight the most important differences between the two trends using specific data points",
   "volatilityAnalysis": "Explain what the volatility numbers mean practically - is one more predictable? More seasonal? More event-driven?",
+  "peakExplanations": {
+    "termA": "Based on the peak date (${new Date(data.peakADate).toLocaleDateString()}), explain WHY ${prettyTermA} peaked at that time. What real-world event, announcement, or trend caused this? Be specific.",
+    "termB": "Based on the peak date (${new Date(data.peakBDate).toLocaleDateString()}), explain WHY ${prettyTermB} peaked at that time. What real-world event, announcement, or trend caused this? Be specific."
+  },
   "practicalImplications": {
     "AudienceName1": "Specific, actionable advice for this audience based on the trend data",
     "AudienceName2": "Specific, actionable advice for this audience based on the trend data"
@@ -385,18 +393,20 @@ Provide insights in this EXACT JSON format:
 }
 
 CRITICAL REQUIREMENTS:
-1. In practicalImplications, use camelCase audience names (e.g., "webDevelopers", "healthConsciousConsumers", "parents")
-2. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
-3. DO NOT use generic audiences like "content creators" unless the terms are about content creation
-4. Every insight must include specific numbers, dates, or percentages from the data
-5. Be concise but insightful - quality over quantity
-6. Return ONLY the JSON, no markdown formatting or additional text`;
+1. category MUST be ONE WORD in PascalCase (e.g., "Technology", "ConsumerProducts", "Entertainment")
+2. In practicalImplications, use camelCase audience names (e.g., "webDevelopers", "healthConsciousConsumers", "parents")
+3. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
+4. DO NOT use generic audiences like "content creators" unless the terms are about content creation
+5. In peakExplanations, research and explain WHY each term peaked on its specific date - mention real events, product launches, news, etc.
+6. Every insight must include specific numbers, dates, or percentages from the data
+7. Be concise but insightful - quality over quantity
+8. Return ONLY the JSON, no markdown formatting or additional text`;
 
 
     console.log("[AI Insights] 📡 Calling Anthropic API...");
     const message = await client.messages.create({
       model: "claude-3-5-haiku-20241022", // Haiku - cost-optimized model
-      max_tokens: 1500, // Increased for smarter, more detailed insights
+      max_tokens: 2000, // Increased for category detection + peak explanations
       messages: [{ role: "user", content: prompt }],
     });
 

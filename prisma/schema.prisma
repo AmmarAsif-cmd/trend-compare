@@ -16,6 +16,7 @@ model Comparison {
   series    Json // SeriesPoint[]
   stats     Json // computeStats output
   ai        Json? // generateCopy output (later LLM)
+  category  String? // AI-detected category (e.g., "Technology", "Entertainment")
   dataHash  String // hash(terms+timeframe+geo+series)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
