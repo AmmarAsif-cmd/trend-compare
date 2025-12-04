@@ -24,6 +24,10 @@ import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
 import DataSpecificAIInsights from "@/components/DataSpecificAIInsights";
 import { prepareInsightData, generateAIInsights } from "@/lib/aiInsightsGenerator";
+import AIKeyInsights from "@/components/AI/AIKeyInsights";
+import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
+import AIPrediction from "@/components/AI/AIPrediction";
+import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
 
 // Force dynamic rendering to ensure AI insights are generated fresh
 // Revalidate every 30 minutes to balance freshness with budget
@@ -621,15 +625,15 @@ export default async function ComparePage({
               timeframe={timeframe}
             />
 
-            <section className="grid gap-4 sm:gap-6 md:grid-cols-5">
+            <section className="grid gap-4 sm:gap-6 lg:grid-cols-5">
               {/* Headline insight */}
-              <div className="md:col-span-3 rounded-xl sm:rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group">
+              <div className="lg:col-span-3 rounded-xl sm:rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative z-10">
                   <p className="text-xs font-bold tracking-wide text-blue-600 mb-2 uppercase flex items-center gap-1.5">
                     <span className="text-base">📊</span> Key Insight
                   </p>
-                  <p className="text-base sm:text-lg font-bold text-slate-900 mb-3 leading-snug">
+                  <p className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-3 leading-snug">
                     {insight.headline}
                   </p>
                   <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.subline}</p>
@@ -637,7 +641,7 @@ export default async function ComparePage({
               </div>
 
               {/* Quick context */}
-              <div className="md:col-span-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group">
+              <div className="lg:col-span-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative z-10">
                   <p className="text-xs font-bold tracking-wide text-slate-600 mb-3 uppercase flex items-center gap-1.5">
@@ -661,14 +665,16 @@ export default async function ComparePage({
             </section>
           </header>
 
-          {/* AI-Powered Data-Specific Insights - Featured Position */}
-          {aiInsights ? (
-            <DataSpecificAIInsights
-              insights={aiInsights}
-              termA={terms[0]}
-              termB={terms[1]}
+          {/* AI Key Insights - Compact Top Section */}
+          {aiInsights && (
+            <AIKeyInsights
+              whatDataTellsUs={aiInsights.whatDataTellsUs}
+              category={aiInsights.category}
             />
-          ) : (
+          )}
+
+          {/* Fallback when AI is unavailable */}
+          {!aiInsights && (
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 shadow-lg p-6 print:hidden">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -703,24 +709,33 @@ export default async function ComparePage({
 
           {/* Chart */}
           <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
-            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-5 sm:px-6 py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
+              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
+                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
                 How {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Compare Over Time
               </h2>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-xs sm:text-sm text-slate-600 mt-1">
                 Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
               </p>
             </div>
-            <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-50/30 to-white">
+            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
             </div>
           </section>
 
+          {/* AI Peak Explanations - Right After Chart */}
+          {aiInsights?.peakExplanations && (
+            <AIPeakExplanations
+              peakExplanations={aiInsights.peakExplanations}
+              termA={terms[0]}
+              termB={terms[1]}
+            />
+          )}
+
           {/* Compare Stats */}
-          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-5 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-4 sm:p-5 lg:p-6">
+            <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
               {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}: The Numbers
             </h2>
             <CompareStats
@@ -732,16 +747,21 @@ export default async function ComparePage({
             />
           </section>
 
+          {/* AI Prediction - Forecast */}
+          {aiInsights?.prediction && (
+            <AIPrediction prediction={aiInsights.prediction} />
+          )}
+
           {/* Per-term insight cards */}
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-2">
+          <section className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             {insight.termInsights.map((ti, idx) => (
               <div
                 key={ti.term}
-                className={`rounded-xl sm:rounded-2xl border ${idx === 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/40' : 'border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/40'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group`}
+                className={`rounded-xl sm:rounded-2xl border ${idx === 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/40' : 'border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/40'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group`}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${idx === 0 ? 'from-blue-400/5' : 'from-purple-400/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
                 <div className="relative z-10">
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
                     <span className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-sm' : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-sm'} animate-pulse`}></span>
                     {ti.term} Analysis
                   </h3>
@@ -821,6 +841,13 @@ export default async function ComparePage({
         termA={terms[0]}
         termB={terms[1]}
       />
+
+      {/* AI Practical Implications - Actionable Insights */}
+      {aiInsights?.practicalImplications && (
+        <AIPracticalImplications
+          practicalImplications={aiInsights.practicalImplications}
+        />
+      )}
 
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">

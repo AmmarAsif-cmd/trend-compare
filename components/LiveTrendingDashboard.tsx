@@ -7,14 +7,19 @@ import slugify from "slugify";
 
 interface GoogleTrendingItem {
   title: string;
+  termA?: string;
+  termB?: string;
   formattedTraffic: string;
   relatedQueries?: string[];
   news?: { title: string; source: string }[];
 }
 
-// Helper to create comparison slug from keyword
-function createComparisonSlug(keyword: string): string {
-  return slugify(`${keyword} vs`, { lower: true, strict: true });
+// Helper to create comparison slug from two terms
+function createComparisonSlug(termA: string, termB?: string): string {
+  if (termB) {
+    return slugify(`${termA} vs ${termB}`, { lower: true, strict: true });
+  }
+  return slugify(`${termA} vs`, { lower: true, strict: true });
 }
 
 export default function LiveTrendingDashboard() {
@@ -108,7 +113,7 @@ export default function LiveTrendingDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/compare/${createComparisonSlug(item.title)}`}
+                      href={`/compare/${createComparisonSlug(item.termA || item.title, item.termB)}`}
                       className="font-medium text-slate-900 hover:text-orange-600 transition-colors truncate block"
                     >
                       {item.title}
