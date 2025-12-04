@@ -29,10 +29,8 @@ import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
 
-// Force dynamic rendering to ensure AI insights are generated fresh
-// Revalidate every 30 minutes to balance freshness with budget
-export const dynamic = 'force-dynamic';
-export const revalidate = 1800; // 30 minutes
+// Revalidate every 10 minutes for fresh data while maintaining performance
+export const revalidate = 600; // 10 minutes
 
 /* ---------------- helpers ---------------- */
 
@@ -519,42 +517,47 @@ export default async function ComparePage({
 
   const insight = buildInsightBundle(series as any, terms, timeframe);
 
-  // Generate Content Engine insights (advanced pattern detection)
-  let contentEngineResult = null;
-  try {
-    contentEngineResult = await generateComparisonContent(terms, rawSeries as any[], {
+  // Run all async operations in parallel for faster loading ⚡
+  const [contentEngineResult, geographicData, aiInsights, aiInsightsError] = await Promise.all([
+    // Generate Content Engine insights (advanced pattern detection)
+    generateComparisonContent(terms, rawSeries as any[], {
       deepAnalysis: true,
-      useMultiSource: true, // Enable multi-source for better reasoning
-    });
-  } catch (error) {
-    console.error('Content Engine error:', error);
-  }
+      useMultiSource: true,
+    }).catch((error) => {
+      console.error('Content Engine error:', error);
+      return null;
+    }),
 
-  // Get geographic breakdown (FREE - no API costs)
-  const geographicData = await getGeographicBreakdown(terms[0], terms[1], series as any[]);
+    // Get geographic breakdown (FREE - no API costs)
+    getGeographicBreakdown(terms[0], terms[1], series as any[]),
 
-  // Generate AI insights (cost-optimized with budget controls <$10/month)
-  let aiInsights = null;
-  let aiInsightsError = null;
+    // Generate AI insights (cost-optimized with budget controls <$10/month)
+    (async () => {
+      try {
+        const insightData = prepareInsightData(terms[0], terms[1], series as any[]);
+        const result = await generateAIInsights(insightData);
 
-  try {
-    const insightData = prepareInsightData(terms[0], terms[1], series as any[]);
-    aiInsights = await generateAIInsights(insightData);
-
-    if (aiInsights) {
-      console.log('[AI Insights] ✅ Generated successfully for:', terms.join(' vs '));
-    } else {
-      console.log('[AI Insights] ⚠️ Not generated - check budget limits or API key');
-      if (!process.env.ANTHROPIC_API_KEY) {
-        aiInsightsError = 'API key not configured';
-      } else {
-        aiInsightsError = 'Budget limit reached or generation failed';
+        if (result) {
+          console.log('[AI Insights] ✅ Generated successfully for:', terms.join(' vs '));
+          return result;
+        } else {
+          console.log('[AI Insights] ⚠️ Not generated - check budget limits or API key');
+          return null;
+        }
+      } catch (error) {
+        console.error('[AI Insights] ❌ Generation error:', error);
+        return null;
       }
-    }
-  } catch (error) {
-    console.error('[AI Insights] ❌ Generation error:', error);
-    aiInsightsError = error instanceof Error ? error.message : 'Unknown error';
-  }
+    })(),
+
+    // Error tracking for AI insights
+    (async () => {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return 'API key not configured';
+      }
+      return null;
+    })(),
+  ]);
 
   // compute totals and shares for stats
   const keyA = terms[0];

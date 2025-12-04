@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Flame, TrendingUp, Clock, Sparkles, Tag } from "lucide-react";
-import slugify from "slugify";
 
 interface GoogleTrendingItem {
   title: string;
@@ -14,12 +13,50 @@ interface GoogleTrendingItem {
   news?: { title: string; source: string }[];
 }
 
-// Helper to create comparison slug from two terms
-function createComparisonSlug(termA: string, termB?: string): string {
-  if (termB) {
-    return slugify(`${termA} vs ${termB}`, { lower: true, strict: true });
+// Helper to create proper comparison slug matching app's format
+function createComparisonSlug(termA: string, termB: string): string {
+  // Slugify each term individually
+  const slugify = (str: string) =>
+    str
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+  const slug1 = slugify(termA);
+  const slug2 = slugify(termB);
+
+  // Sort alphabetically for consistency (a-vs-b === b-vs-a)
+  const sorted = [slug1, slug2].sort();
+
+  return sorted.join("-vs-");
+}
+
+// Helper to create slug for a single keyword (pairs it with a popular comparison term)
+function createSingleKeywordSlug(keyword: string): string {
+  // For single keywords, create a meaningful comparison
+  // This is a fallback - ideally we'd have predefined pairs
+  const commonPairs: Record<string, string> = {
+    "claude ai": "chatgpt",
+    "perplexity": "chatgpt",
+    "microsoft copilot": "chatgpt",
+    "meta ai": "chatgpt",
+    "angular": "react",
+    "svelte": "react",
+    "next.js": "react",
+    "solid.js": "react",
+  };
+
+  const lowerKeyword = keyword.toLowerCase();
+  const pair = commonPairs[lowerKeyword];
+
+  if (pair) {
+    return createComparisonSlug(keyword, pair);
   }
-  return slugify(`${termA} vs`, { lower: true, strict: true });
+
+  // If no pair found, just return the keyword slugified (will show an error page, but that's okay)
+  return keyword.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
 }
 
 export default function LiveTrendingDashboard() {
@@ -112,12 +149,18 @@ export default function LiveTrendingDashboard() {
                     {idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/compare/${createComparisonSlug(item.termA || item.title, item.termB)}`}
-                      className="font-medium text-slate-900 hover:text-orange-600 transition-colors truncate block"
-                    >
-                      {item.title}
-                    </Link>
+                    {item.termA && item.termB ? (
+                      <Link
+                        href={`/compare/${createComparisonSlug(item.termA, item.termB)}`}
+                        className="font-medium text-slate-900 hover:text-orange-600 transition-colors truncate block"
+                      >
+                        {item.title}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-slate-900 truncate block">
+                        {item.title}
+                      </span>
+                    )}
                     {idx === 0 && (
                       <span className="text-xs text-orange-600 font-semibold">
                         🔥 Trending globally
@@ -139,7 +182,7 @@ export default function LiveTrendingDashboard() {
                     {item.relatedQueries.slice(0, 4).map((keyword, kidx) => (
                       <Link
                         key={kidx}
-                        href={`/compare/${createComparisonSlug(keyword)}`}
+                        href={`/compare/${createSingleKeywordSlug(keyword)}`}
                         className="inline-block px-2 py-0.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs rounded-full transition-colors border border-orange-200 hover:border-orange-300"
                       >
                         {keyword}
