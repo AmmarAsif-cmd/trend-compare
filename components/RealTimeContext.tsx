@@ -179,7 +179,7 @@ export default function RealTimeContext({
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Current Leader */}
         <div className="bg-white rounded-lg p-4 border border-blue-200">
           <div className="flex items-center gap-2 mb-2">
