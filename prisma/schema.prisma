@@ -16,12 +16,14 @@ model Comparison {
   series    Json // SeriesPoint[]
   stats     Json // computeStats output
   ai        Json? // generateCopy output (later LLM)
+  category  String? // Detected category: "Tech", "Business", "Entertainment", etc.
   dataHash  String // hash(terms+timeframe+geo+series)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([slug, timeframe, geo], name: "slug_timeframe_geo")
   @@index([slug])
+  @@index([category])
 }
 
 model AIInsightUsage {

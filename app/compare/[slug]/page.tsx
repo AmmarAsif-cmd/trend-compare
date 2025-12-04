@@ -28,6 +28,7 @@ import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
+import { prisma } from "@/lib/db";
 
 // Revalidate every 10 minutes for fresh data while maintaining performance
 export const revalidate = 600; // 10 minutes
@@ -558,6 +559,27 @@ export default async function ComparePage({
       return null;
     })(),
   ]);
+
+  // Save detected category to database for caching and future filtering
+  if (aiInsights?.category && canonical && originalSeries) {
+    try {
+      await prisma.comparison.update({
+        where: {
+          slug_timeframe_geo: {
+            slug: canonical,
+            timeframe: timeframe || '12m',
+            geo: geo || ''
+          }
+        },
+        data: { category: aiInsights.category },
+      }).catch((err) => {
+        console.warn('[Category Save] Failed to save category:', err.message);
+      });
+      console.log('[Category Save] ✅ Saved category:', aiInsights.category);
+    } catch (error: any) {
+      console.warn('[Category Save] ⚠️ Could not save category:', error.message);
+    }
+  }
 
   // compute totals and shares for stats
   const keyA = terms[0];

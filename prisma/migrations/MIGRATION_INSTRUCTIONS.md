@@ -2,17 +2,21 @@
 
 ## Category Field Migration
 
-The AI insights feature has been updated to detect and store keyword categories (Technology, Entertainment, etc.). However, the database schema needs to be updated.
+The AI insights feature has been updated to detect and store keyword categories (Technology, Entertainment, etc.). The schema has been updated in `prisma/schema.prisma` with the category field and index.
+
+### Before Running Migration
+
+**IMPORTANT**: First regenerate the Prisma client to sync with the updated schema:
+
+```bash
+npx prisma generate
+```
 
 ### Option 1: Using Prisma CLI (Recommended)
 
 When you have database access, run:
 
 ```bash
-# Uncomment the category field in prisma/schema.prisma first:
-# category  String? // AI-detected category (e.g., "Technology", "Entertainment")
-
-# Then run:
 npx prisma db push
 # OR
 npx prisma migrate dev --name add_category_field
@@ -26,6 +30,9 @@ Run this SQL directly on your PostgreSQL database:
 -- Add category column to Comparison table
 ALTER TABLE "Comparison"
 ADD COLUMN "category" TEXT;
+
+-- Add index on category for efficient filtering
+CREATE INDEX "Comparison_category_idx" ON "Comparison"("category");
 
 -- Add comment
 COMMENT ON COLUMN "Comparison"."category" IS 'AI-detected category (e.g., "Technology", "Entertainment")';
