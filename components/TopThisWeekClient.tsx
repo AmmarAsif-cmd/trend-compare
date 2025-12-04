@@ -54,24 +54,24 @@ export default function TopThisWeekClient() {
 
   return (
     <section>
-      <div className="text-center mb-12 sm:mb-16">
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+      <div className="text-center mb-8 sm:mb-12">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3">
           Trending Comparisons
           <span className="block bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
             This Week
           </span>
         </h2>
-        <p className="text-lg sm:text-xl text-slate-600">
+        <p className="text-base sm:text-lg text-slate-600">
           See what topics people are comparing right now
         </p>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {items.slice(0, 6).map((it, idx) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+        {items.slice(0, 8).map((it, idx) => (
           <Link
             key={`${it.slug}|${it.tf ?? "12m"}|${it.geo ?? ""}`}
             href={`/compare/${it.slug}`}
-            className="group relative bg-white border-2 border-slate-200 hover:border-blue-500 rounded-2xl p-5 sm:p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+            className="group relative bg-white border-2 border-slate-200 hover:border-blue-500 rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
           >
             {idx < 3 && (
               <div className="absolute top-4 right-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-md">

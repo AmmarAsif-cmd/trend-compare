@@ -52,7 +52,7 @@ async function checkMigrationStatus() {
 
     if (allRecords.length > 0) {
       console.log('📊 Recent usage records:');
-      allRecords.forEach((record) => {
+      allRecords.forEach((record: any) => {
         console.log(`   ${record.date.toISOString().split('T')[0]}: ${record.dailyCount} insights (${record.month})`);
       });
       console.log();
