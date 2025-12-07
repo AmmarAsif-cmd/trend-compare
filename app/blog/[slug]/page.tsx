@@ -154,6 +154,37 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </ReactMarkdown>
         </div>
 
+        {/* References Section */}
+        {post.references && Array.isArray(post.references) && (post.references as any[]).length > 0 && (
+          <div className="mt-12 pt-8 border-t-2 border-gray-300">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">References</h2>
+            <div className="space-y-4">
+              {(post.references as any[]).map((ref: any, index: number) => (
+                <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 font-bold text-blue-600">[{index + 1}]</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900 mb-1">{ref.title}</div>
+                      <div className="text-sm text-gray-600 mb-2">{ref.source}</div>
+                      <a
+                        href={ref.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-900 underline break-all"
+                      >
+                        {ref.url}
+                      </a>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Accessed: {new Date(ref.accessDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tags */}
         {post.tags.length > 0 && (
           <div className="mt-12 pt-8 border-t border-gray-200">

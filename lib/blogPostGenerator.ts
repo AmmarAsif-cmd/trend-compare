@@ -24,6 +24,14 @@ export type BlogPostTopic = {
   angle?: string; // Unique angle for the post
 };
 
+export type Reference = {
+  title: string;
+  url: string;
+  source: string; // e.g., "Statista", "Gartner", "McKinsey"
+  accessDate: string; // ISO date
+  type: "statistic" | "research" | "news" | "industry_report" | "case_study";
+};
+
 export type GeneratedBlogPost = {
   title: string;
   excerpt: string;
@@ -34,6 +42,7 @@ export type GeneratedBlogPost = {
   tags: string[];
   readTimeMinutes: number;
   category: string;
+  references: Reference[];
 };
 
 /**
@@ -110,23 +119,45 @@ export async function generateBlogPost(
  * Build AI prompt based on topic type
  */
 function buildPromptForTopic(topic: BlogPostTopic): string {
-  const baseInstructions = `You are an expert content writer creating SEO-optimized blog posts for TrendArc, a trend analysis platform.
+  const baseInstructions = `You are an expert content writer creating SEO-optimized, well-researched blog posts for TrendArc, a trend analysis platform.
 
 CRITICAL SEO REQUIREMENTS:
 1. Write for humans first, search engines second
 2. Use natural language (no keyword stuffing)
-3. Include data, statistics, and specific examples
-4. Write engaging, informative content
+3. Include data, statistics, and specific examples with citations
+4. Write engaging, informative content backed by credible sources
 5. Use proper heading hierarchy (H2, H3)
 6. Include actionable takeaways
+7. Target long-tail keywords naturally in content
+8. Optimize for featured snippets (use lists, tables, Q&A format where appropriate)
+
+CONTENT AUTHENTICITY & CITATIONS:
+**CRITICAL**: Every claim, statistic, and data point MUST be cited with credible sources.
+- Use reputable sources: Industry reports (Gartner, McKinsey, Forrester), Research organizations (Pew Research, Nielsen), News outlets (WSJ, Reuters, Bloomberg), Statistics databases (Statista, Our World in Data)
+- Cite inline with [1], [2], etc. and include full references at the end
+- When mentioning statistics, always include: specific numbers, date/year, and source
+- Example: "According to Gartner's 2024 report, AI adoption increased by 67% year-over-year [1]"
+- Provide 4-8 diverse, credible references per post
+- References must be realistic and authoritative (actual publication names)
 
 CONTENT STRUCTURE:
-- Introduction: Hook the reader, explain why this matters
-- Main sections: 3-5 H2 sections with detailed insights
-- Data-driven: Include specific numbers, dates, percentages
-- Conclusion: Summarize key points, call-to-action
+- Introduction: Hook with a compelling statistic or question, explain why this matters now
+- Main sections: 3-5 H2 sections with detailed, cited insights
+- Data-driven: Include specific numbers, dates, percentages with inline citations [1]
+- Expert insights: Reference industry leaders and authoritative sources
+- Practical takeaways: Actionable advice based on the data
+- Conclusion: Summarize key points with a strong call-to-action
+- References: Full citation list at the end
 
-TARGET AUDIENCE: Marketers, content creators, business owners, data enthusiasts who want to understand trends.`;
+INFORMATION RICHNESS:
+- Go deep on each topic with multiple angles
+- Include historical context, current state, and future predictions
+- Use specific case studies and real-world examples (cite sources)
+- Compare multiple perspectives from different sources
+- Address common questions and misconceptions
+- Provide nuanced analysis, not just surface-level observations
+
+TARGET AUDIENCE: Marketers, content creators, business owners, data enthusiasts who want to understand trends backed by real data.`;
 
   let specificPrompt = "";
 
@@ -220,13 +251,22 @@ Structure:
 {
   "title": "Compelling, SEO-friendly title (60-70 characters)",
   "excerpt": "Engaging 2-3 sentence summary (150-160 characters) that makes people want to read more",
-  "content": "Full blog post in MARKDOWN format. Use \\n\\n for paragraph breaks, ## for H2, ### for H3. Include:\\n\\n- Introduction paragraph\\n- 3-5 main sections with ## headings\\n- Bullet points and numbered lists\\n- Data and statistics in **bold**\\n- Key takeaways\\n\\nMinimum 800 words, maximum 1500 words",
+  "content": "Full blog post in MARKDOWN format. Use \\n\\n for paragraph breaks, ## for H2, ### for H3. Include:\\n\\n- Introduction with compelling hook and cited statistic\\n- 3-5 main sections with ## headings\\n- Inline citations like [1], [2] after claims\\n- Bullet points and numbered lists\\n- Data and statistics in **bold** with citations\\n- Expert quotes and industry insights (cited)\\n- Key takeaways and actionable advice\\n- DO NOT include a References section in the content - these go in the references field\\n\\nMinimum 1000 words, maximum 2000 words for information richness",
   "metaTitle": "SEO-optimized title for search engines (50-60 characters)",
   "metaDescription": "SEO meta description that includes main keyword and call-to-action (150-160 characters)",
-  "keywords": ["primary keyword", "secondary keyword", "long-tail keyword", "related term"],
-  "tags": ["tag1", "tag2", "tag3"],
-  "readTimeMinutes": 7,
-  "category": "${topic.category}"
+  "keywords": ["primary keyword", "secondary keyword", "long-tail keyword 1", "long-tail keyword 2", "related term"],
+  "tags": ["tag1", "tag2", "tag3", "tag4"],
+  "readTimeMinutes": 8,
+  "category": "${topic.category}",
+  "references": [
+    {
+      "title": "Descriptive title of the source",
+      "url": "https://example.com/credible-source",
+      "source": "Publication Name (e.g., Gartner, McKinsey, Statista)",
+      "accessDate": "2024-12-07",
+      "type": "statistic" | "research" | "news" | "industry_report" | "case_study"
+    }
+  ]
 }
 
 IMPORTANT JSON FORMATTING RULES:
@@ -237,16 +277,30 @@ IMPORTANT JSON FORMATTING RULES:
 5. Ensure all quotes inside strings are escaped with backslash
 
 CONTENT QUALITY CHECKLIST:
-✅ Engaging introduction that hooks the reader
-✅ Data-driven insights with specific numbers
-✅ Clear heading hierarchy (H2, H3)
-✅ Actionable takeaways
-✅ Natural keyword usage (NO stuffing)
+✅ Engaging introduction with cited statistic or compelling data point
+✅ 4-8 credible references from authoritative sources
+✅ Every major claim and statistic is cited inline [1], [2], etc.
+✅ Data-driven insights with specific numbers, dates, and sources
+✅ Clear heading hierarchy (H2, H3) with keyword optimization
+✅ Actionable takeaways backed by research
+✅ Natural keyword usage including long-tail keywords (NO stuffing)
+✅ Optimized for featured snippets (lists, Q&A, step-by-step)
 ✅ Conclusion with call-to-action
-✅ 800-1500 words
-✅ Scannable formatting (bullets, bold, lists)
+✅ 1000-2000 words for comprehensive coverage
+✅ Scannable formatting (bullets, bold, lists, tables where appropriate)
+✅ Historical context + current state + future predictions
+✅ Multiple perspectives from different credible sources
+✅ E-A-T optimization (Expertise, Authoritativeness, Trustworthiness)
 
-Write like a human expert, not like AI. Be conversational but authoritative. Include personality and insights.`;
+REFERENCE REQUIREMENTS:
+- Minimum 4 references, maximum 8
+- Diverse source types (mix of statistics, research, news, reports)
+- Use real publication names (Gartner, McKinsey, Statista, Pew Research, etc.)
+- Include realistic URLs (e.g., https://www.gartner.com/en/articles/...)
+- Set accessDate to today's date: 2024-12-07
+- Each reference must be cited at least once in the content with [1], [2], etc.
+
+Write like a human expert, not like AI. Be conversational but authoritative. Back every claim with evidence. Include personality and deep insights.`;
 }
 
 /**
@@ -280,6 +334,7 @@ export async function saveBlogPostDraft(
         autoGenerated: true,
         generatedPrompt,
         readTimeMinutes: post.readTimeMinutes,
+        references: post.references || [],
       },
     });
 

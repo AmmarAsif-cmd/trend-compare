@@ -67,6 +67,7 @@ model BlogPost {
   // Metadata
   authorNote      String?  @db.Text // Your notes/edits
   generatedPrompt String?  @db.Text // AI prompt used (for debugging)
+  references      Json?    // Array of citations/sources used in the post
   readTimeMinutes Int      @default(5)
   viewCount       Int      @default(0)
 

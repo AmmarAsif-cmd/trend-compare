@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
 
+type Reference = {
+  title: string;
+  url: string;
+  source: string;
+  accessDate: string;
+  type: string;
+};
+
 type BlogPost = {
   id: string;
   slug: string;
@@ -22,6 +30,7 @@ type BlogPost = {
   scheduledFor: string | null;
   authorNote: string | null;
   generatedPrompt: string | null;
+  references: Reference[] | null;
   readTimeMinutes: number;
   viewCount: number;
   createdAt: string;
@@ -368,6 +377,41 @@ export default function BlogPostReview({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             </div>
+
+            {/* References */}
+            {post.references && post.references.length > 0 && (
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  References ({post.references.length})
+                </h3>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {post.references.map((ref, index) => (
+                    <div key={index} className="border-b border-gray-200 pb-3 last:border-0">
+                      <div className="flex items-start gap-2">
+                        <span className="flex-shrink-0 font-bold text-blue-600 text-sm">[{index + 1}]</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 mb-1 break-words">
+                            {ref.title}
+                          </div>
+                          <div className="text-xs text-gray-600 mb-1">{ref.source}</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Type: <span className="capitalize">{ref.type.replace('_', ' ')}</span>
+                          </div>
+                          <a
+                            href={ref.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-900 underline break-all"
+                          >
+                            {ref.url.length > 50 ? ref.url.slice(0, 50) + '...' : ref.url}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Related Comparison */}
             {post.comparisonSlug && (
