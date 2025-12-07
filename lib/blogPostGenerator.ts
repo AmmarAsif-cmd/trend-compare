@@ -63,10 +63,36 @@ export async function generateBlogPost(
 
     const content = message.content[0];
     if (content.type === "text") {
-      // Extract JSON from response
-      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
+      // Extract JSON from response (try multiple methods)
+      let result = null;
+
+      try {
+        // Method 1: Try direct JSON parse
+        result = JSON.parse(content.text);
+      } catch (e1) {
+        try {
+          // Method 2: Remove markdown code blocks if present
+          const cleaned = content.text
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim();
+          result = JSON.parse(cleaned);
+        } catch (e2) {
+          try {
+            // Method 3: Extract JSON between curly braces
+            const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              result = JSON.parse(jsonMatch[0]);
+            }
+          } catch (e3) {
+            console.error("[Blog Generator] ❌ All JSON parsing methods failed");
+            console.error("[Blog Generator] Response preview:", content.text.slice(0, 500));
+            return null;
+          }
+        }
+      }
+
+      if (result) {
         console.log("[Blog Generator] ✅ Post generated successfully");
         return result;
       }
@@ -186,19 +212,29 @@ Use specific dates, percentages, and comparative data.`;
 ${specificPrompt}
 
 OUTPUT FORMAT (JSON):
-Return ONLY a JSON object with this exact structure:
+**CRITICAL: You must return VALID JSON. Newlines in the content field must be escaped as \\n**
 
+Return your response as a valid JSON object (not wrapped in markdown code blocks).
+
+Structure:
 {
   "title": "Compelling, SEO-friendly title (60-70 characters)",
   "excerpt": "Engaging 2-3 sentence summary (150-160 characters) that makes people want to read more",
-  "content": "Full blog post in MARKDOWN format. Use ## for H2, ### for H3. Include:\n- Introduction paragraph\n- 3-5 main sections with ## headings\n- Bullet points and numbered lists where appropriate\n- Data and statistics in **bold**\n- Key takeaways in a final section\n- Minimum 800 words, maximum 1500 words",
+  "content": "Full blog post in MARKDOWN format. Use \\n\\n for paragraph breaks, ## for H2, ### for H3. Include:\\n\\n- Introduction paragraph\\n- 3-5 main sections with ## headings\\n- Bullet points and numbered lists\\n- Data and statistics in **bold**\\n- Key takeaways\\n\\nMinimum 800 words, maximum 1500 words",
   "metaTitle": "SEO-optimized title for search engines (50-60 characters)",
   "metaDescription": "SEO meta description that includes main keyword and call-to-action (150-160 characters)",
-  "keywords": ["primary keyword", "secondary keyword", "long-tail keyword", "related term", "etc"],
+  "keywords": ["primary keyword", "secondary keyword", "long-tail keyword", "related term"],
   "tags": ["tag1", "tag2", "tag3"],
   "readTimeMinutes": 7,
   "category": "${topic.category}"
 }
+
+IMPORTANT JSON FORMATTING RULES:
+1. All newlines in the "content" field MUST be escaped as \\n
+2. Use \\n\\n for paragraph breaks
+3. No literal line breaks inside string values
+4. Return raw JSON only - NO markdown code blocks (no \`\`\`json)
+5. Ensure all quotes inside strings are escaped with backslash
 
 CONTENT QUALITY CHECKLIST:
 ✅ Engaging introduction that hooks the reader
@@ -210,9 +246,7 @@ CONTENT QUALITY CHECKLIST:
 ✅ 800-1500 words
 ✅ Scannable formatting (bullets, bold, lists)
 
-Write like a human expert, not like AI. Be conversational but authoritative. Include personality and insights.
-
-Return ONLY the JSON, no markdown code blocks or additional text.`;
+Write like a human expert, not like AI. Be conversational but authoritative. Include personality and insights.`;
 }
 
 /**
