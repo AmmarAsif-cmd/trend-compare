@@ -24,6 +24,7 @@ export default function AdminBlogDashboard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPosts();
@@ -31,6 +32,7 @@ export default function AdminBlogDashboard() {
 
   const fetchPosts = async () => {
     setLoading(true);
+    setError(null);
     try {
       const url =
         statusFilter === "all"
@@ -40,9 +42,12 @@ export default function AdminBlogDashboard() {
       const data = await res.json();
       if (data.success) {
         setPosts(data.posts);
+      } else {
+        setError(data.error || "Failed to load posts");
       }
-    } catch (error) {
-      console.error("Failed to fetch posts:", error);
+    } catch (err) {
+      console.error("Failed to fetch posts:", err);
+      setError("Failed to connect to server. Make sure the database is running.");
     } finally {
       setLoading(false);
     }

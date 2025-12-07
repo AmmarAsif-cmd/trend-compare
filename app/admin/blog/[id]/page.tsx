@@ -38,13 +38,38 @@ export default function BlogPostReview({ params }: { params: Promise<{ id: strin
   const [editedTitle, setEditedTitle] = useState("");
   const [editedExcerpt, setEditedExcerpt] = useState("");
   const [authorNote, setAuthorNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchPost = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/admin/blog/posts/${resolvedParams.id}`);
+        const data = await res.json();
+        if (data.success) {
+          setPost(data.post);
+          setEditedContent(data.post.content);
+          setEditedTitle(data.post.title);
+          setEditedExcerpt(data.post.excerpt);
+          setAuthorNote(data.post.authorNote || "");
+        } else {
+          setError(data.error || "Failed to load post");
+        }
+      } catch (err) {
+        console.error("Failed to fetch post:", err);
+        setError("Failed to fetch post. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchPost();
   }, [resolvedParams.id]);
 
-  const fetchPost = async () => {
+  const refetchPost = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/admin/blog/posts/${resolvedParams.id}`);
       const data = await res.json();
@@ -54,9 +79,12 @@ export default function BlogPostReview({ params }: { params: Promise<{ id: strin
         setEditedTitle(data.post.title);
         setEditedExcerpt(data.post.excerpt);
         setAuthorNote(data.post.authorNote || "");
+      } else {
+        setError(data.error || "Failed to load post");
       }
-    } catch (error) {
-      console.error("Failed to fetch post:", error);
+    } catch (err) {
+      console.error("Failed to fetch post:", err);
+      setError("Failed to fetch post. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -113,7 +141,34 @@ export default function BlogPostReview({ params }: { params: Promise<{ id: strin
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-center">
+          <div className="text-gray-500 text-lg mb-2">Loading post...</div>
+          <div className="text-sm text-gray-400">Please wait</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-red-500 text-lg mb-4">⚠️ {error}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+          <div className="mt-4">
+            <a
+              href="/admin/blog"
+              className="text-blue-600 hover:text-blue-900"
+            >
+              ← Back to Dashboard
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
@@ -121,7 +176,15 @@ export default function BlogPostReview({ params }: { params: Promise<{ id: strin
   if (!post) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-500">Post not found</div>
+        <div className="text-center max-w-md">
+          <div className="text-red-500 text-lg mb-4">Post not found</div>
+          <a
+            href="/admin/blog"
+            className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            ← Back to Dashboard
+          </a>
+        </div>
       </div>
     );
   }
