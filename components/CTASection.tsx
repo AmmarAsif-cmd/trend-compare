@@ -38,7 +38,7 @@ export default function CTASection() {
               </span>
             </h2>
 
-            <p className="text-lg sm:text-xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-white mb-12 max-w-3xl mx-auto leading-relaxed">
               Join thousands of professionals using TrendArc to compare trends, discover insights, and stay ahead with real-time data analysis powered by AI.
             </p>
 

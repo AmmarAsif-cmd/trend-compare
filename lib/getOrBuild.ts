@@ -126,9 +126,19 @@ export async function getOrBuildComparison({
   geo,
 }: Args): Promise<ComparisonPayload | null> {
   // 1) Try cache
-  const existing = await prisma.comparison.findUnique({
-    where: { slug_timeframe_geo: { slug, timeframe, geo } },
-  });
+  let existing = null;
+  try {
+    existing = await prisma.comparison.findUnique({
+      where: { slug_timeframe_geo: { slug, timeframe, geo } },
+    });
+  } catch (error: any) {
+    // If database doesn't have the schema set up yet, continue without cache
+    if (error?.code === 'P1008' || error?.message?.includes('column')) {
+      console.warn('[getOrBuildComparison] Database schema not ready, skipping cache');
+    } else {
+      throw error;
+    }
+  }
   const normalizedExisting = existing ? normalizeRow(existing) : null;
   if (normalizedExisting) return normalizedExisting;
 
@@ -141,11 +151,34 @@ export async function getOrBuildComparison({
   const dataHash = stableHash({ terms, timeframe, geo, series });
 
   // 3) Save and return
-  const saved = await prisma.comparison.upsert({
-    where: { slug_timeframe_geo: { slug, timeframe, geo } },
-    create: { slug, timeframe, geo, terms, series, stats, ai, dataHash },
-    update: { series, stats, ai, dataHash },
-  });
+  let saved;
+  try {
+    saved = await prisma.comparison.upsert({
+      where: { slug_timeframe_geo: { slug, timeframe, geo } },
+      create: { slug, timeframe, geo, terms, series, stats, ai, dataHash },
+      update: { series, stats, ai, dataHash },
+    });
+  } catch (error: any) {
+    // If database doesn't have the schema set up yet, return the data without saving
+    if (error?.code === 'P1008' || error?.message?.includes('column')) {
+      console.warn('[getOrBuildComparison] Could not save to database, returning data');
+      return {
+        id: 'temp-' + Date.now(),
+        slug,
+        timeframe,
+        geo,
+        terms,
+        series: series as any,
+        stats,
+        ai,
+        dataHash,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    } else {
+      throw error;
+    }
+  }
 
   return normalizeRow(saved);
 }

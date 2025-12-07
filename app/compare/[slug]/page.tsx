@@ -401,18 +401,21 @@ export async function generateMetadata({
     });
 
     if (row && row.series && row.series.length > 0) {
+      // Use terms from database (preserves special characters like C++, Node.js)
+      const actualTerms = row.terms as string[];
+
       // Calculate comparison data from series
       const comparisonData = calculateComparisonData(
-        terms[0],
-        terms[1],
+        actualTerms[0],
+        actualTerms[1],
         row.series as Array<{ date: string; [key: string]: any }>
       );
 
       // Generate dynamic meta content based on actual data
       const { title, description } = generateDynamicMeta(
         comparisonData,
-        terms[0],
-        terms[1]
+        actualTerms[0],
+        actualTerms[1]
       );
 
       return {
@@ -492,6 +495,8 @@ export default async function ComparePage({
   });
   if (!row) return notFound();
 
+  // Use terms from database (preserves special characters like C++, Node.js)
+  const actualTerms = row.terms as string[];
   const { series: rawSeries, ai } = row;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
@@ -504,7 +509,7 @@ export default async function ComparePage({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {terms.map(prettyTerm).join(" vs ")}
+              {actualTerms.map(prettyTerm).join(" vs ")}
             </h1>
             <p className="text-slate-600">
               Not enough data. Try a longer timeframe or different terms.
@@ -516,12 +521,12 @@ export default async function ComparePage({
     );
   }
 
-  const insight = buildInsightBundle(series as any, terms, timeframe);
+  const insight = buildInsightBundle(series as any, actualTerms, timeframe);
 
   // Run all async operations in parallel for faster loading ⚡
   const [contentEngineResult, geographicData, aiInsights, aiInsightsError] = await Promise.all([
     // Generate Content Engine insights (advanced pattern detection)
-    generateComparisonContent(terms, rawSeries as any[], {
+    generateComparisonContent(actualTerms, rawSeries as any[], {
       deepAnalysis: true,
       useMultiSource: true,
     }).catch((error) => {
@@ -530,16 +535,16 @@ export default async function ComparePage({
     }),
 
     // Get geographic breakdown (FREE - no API costs)
-    getGeographicBreakdown(terms[0], terms[1], series as any[]),
+    getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
 
     // Generate AI insights (cost-optimized with budget controls <$10/month)
     (async () => {
       try {
-        const insightData = prepareInsightData(terms[0], terms[1], series as any[]);
+        const insightData = prepareInsightData(actualTerms[0], actualTerms[1], series as any[]);
         const result = await generateAIInsights(insightData);
 
         if (result) {
-          console.log('[AI Insights] ✅ Generated successfully for:', terms.join(' vs '));
+          console.log('[AI Insights] ✅ Generated successfully for:', actualTerms.join(' vs '));
           return result;
         } else {
           console.log('[AI Insights] ⚠️ Not generated - check budget limits or API key');
@@ -561,7 +566,7 @@ export default async function ComparePage({
   ]);
 
   // Save detected category to database for caching and future filtering
-  if (aiInsights?.category && canonical && originalSeries) {
+  if (aiInsights?.category && canonical && rawSeries) {
     try {
       await prisma.comparison.update({
         where: {
@@ -573,17 +578,27 @@ export default async function ComparePage({
         },
         data: { category: aiInsights.category },
       }).catch((err) => {
-        console.warn('[Category Save] Failed to save category:', err.message);
+        // Gracefully handle database schema issues
+        if (err?.message?.includes('column')) {
+          console.warn('[Category Save] Database schema not ready, skipping category save');
+        } else {
+          console.warn('[Category Save] Failed to save category:', err.message);
+        }
       });
       console.log('[Category Save] ✅ Saved category:', aiInsights.category);
     } catch (error: any) {
-      console.warn('[Category Save] ⚠️ Could not save category:', error.message);
+      // Gracefully handle database schema issues
+      if (error?.message?.includes('column')) {
+        console.warn('[Category Save] Database schema not ready, skipping category save');
+      } else {
+        console.warn('[Category Save] ⚠️ Could not save category:', error.message);
+      }
     }
   }
 
   // compute totals and shares for stats
-  const keyA = terms[0];
-  const keyB = terms[1];
+  const keyA = actualTerms[0];
+  const keyB = actualTerms[1];
 
   const aVals = (series as any[]).map((row) => Number(row[keyA] ?? 0));
   const bVals = (series as any[]).map((row) => Number(row[keyB] ?? 0));
@@ -610,12 +625,12 @@ export default async function ComparePage({
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
-                  {prettyTerm(terms[0])} <span className="text-slate-400">vs</span> {prettyTerm(terms[1])}
+                  {prettyTerm(actualTerms[0])} <span className="text-slate-400">vs</span> {prettyTerm(actualTerms[1])}
                 </h1>
                 <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
                   {ai?.metaDescription ??
-                    `Compare ${prettyTerm(terms[0])} and ${prettyTerm(
-                      terms[1],
+                    `Compare ${prettyTerm(actualTerms[0])} and ${prettyTerm(
+                      actualTerms[1],
                     )} search interest trends with detailed insights and analysis.`}
                 </p>
                 {region && (
@@ -636,16 +651,16 @@ export default async function ComparePage({
 
             {/* Report Actions - PDF and Share */}
             <ReportActions
-              title={`${prettyTerm(terms[0])} vs ${prettyTerm(terms[1])} - Trend Comparison`}
+              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Trend Comparison`}
               url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
-              termA={terms[0]}
-              termB={terms[1]}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
             />
 
             {/* Real-Time Context - Live comparison status */}
             <RealTimeContext
-              termA={terms[0]}
-              termB={terms[1]}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
               series={series as any[]}
               timeframe={timeframe}
             />
@@ -752,8 +767,8 @@ export default async function ComparePage({
           {aiInsights?.peakExplanations && (
             <AIPeakExplanations
               peakExplanations={aiInsights.peakExplanations}
-              termA={terms[0]}
-              termB={terms[1]}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
             />
           )}
 
@@ -761,7 +776,7 @@ export default async function ComparePage({
           <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-4 sm:p-5 lg:p-6">
             <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
               <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-              {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}: The Numbers
+              {prettyTerm(actualTerms[0])} vs {prettyTerm(actualTerms[1])}: The Numbers
             </h2>
             <CompareStats
               totalSearches={totalSearches}
@@ -848,23 +863,23 @@ export default async function ComparePage({
           </div>
           <ContentEngineInsights
             narrative={contentEngineResult.narrative}
-            terms={terms}
+            terms={actualTerms}
           />
         </div>
       )}
 
       {/* Historical Timeline - Key moments */}
       <HistoricalTimeline
-        termA={terms[0]}
-        termB={terms[1]}
+        termA={actualTerms[0]}
+        termB={actualTerms[1]}
         series={series as any[]}
       />
 
       {/* Geographic Breakdown - Regional preferences */}
       <GeographicBreakdown
         geoData={geographicData}
-        termA={terms[0]}
-        termB={terms[1]}
+        termA={actualTerms[0]}
+        termB={actualTerms[1]}
       />
 
       {/* AI Practical Implications - Actionable Insights */}
@@ -876,17 +891,17 @@ export default async function ComparePage({
 
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">
-        <RelatedComparisons currentSlug={canonical} terms={terms} />
+        <RelatedComparisons currentSlug={canonical} terms={actualTerms} />
         <FAQSection />
       </div>
 
       {/* Structured Data for SEO */}
       <StructuredData
-        termA={terms[0]}
-        termB={terms[1]}
+        termA={actualTerms[0]}
+        termB={actualTerms[1]}
         slug={canonical}
         series={series as any[]}
-        leader={aShare > bShare ? terms[0] : terms[1]}
+        leader={aShare > bShare ? actualTerms[0] : actualTerms[1]}
         advantage={Math.round(Math.abs((aShare - bShare) * 100))}
       />
     </main>

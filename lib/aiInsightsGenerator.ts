@@ -86,16 +86,31 @@ async function getUsageRecord() {
 
     if (!record) {
       console.log("[AI Budget] 📝 Creating new daily record...");
-      // Create new daily record
-      record = await prisma.aIInsightUsage.create({
-        data: {
-          date: today,
-          month,
-          dailyCount: 0,
-          monthlyCount: 0,
-        },
-      });
-      console.log(`[AI Budget] ✅ Created record: ${record.id}`);
+      // Create new daily record - use upsert to handle race conditions
+      try {
+        record = await prisma.aIInsightUsage.create({
+          data: {
+            date: today,
+            month,
+            dailyCount: 0,
+            monthlyCount: 0,
+          },
+        });
+        console.log(`[AI Budget] ✅ Created record: ${record.id}`);
+      } catch (createError: any) {
+        // If month unique constraint fails, try to find the existing record
+        if (createError?.code === 'P2002') {
+          console.log("[AI Budget] Record already exists, fetching it...");
+          record = await prisma.aIInsightUsage.findUnique({
+            where: { date: today },
+          });
+          if (!record) {
+            throw new Error("Failed to create or find daily record");
+          }
+        } else {
+          throw createError;
+        }
+      }
     } else {
       console.log(`[AI Budget] ✅ Found existing record: ${record.id}`);
     }

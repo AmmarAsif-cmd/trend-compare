@@ -66,8 +66,8 @@ export default function TopThisWeekClient() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
-        {items.slice(0, 8).map((it, idx) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-2 sm:gap-5 lg:gap-6">
+        {items.slice(0, 6).map((it, idx) => (
           <Link
             key={`${it.slug}|${it.tf ?? "12m"}|${it.geo ?? ""}`}
             href={`/compare/${it.slug}`}
