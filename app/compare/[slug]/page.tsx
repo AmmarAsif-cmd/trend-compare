@@ -577,7 +577,7 @@ export default async function ComparePage({
           }
         },
         data: { category: aiInsights.category },
-      }).catch((err) => {
+      }).catch((err: any) => {
         // Gracefully handle database schema issues
         if (err?.message?.includes('column')) {
           console.warn('[Category Save] Database schema not ready, skipping category save');

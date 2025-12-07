@@ -9,11 +9,12 @@ const prisma = new PrismaClient();
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const post = await prisma.blogPost.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!post) {
@@ -39,9 +40,10 @@ export async function GET(
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const updates = await request.json();
 
     // Handle status changes
@@ -50,7 +52,7 @@ export async function PATCH(
     }
 
     const post = await prisma.blogPost.update({
-      where: { id: params.id },
+      where: { id },
       data: updates,
     });
 
@@ -70,11 +72,12 @@ export async function PATCH(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.blogPost.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

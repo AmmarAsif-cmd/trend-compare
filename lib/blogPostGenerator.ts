@@ -343,8 +343,8 @@ export async function suggestBlogTopics(limit: number = 10): Promise<BlogPostTop
   });
 
   const categories = comparisons
-    .map((c) => c.category)
-    .filter((cat): cat is string => cat !== null);
+    .map((c: any) => c.category)
+    .filter((cat: any): cat is string => cat !== null);
 
   // Generate topic suggestions
   for (const category of categories.slice(0, limit)) {

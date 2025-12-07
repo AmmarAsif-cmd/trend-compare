@@ -48,7 +48,7 @@ export default async function BlogPage() {
           </div>
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
+            {posts.map((post: any) => (
               <article
                 key={post.id}
                 className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
@@ -88,7 +88,7 @@ export default async function BlogPage() {
                     {/* Tags */}
                     {post.tags.length > 0 && (
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {post.tags.slice(0, 3).map((tag) => (
+                        {post.tags.slice(0, 3).map((tag: string) => (
                           <span
                             key={tag}
                             className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded"
