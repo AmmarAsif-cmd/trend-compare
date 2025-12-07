@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type BlogPost = {
   id: string;
@@ -20,11 +21,46 @@ type BlogPost = {
 };
 
 export default function AdminBlogDashboard() {
+  const router = useRouter();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [error, setError] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch("/api/admin/check-auth");
+      const data = await res.json();
+
+      if (!data.authenticated) {
+        router.push("/admin/login");
+        return;
+      }
+
+      setCheckingAuth(false);
+      fetchPosts();
+    } catch (err) {
+      console.error("Auth check failed:", err);
+      router.push("/admin/login");
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!confirm("Are you sure you want to logout?")) return;
+
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+      router.push("/admin/login");
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -124,15 +160,39 @@ export default function AdminBlogDashboard() {
   const pendingCount = posts.filter((p) => p.status === "pending_review").length;
   const publishedCount = posts.filter((p) => p.status === "published").length;
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Checking authentication...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Blog Admin Dashboard</h1>
-          <p className="mt-2 text-gray-600">
-            Review and publish AI-generated blog posts
-          </p>
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Blog Admin Dashboard</h1>
+            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
+              Review and publish AI-generated blog posts
+            </p>
+          </div>
+          <div className="flex gap-2 sm:gap-3">
+            <Link
+              href="/admin/blog/new"
+              className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              ✏️ New Post
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              🚪 Logout
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -193,11 +253,11 @@ export default function AdminBlogDashboard() {
         </div>
 
         {/* Actions */}
-        <div className="mb-6 flex gap-4">
+        <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button
             onClick={generatePosts}
             disabled={generating}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
             {generating ? "Generating..." : "🤖 Generate 5 New Posts"}
           </button>
@@ -222,7 +282,7 @@ export default function AdminBlogDashboard() {
             <div className="text-gray-500">Loading...</div>
           </div>
         ) : posts.length === 0 ? (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
+          <div className="bg-white shadow rounded-lg p-8 sm:p-12 text-center">
             <p className="text-gray-500 mb-4">No blog posts yet.</p>
             <button
               onClick={generatePosts}
@@ -232,7 +292,7 @@ export default function AdminBlogDashboard() {
             </button>
           </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
