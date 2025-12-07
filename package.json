@@ -5,14 +5,16 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrate-if-db-available.js && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "migrate": "prisma migrate deploy"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
     "@prisma/client": "^6.18.0",
     "@sentry/nextjs": "^10.23.0",
     "chart.js": "^4.5.1",
@@ -22,7 +24,7 @@
     "is-url-superb": "^6.1.0",
     "leo-profanity": "^1.8.0",
     "lucide-react": "^0.552.0",
-    "next": "16.0.1",
+    "next": "16.0.7",
     "react": "19.2.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.0",
@@ -40,9 +42,8 @@
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/ui": "^4.0.14",
     "eslint": "^9",
-    "eslint-config-next": "16.0.1",
+    "eslint-config-next": "16.0.7",
     "happy-dom": "^20.0.10",
-    "prism": "^4.1.2",
     "prisma": "^6.18.0",
     "tailwindcss": "^4",
     "typescript": "^5",

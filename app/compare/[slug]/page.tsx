@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { fromSlug, toCanonicalSlug } from "@/lib/slug";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
+import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
@@ -12,6 +13,26 @@ import TopThisWeekServer from "@/components/TopThisWeekServer";
 import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
 import CompareStats from "@/components/CompareStats";
+import ContentEngineInsights from "@/components/ContentEngineInsights";
+import { generateComparisonContent } from "@/lib/content-engine";
+import SearchBreakdown from "@/components/SearchBreakdown";
+import ReportActions from "@/components/ReportActions";
+import RealTimeContext from "@/components/RealTimeContext";
+import StructuredData from "@/components/StructuredData";
+import HistoricalTimeline from "@/components/HistoricalTimeline";
+import GeographicBreakdown from "@/components/GeographicBreakdown";
+import { getGeographicBreakdown } from "@/lib/getGeographicData";
+import DataSpecificAIInsights from "@/components/DataSpecificAIInsights";
+import { prepareInsightData, generateAIInsights } from "@/lib/aiInsightsGenerator";
+import AIKeyInsights from "@/components/AI/AIKeyInsights";
+import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
+import AIPrediction from "@/components/AI/AIPrediction";
+import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
+import { prisma } from "@/lib/db";
+
+// Revalidate every 10 minutes for fresh data while maintaining performance
+export const revalidate = 600; // 10 minutes
+
 /* ---------------- helpers ---------------- */
 
 type TrendPoint = {
@@ -354,7 +375,7 @@ export async function generateMetadata({
   searchParams: { tf?: string; geo?: string };
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { tf } = await searchParams;
+  const { tf, geo } = await searchParams;
 
   const raw = fromSlug(slug);
   const checked = raw.map(validateTopic);
@@ -367,6 +388,58 @@ export async function generateMetadata({
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return { title: "Not available", robots: { index: false } };
 
+  const timeframe = tf ?? "12m";
+  const region = geo ?? "";
+
+  // Fetch comparison data to generate dynamic meta content
+  try {
+    const row = await getOrBuildComparison({
+      slug: canonical,
+      terms,
+      timeframe,
+      geo: region,
+    });
+
+    if (row && row.series && row.series.length > 0) {
+      // Use terms from database (preserves special characters like C++, Node.js)
+      const actualTerms = row.terms as string[];
+
+      // Calculate comparison data from series
+      const comparisonData = calculateComparisonData(
+        actualTerms[0],
+        actualTerms[1],
+        row.series as Array<{ date: string; [key: string]: any }>
+      );
+
+      // Generate dynamic meta content based on actual data
+      const { title, description } = generateDynamicMeta(
+        comparisonData,
+        actualTerms[0],
+        actualTerms[1]
+      );
+
+      return {
+        title: `${title} | TrendArc`,
+        description,
+        alternates: { canonical: `/compare/${canonical}` },
+        openGraph: {
+          title: `${title} | TrendArc`,
+          description,
+          type: "website",
+          url: `/compare/${canonical}`,
+        },
+        twitter: {
+          card: "summary_large_image",
+          title: `${title} | TrendArc`,
+          description,
+        },
+      };
+    }
+  } catch (error) {
+    console.error("Error generating dynamic metadata:", error);
+  }
+
+  // Fallback to simple meta if dynamic generation fails
   const pretty = (t: string) => t.replace(/-/g, " ");
   const cleanTerms = terms.map(pretty);
 
@@ -422,11 +495,12 @@ export default async function ComparePage({
   });
   if (!row) return notFound();
 
+  // Use terms from database (preserves special characters like C++, Node.js)
+  const actualTerms = row.terms as string[];
   const { series: rawSeries, ai } = row;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
   const series = smoothSeries(rawSeries as any[], smoothingWindow);
-  const human = buildHumanCopy(terms, series as any, { timeframe });
   const sparse = nonZeroRatio(rawSeries as any[]) < 0.1;
 
   if (!series?.length || series.length < 8) {
@@ -435,7 +509,7 @@ export default async function ComparePage({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {terms.map(prettyTerm).join(" vs ")}
+              {actualTerms.map(prettyTerm).join(" vs ")}
             </h1>
             <p className="text-slate-600">
               Not enough data. Try a longer timeframe or different terms.
@@ -447,10 +521,84 @@ export default async function ComparePage({
     );
   }
 
-  const insight = buildInsightBundle(series as any, terms, timeframe);
-// compute totals and shares for stats
-  const keyA = terms[0];
-  const keyB = terms[1];
+  const insight = buildInsightBundle(series as any, actualTerms, timeframe);
+
+  // Run all async operations in parallel for faster loading ⚡
+  const [contentEngineResult, geographicData, aiInsights, aiInsightsError] = await Promise.all([
+    // Generate Content Engine insights (advanced pattern detection)
+    generateComparisonContent(actualTerms, rawSeries as any[], {
+      deepAnalysis: true,
+      useMultiSource: true,
+    }).catch((error) => {
+      console.error('Content Engine error:', error);
+      return null;
+    }),
+
+    // Get geographic breakdown (FREE - no API costs)
+    getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
+
+    // Generate AI insights (cost-optimized with budget controls <$10/month)
+    (async () => {
+      try {
+        const insightData = prepareInsightData(actualTerms[0], actualTerms[1], series as any[]);
+        const result = await generateAIInsights(insightData);
+
+        if (result) {
+          console.log('[AI Insights] ✅ Generated successfully for:', actualTerms.join(' vs '));
+          return result;
+        } else {
+          console.log('[AI Insights] ⚠️ Not generated - check budget limits or API key');
+          return null;
+        }
+      } catch (error) {
+        console.error('[AI Insights] ❌ Generation error:', error);
+        return null;
+      }
+    })(),
+
+    // Error tracking for AI insights
+    (async () => {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return 'API key not configured';
+      }
+      return null;
+    })(),
+  ]);
+
+  // Save detected category to database for caching and future filtering
+  if (aiInsights?.category && canonical && rawSeries) {
+    try {
+      await prisma.comparison.update({
+        where: {
+          slug_timeframe_geo: {
+            slug: canonical,
+            timeframe: timeframe || '12m',
+            geo: geo || ''
+          }
+        },
+        data: { category: aiInsights.category },
+      }).catch((err) => {
+        // Gracefully handle database schema issues
+        if (err?.message?.includes('column')) {
+          console.warn('[Category Save] Database schema not ready, skipping category save');
+        } else {
+          console.warn('[Category Save] Failed to save category:', err.message);
+        }
+      });
+      console.log('[Category Save] ✅ Saved category:', aiInsights.category);
+    } catch (error: any) {
+      // Gracefully handle database schema issues
+      if (error?.message?.includes('column')) {
+        console.warn('[Category Save] Database schema not ready, skipping category save');
+      } else {
+        console.warn('[Category Save] ⚠️ Could not save category:', error.message);
+      }
+    }
+  }
+
+  // compute totals and shares for stats
+  const keyA = actualTerms[0];
+  const keyB = actualTerms[1];
 
   const aVals = (series as any[]).map((row) => Number(row[keyA] ?? 0));
   const bVals = (series as any[]).map((row) => Number(row[keyB] ?? 0));
@@ -477,12 +625,12 @@ export default async function ComparePage({
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
-                  {prettyTerm(terms[0])} <span className="text-slate-400">vs</span> {prettyTerm(terms[1])}
+                  {prettyTerm(actualTerms[0])} <span className="text-slate-400">vs</span> {prettyTerm(actualTerms[1])}
                 </h1>
                 <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
                   {ai?.metaDescription ??
-                    `Compare ${prettyTerm(terms[0])} and ${prettyTerm(
-                      terms[1],
+                    `Compare ${prettyTerm(actualTerms[0])} and ${prettyTerm(
+                      actualTerms[1],
                     )} search interest trends with detailed insights and analysis.`}
                 </p>
                 {region && (
@@ -501,15 +649,31 @@ export default async function ComparePage({
               <TimeframeSelect />
             </div>
 
-            <section className="grid gap-4 sm:gap-6 md:grid-cols-5">
+            {/* Report Actions - PDF and Share */}
+            <ReportActions
+              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Trend Comparison`}
+              url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+
+            {/* Real-Time Context - Live comparison status */}
+            <RealTimeContext
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              series={series as any[]}
+              timeframe={timeframe}
+            />
+
+            <section className="grid gap-4 sm:gap-6 lg:grid-cols-5">
               {/* Headline insight */}
-              <div className="md:col-span-3 rounded-xl sm:rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group">
+              <div className="lg:col-span-3 rounded-xl sm:rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative z-10">
                   <p className="text-xs font-bold tracking-wide text-blue-600 mb-2 uppercase flex items-center gap-1.5">
                     <span className="text-base">📊</span> Key Insight
                   </p>
-                  <p className="text-base sm:text-lg font-bold text-slate-900 mb-3 leading-snug">
+                  <p className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-3 leading-snug">
                     {insight.headline}
                   </p>
                   <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.subline}</p>
@@ -517,7 +681,7 @@ export default async function ComparePage({
               </div>
 
               {/* Quick context */}
-              <div className="md:col-span-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group">
+              <div className="lg:col-span-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative z-10">
                   <p className="text-xs font-bold tracking-wide text-slate-600 mb-3 uppercase flex items-center gap-1.5">
@@ -541,27 +705,78 @@ export default async function ComparePage({
             </section>
           </header>
 
+          {/* AI Key Insights - Compact Top Section */}
+          {aiInsights && (
+            <AIKeyInsights
+              whatDataTellsUs={aiInsights.whatDataTellsUs}
+              category={aiInsights.category}
+            />
+          )}
+
+          {/* Fallback when AI is unavailable */}
+          {!aiInsights && (
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 shadow-lg p-6 print:hidden">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    AI-Powered Insights Unavailable
+                  </h3>
+                  <p className="text-slate-600 text-sm mb-3">
+                    {aiInsightsError === 'API key not configured'
+                      ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable AI-powered analysis.'
+                      : aiInsightsError
+                      ? `Generation failed: ${aiInsightsError}`
+                      : 'Daily or monthly budget limit reached. AI insights will be available again soon.'}
+                  </p>
+                  <div className="bg-white/60 rounded-lg p-3 text-xs text-slate-600">
+                    <p className="font-semibold mb-1">What you're missing:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Data-specific analysis with exact numbers and dates</li>
+                      <li>Volatility insights and trend predictions</li>
+                      <li>Practical implications for your use case</li>
+                      <li>AI-powered pattern detection</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Chart */}
           <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
-            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-5 sm:px-6 py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
+              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
+                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
                 How {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Compare Over Time
               </h2>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-xs sm:text-sm text-slate-600 mt-1">
                 Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
               </p>
             </div>
-            <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-50/30 to-white">
+            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
             </div>
           </section>
 
+          {/* AI Peak Explanations - Right After Chart */}
+          {aiInsights?.peakExplanations && (
+            <AIPeakExplanations
+              peakExplanations={aiInsights.peakExplanations}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+          )}
+
           {/* Compare Stats */}
-          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-5 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-              {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}: The Numbers
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-4 sm:p-5 lg:p-6">
+            <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+              {prettyTerm(actualTerms[0])} vs {prettyTerm(actualTerms[1])}: The Numbers
             </h2>
             <CompareStats
               totalSearches={totalSearches}
@@ -571,23 +786,26 @@ export default async function ComparePage({
               bShare={bShare}
             />
           </section>
+
+          {/* AI Prediction - Forecast */}
+          {aiInsights?.prediction && (
+            <AIPrediction prediction={aiInsights.prediction} />
+          )}
+
           {/* Per-term insight cards */}
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-2">
+          <section className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             {insight.termInsights.map((ti, idx) => (
               <div
                 key={ti.term}
-                className={`rounded-xl sm:rounded-2xl border ${idx === 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/40' : 'border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/40'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-5 sm:p-6 relative overflow-hidden group`}
+                className={`rounded-xl sm:rounded-2xl border ${idx === 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/40' : 'border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/40'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group`}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${idx === 0 ? 'from-blue-400/5' : 'from-purple-400/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
                 <div className="relative z-10">
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
                     <span className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-sm' : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-sm'} animate-pulse`}></span>
                     {ti.term} Analysis
                   </h3>
-                  <p className="text-xs text-slate-600 mb-4">
-                    Detailed breakdown for this keyword
-                  </p>
-                  <div className="space-y-3">
+                  <div className="space-y-3 mt-4">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                       <span className="text-sm font-medium text-slate-700">Average Interest</span>
                       <span className={`text-lg font-bold ${idx === 0 ? 'text-blue-600' : 'text-purple-600'}`}>{ti.avg}</span>
@@ -604,124 +822,21 @@ export default async function ComparePage({
                       <p className="text-xs font-medium text-slate-700 mb-1">Peak Performance</p>
                       <p className="text-sm text-slate-900 font-medium">{ti.peakLabel}</p>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-700 mb-1">Best Month</p>
-                      <p className="text-sm text-slate-900 font-medium">{ti.bestMonthLabel}</p>
-                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </section>
 
-          {/* Trend moments + prediction */}
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                📈 What Happened with {prettyTerm(terms[0])} and {prettyTerm(terms[1])}
-              </h2>
-              <ul className="space-y-3 text-sm sm:text-base text-slate-700">
-                {insight.moments.map((m, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="text-blue-500 font-bold">•</span>
-                    <span className="leading-relaxed">{m}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                🔮 Where This Is Heading
-              </h2>
-              <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
-            </div>
-          </section>
+          {/* Search Interest Breakdown */}
+          <SearchBreakdown series={series} termA={keyA} termB={keyB} />
 
-          {/* Summary + At a glance */}
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <div className="md:col-span-2 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                📝 Breaking Down {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
-              </h2>
-              <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
-                <p>{human.summary}</p>
-                {human.extraBullets.length > 0 && (
-                  <ul className="space-y-2 pl-5">
-                    {human.extraBullets.map((line, i) => (
-                      <li key={i} className="list-disc">{line}</li>
-                    ))}
-                  </ul>
-                )}
-                {human.infoNote && (
-                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-800">{human.infoNote}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-md p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                ⚡ {prettyTerm(terms[0])} & {prettyTerm(terms[1])} at a Glance
-              </h2>
-              <ul className="space-y-3">
-                {human.atAGlance.map((line, i) => (
-                  <li key={i} className="flex gap-3 text-sm sm:text-base text-slate-700">
-                    <span className="text-blue-500 font-bold">✓</span>
-                    <span className="leading-relaxed">{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-
-          {/* Side by side */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-white px-5 sm:px-6 py-4 border-b-2 border-slate-200">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                📊 {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Head-to-Head
-              </h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm sm:text-base">
-                <thead>
-                  <tr className="bg-gradient-to-r from-slate-100 to-slate-50">
-                    <th className="p-3 sm:p-4 text-left font-bold text-slate-700">Metric</th>
-                    <th className="p-3 sm:p-4 text-left font-bold text-blue-600">{prettyTerm(terms[0])}</th>
-                    <th className="p-3 sm:p-4 text-left font-bold text-purple-600">{prettyTerm(terms[1])}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {human.table.rows.map((r, i) => (
-                    <tr key={i} className="border-t border-slate-200 hover:bg-slate-50 transition-colors">
-                      <td className="p-3 sm:p-4 font-medium text-slate-700">{r.label}</td>
-                      <td className="p-3 sm:p-4 text-slate-900">{r.a}</td>
-                      <td className="p-3 sm:p-4 text-slate-900">{r.b}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Deep dive */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white shadow-md p-5 sm:p-6">
+          {/* Prediction */}
+          <section className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              🔍 The Full Story: {prettyTerm(terms[0])} vs {prettyTerm(terms[1])}
+              🔮 Where This Is Heading
             </h2>
-            <div className="space-y-4 text-sm sm:text-base text-slate-700 leading-relaxed">
-              {human.longForm.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-            </div>
-          </section>
-
-          {/* Scale explainer */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-md p-5 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
-              ℹ️ How to Read This {prettyTerm(terms[0])} vs {prettyTerm(terms[1])} Data
-            </h2>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{human.scaleExplainer}</p>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
           </section>
         </div>
 
@@ -735,11 +850,60 @@ export default async function ComparePage({
         </aside>
       </div>
 
+      {/* Deeper Insights Section */}
+      {contentEngineResult && (
+        <div className="border-t-2 border-slate-200 pt-8 space-y-6">
+          <div className="text-center mb-2">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
+              Deeper Insights
+            </h2>
+            <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto mt-2">
+              Advanced pattern detection with real event analysis from multiple verified sources
+            </p>
+          </div>
+          <ContentEngineInsights
+            narrative={contentEngineResult.narrative}
+            terms={actualTerms}
+          />
+        </div>
+      )}
+
+      {/* Historical Timeline - Key moments */}
+      <HistoricalTimeline
+        termA={actualTerms[0]}
+        termB={actualTerms[1]}
+        series={series as any[]}
+      />
+
+      {/* Geographic Breakdown - Regional preferences */}
+      <GeographicBreakdown
+        geoData={geographicData}
+        termA={actualTerms[0]}
+        termB={actualTerms[1]}
+      />
+
+      {/* AI Practical Implications - Actionable Insights */}
+      {aiInsights?.practicalImplications && (
+        <AIPracticalImplications
+          practicalImplications={aiInsights.practicalImplications}
+        />
+      )}
+
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">
-        <RelatedComparisons currentSlug={canonical} terms={terms} />
+        <RelatedComparisons currentSlug={canonical} terms={actualTerms} />
         <FAQSection />
       </div>
+
+      {/* Structured Data for SEO */}
+      <StructuredData
+        termA={actualTerms[0]}
+        termB={actualTerms[1]}
+        slug={canonical}
+        series={series as any[]}
+        leader={aShare > bShare ? actualTerms[0] : actualTerms[1]}
+        advantage={Math.round(Math.abs((aShare - bShare) * 100))}
+      />
     </main>
   );
 }

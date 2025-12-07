@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { toCanonicalSlug } from "@/lib/slug";
+import { isValidKeyword } from "@/lib/keyword-validator";
+
+// Mark as dynamic to prevent build-time pre-rendering
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +18,15 @@ export async function GET(request: NextRequest) {
     if (!a || !b) {
       return NextResponse.json(
         { error: "Missing required parameters: a and b" },
+        { status: 400 }
+      );
+    }
+
+    // Validate keywords for security
+    if (!isValidKeyword(a) || !isValidKeyword(b)) {
+      console.warn(`[API Compare] Rejected invalid keywords: a="${a}", b="${b}"`);
+      return NextResponse.json(
+        { error: "Invalid comparison terms. Please use legitimate keywords." },
         { status: 400 }
       );
     }

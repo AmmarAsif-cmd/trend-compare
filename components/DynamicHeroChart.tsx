@@ -17,6 +17,7 @@ interface ChartData {
 export default function DynamicHeroChart() {
   const [data, setData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -25,7 +26,10 @@ export default function DynamicHeroChart() {
       try {
         // Fetch ChatGPT vs Gemini comparison data
         const res = await fetch("/api/compare?a=chatgpt&b=gemini&tf=12m");
-        if (!res.ok) throw new Error("Failed to fetch");
+        if (!res.ok) {
+          console.warn("[DynamicHeroChart] API returned non-OK status:", res.status);
+          throw new Error("Failed to fetch");
+        }
         const result = await res.json();
 
         if (mounted && result.series) {
@@ -41,8 +45,9 @@ export default function DynamicHeroChart() {
             totalSearches: totalA + totalB,
           });
         }
-      } catch (error) {
-        console.error("Error fetching chart data:", error);
+      } catch (err) {
+        console.error("[DynamicHeroChart] Error fetching chart data:", err);
+        if (mounted) setError(true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -52,21 +57,60 @@ export default function DynamicHeroChart() {
     return () => { mounted = false; };
   }, []);
 
-  if (loading || !data) {
-    // Static placeholder while loading
+  // Show static demo when loading or error (API might fail if Prisma client not synced)
+  if (loading || !data || error) {
     return (
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl p-6 sm:p-10 border-2 border-slate-200">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-3">
             <h3 className="text-xl sm:text-2xl font-bold">ChatGPT vs Gemini</h3>
-            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">LIVE DATA</span>
+            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
+              {loading ? "LOADING..." : "EXAMPLE"}
+            </span>
           </div>
-          <span className="text-slate-500 text-sm">Last 12 months</span>
+          <div className="flex items-center gap-4">
+            <span className="text-slate-500 text-sm">Last 12 months</span>
+            <Link
+              href="/compare/chatgpt-vs-gemini"
+              className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              View full <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
         </div>
 
         <div className="h-64 sm:h-80 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl mb-8 flex items-center justify-center">
-          <div className="animate-pulse text-slate-400">Loading chart...</div>
+          {loading ? (
+            <div className="animate-pulse text-slate-400">Loading chart...</div>
+          ) : (
+            <div className="text-center">
+              <div className="text-slate-600 text-sm mb-2">📊 Interactive comparison available</div>
+              <Link
+                href="/compare/chatgpt-vs-gemini"
+                className="text-blue-600 hover:text-blue-700 font-semibold underline"
+              >
+                Click to view detailed analysis
+              </Link>
+            </div>
+          )}
         </div>
+
+        {!loading && (
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+              <div className="text-xs text-blue-600 font-semibold mb-2">ChatGPT</div>
+              <div className="text-2xl font-bold text-blue-600">~60%</div>
+              <div className="text-xs text-slate-600">Typical share</div>
+            </div>
+            <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-200">
+              <div className="text-xs text-purple-600 font-semibold mb-2">Gemini</div>
+              <div className="text-2xl font-bold text-purple-600">~40%</div>
+              <div className="text-xs text-slate-600">Typical share</div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

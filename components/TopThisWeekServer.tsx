@@ -1,13 +1,24 @@
 // components/TopThisWeekServer.tsx
 import Link from "next/link";
 import { getTopThisWeek, type TopItem } from "@/lib/topThisWeek";
+import { unstable_cache } from "next/cache";
 
 type Props = {
   limit?: number;
 };
 
+// Cache top comparisons for 1 hour (3600 seconds) to keep data fresh
+const getCachedTopThisWeek = unstable_cache(
+  async (limit: number) => getTopThisWeek(limit),
+  ['top-this-week'],
+  {
+    revalidate: 3600, // Revalidate every hour
+    tags: ['trending']
+  }
+);
+
 export default async function TopThisWeekServer({ limit = 6 }: Props) {
-  const items: TopItem[] = await getTopThisWeek(limit);
+  const items: TopItem[] = await getCachedTopThisWeek(limit);
 
   if (!items.length) {
     return (

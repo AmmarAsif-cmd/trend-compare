@@ -16,10 +16,25 @@ model Comparison {
   series    Json // SeriesPoint[]
   stats     Json // computeStats output
   ai        Json? // generateCopy output (later LLM)
+  category  String? // Detected category: "Tech", "Business", "Entertainment", etc.
   dataHash  String // hash(terms+timeframe+geo+series)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([slug, timeframe, geo], name: "slug_timeframe_geo")
   @@index([slug])
+  @@index([category])
+}
+
+model AIInsightUsage {
+  id           String   @id @default(cuid())
+  date         DateTime @unique // YYYY-MM-DD for daily tracking
+  dailyCount   Int      @default(0)
+  monthlyCount Int      @default(0)
+  month        String   // YYYY-MM for monthly tracking (not unique - multiple days per month)
+  lastReset    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([month]) // Add index for efficient monthly queries
 }
