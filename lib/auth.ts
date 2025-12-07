@@ -128,27 +128,30 @@ export async function createSession() {
   const timestamp = Date.now();
   const data = `${SESSION_SECRET}:${timestamp}:${randomBytes}`;
 
-  // Hash the session token
+  // Hash the session token and include timestamp for validation
   const sessionToken = crypto
     .createHash('sha256')
     .update(data)
     .digest('base64');
 
-  cookieStore.set(SESSION_COOKIE, sessionToken, {
+  // Encode timestamp into the token for self-contained validation
+  const tokenWithTimestamp = `${sessionToken}.${timestamp}`;
+
+  cookieStore.set(SESSION_COOKIE, tokenWithTimestamp, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict', // Changed from 'lax' for better security
+    sameSite: 'lax', // Changed back to 'lax' for better compatibility
     maxAge: 60 * 60 * 8, // 8 hours (reduced from 24)
     path: '/',
   });
 
   // Store session data (in production, use a database)
-  sessionStore.set(sessionToken, {
+  sessionStore.set(tokenWithTimestamp, {
     createdAt: timestamp,
     expiresAt: timestamp + (60 * 60 * 8 * 1000),
   });
 
-  return sessionToken;
+  return tokenWithTimestamp;
 }
 
 /**
@@ -163,16 +166,20 @@ export async function isAuthenticated(): Promise<boolean> {
       return false;
     }
 
-    // Check if session exists in store
-    const sessionData = sessionStore.get(session.value);
-
-    if (!sessionData) {
+    // Extract timestamp from token (format: "token.timestamp")
+    const parts = session.value.split('.');
+    if (parts.length !== 2) {
       return false;
     }
 
-    // Check if session is expired
-    if (Date.now() > sessionData.expiresAt) {
-      sessionStore.delete(session.value);
+    const timestamp = parseInt(parts[1], 10);
+    if (isNaN(timestamp)) {
+      return false;
+    }
+
+    // Check if session is expired (8 hours)
+    const expiresAt = timestamp + (60 * 60 * 8 * 1000);
+    if (Date.now() > expiresAt) {
       return false;
     }
 

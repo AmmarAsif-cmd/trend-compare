@@ -81,14 +81,6 @@ export default function AdminLogin() {
               {loading ? "Logging in..." : "Login"}
             </button>
           </form>
-
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 text-center">
-              Default password: <code className="bg-gray-100 px-2 py-1 rounded">admin123</code>
-              <br />
-              <span className="text-xs">Change this in production via ADMIN_PASSWORD env variable</span>
-            </p>
-          </div>
         </div>
 
         {/* Back to Site */}

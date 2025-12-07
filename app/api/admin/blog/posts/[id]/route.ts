@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 const prisma = new PrismaClient();
 
@@ -55,6 +56,12 @@ export async function PATCH(
       where: { id },
       data: updates,
     });
+
+    // Revalidate blog pages when post is published
+    if (updates.status === "published") {
+      revalidatePath("/blog");
+      revalidatePath(`/blog/${post.slug}`);
+    }
 
     return NextResponse.json({ success: true, post });
   } catch (error) {
