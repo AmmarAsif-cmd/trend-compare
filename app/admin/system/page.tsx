@@ -95,6 +95,7 @@ export default function EnhancedSystemDashboard() {
       checkBlogSystem(),
       checkBlogGenerator(),
       checkAuthSystem(),
+      checkAIInsightsCache(),
 
       // System Services
       checkEnvironmentVars(),
@@ -575,6 +576,50 @@ export default function EnhancedSystemDashboard() {
     };
   };
 
+  const checkAIInsightsCache = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/admin/ai-insights-refresh");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      const needsRefresh = data.needsRefresh || 0;
+      const total = data.total || 0;
+      const fresh = data.fresh || 0;
+
+      addLog("AI Insights Cache", {
+        timestamp: new Date().toISOString(),
+        level: needsRefresh > 10 ? "warn" : needsRefresh > 0 ? "info" : "success",
+        message: `${needsRefresh} comparisons need refresh, ${fresh} are fresh (${total} total)`,
+        details: data,
+      });
+
+      return {
+        name: "AI Insights Cache",
+        category: "feature",
+        status: needsRefresh > 20 ? "degraded" : "healthy",
+        message: `${needsRefresh} need refresh, ${fresh} fresh (${total} total)`,
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      addLog("AI Insights Cache", {
+        timestamp: new Date().toISOString(),
+        level: "error",
+        message: `Cache check failed: ${error}`,
+      });
+
+      return {
+        name: "AI Insights Cache",
+        category: "feature",
+        status: "down",
+        message: "Check failed",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
   const addLog = (service: string, log: LogEntry) => {
     setServiceLogs((prev) => ({
       ...prev,
@@ -788,6 +833,66 @@ export default function EnhancedSystemDashboard() {
               {/* Expanded Details and Logs */}
               {expandedService === service.name && (
                 <div className="border-t border-gray-200 bg-gray-50 p-6">
+                  {/* AI Insights Cache - Special UI with Refresh */}
+                  {service.name === "AI Insights Cache" && service.details?.comparisons?.stale && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                        Comparisons Needing Refresh ({service.details.comparisons.stale.length}):
+                      </h4>
+                      <div className="bg-white rounded border border-gray-200 max-h-96 overflow-y-auto">
+                        {service.details.comparisons.stale.map((comp: any, idx: number) => (
+                          <div
+                            key={idx}
+                            className="p-3 border-b border-gray-100 last:border-b-0 flex items-center justify-between gap-3"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {Array.isArray(comp.terms) ? comp.terms.join(' vs ') : comp.slug}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {comp.timeframe} • {comp.geo || 'worldwide'} • {comp.ageInDays} days old
+                                {comp.category && ` • ${comp.category}`}
+                              </div>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Refresh AI insights for "${comp.slug}"?\n\nThis will cost ~$0.0014 from your Claude API budget.`)) {
+                                  try {
+                                    const res = await fetch('/api/admin/ai-insights-refresh', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        slug: comp.slug,
+                                        timeframe: comp.timeframe,
+                                        geo: comp.geo || '',
+                                      }),
+                                    });
+                                    const result = await res.json();
+                                    if (res.ok) {
+                                      alert(`✅ Successfully refreshed: ${comp.slug}\nCategory: ${result.category}`);
+                                      loadSystemStatus(); // Reload to show updated status
+                                    } else {
+                                      alert(`❌ Failed: ${result.error}`);
+                                    }
+                                  } catch (error) {
+                                    alert(`❌ Error: ${error}`);
+                                  }
+                                }
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors whitespace-nowrap"
+                            >
+                              🔄 Refresh
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 text-xs text-gray-600">
+                        💡 AI insights are cached for 7 days. Refresh stale insights to get updated analysis.
+                        Cost: ~$0.0014 per refresh using Claude Haiku.
+                      </div>
+                    </div>
+                  )}
+
                   {/* Service Details */}
                   {service.details && (
                     <div className="mb-4">

@@ -484,3 +484,120 @@ export async function getBudgetStatus() {
     estimatedCost: `$${estimatedMonthlyCost}`,
   };
 }
+
+/**
+ * Get or generate AI insights with smart caching
+ * This is the main function to use - it handles caching automatically
+ *
+ * @param slug - Comparison slug (e.g., "react-vs-vue")
+ * @param timeframe - Timeframe (e.g., "12m")
+ * @param geo - Geographic region (e.g., "" for worldwide)
+ * @param data - Insight data to generate from (if cache miss)
+ * @param forceRefresh - Force regeneration even if cached data exists
+ * @returns AI insights or null
+ */
+export async function getOrGenerateAIInsights(
+  slug: string,
+  timeframe: string,
+  geo: string,
+  data: ComparisonInsightData,
+  forceRefresh: boolean = false
+): Promise<AIInsightResult | null> {
+  const CACHE_DAYS = 7; // Refresh insights after 7 days
+
+  console.log(`[AI Cache] 🔍 Checking cache for: ${slug} (${timeframe}, ${geo})`);
+
+  try {
+    // 1. Check if cached insights exist and are fresh
+    if (!forceRefresh) {
+      const existing = await prisma.comparison.findUnique({
+        where: { slug_timeframe_geo: { slug, timeframe, geo } },
+        select: { ai: true, updatedAt: true },
+      });
+
+      if (existing?.ai) {
+        // Check if it's real AI insights (not template data)
+        const aiData = existing.ai as any;
+        if (aiData && typeof aiData === 'object' && 'whatDataTellsUs' in aiData) {
+          // Calculate age in days
+          const ageInDays = (Date.now() - existing.updatedAt.getTime()) / (1000 * 60 * 60 * 24);
+
+          if (ageInDays < CACHE_DAYS) {
+            console.log(`[AI Cache] ✅ Using cached insights (${ageInDays.toFixed(1)} days old)`);
+            return aiData as AIInsightResult;
+          } else {
+            console.log(`[AI Cache] ⏰ Cached insights stale (${ageInDays.toFixed(1)} days old), regenerating...`);
+          }
+        }
+      }
+    }
+
+    // 2. Generate new insights
+    console.log(`[AI Cache] 🚀 Generating fresh insights for: ${slug}`);
+    const insights = await generateAIInsights(data);
+
+    if (!insights) {
+      console.log('[AI Cache] ⚠️ Generation failed or budget limit reached');
+      return null;
+    }
+
+    // 3. Save to database for future use
+    try {
+      await prisma.comparison.update({
+        where: { slug_timeframe_geo: { slug, timeframe, geo } },
+        data: {
+          ai: insights as any,
+          category: insights.category,
+          updatedAt: new Date(),
+        },
+      });
+      console.log(`[AI Cache] ✅ Saved insights to database for future use`);
+    } catch (saveError) {
+      console.error('[AI Cache] ⚠️ Failed to save insights to database:', saveError);
+      // Return insights anyway even if save failed
+    }
+
+    return insights;
+  } catch (error) {
+    console.error('[AI Cache] ❌ Error in getOrGenerateAIInsights:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if insights need refresh (older than 7 days)
+ */
+export async function checkInsightsNeedRefresh(
+  slug: string,
+  timeframe: string,
+  geo: string
+): Promise<{ needsRefresh: boolean; ageInDays: number; hasInsights: boolean }> {
+  const CACHE_DAYS = 7;
+
+  try {
+    const existing = await prisma.comparison.findUnique({
+      where: { slug_timeframe_geo: { slug, timeframe, geo } },
+      select: { ai: true, updatedAt: true },
+    });
+
+    if (!existing || !existing.ai) {
+      return { needsRefresh: true, ageInDays: 0, hasInsights: false };
+    }
+
+    const aiData = existing.ai as any;
+    // Check if it's real AI insights (not template data)
+    const hasRealInsights = aiData && typeof aiData === 'object' && 'whatDataTellsUs' in aiData;
+
+    if (!hasRealInsights) {
+      return { needsRefresh: true, ageInDays: 0, hasInsights: false };
+    }
+
+    const ageInDays = (Date.now() - existing.updatedAt.getTime()) / (1000 * 60 * 60 * 24);
+    const needsRefresh = ageInDays >= CACHE_DAYS;
+
+    return { needsRefresh, ageInDays, hasInsights: true };
+  } catch (error) {
+    console.error('[AI Cache] Error checking refresh status:', error);
+    return { needsRefresh: true, ageInDays: 0, hasInsights: false };
+  }
+}
