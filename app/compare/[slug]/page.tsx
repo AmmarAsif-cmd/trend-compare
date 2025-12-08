@@ -23,7 +23,7 @@ import HistoricalTimeline from "@/components/HistoricalTimeline";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
 import DataSpecificAIInsights from "@/components/DataSpecificAIInsights";
-import { prepareInsightData, generateAIInsights } from "@/lib/aiInsightsGenerator";
+import { prepareInsightData, getOrGenerateAIInsights } from "@/lib/aiInsightsGenerator";
 import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
@@ -537,21 +537,28 @@ export default async function ComparePage({
     // Get geographic breakdown (FREE - no API costs)
     getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
 
-    // Generate AI insights (cost-optimized with budget controls <$10/month)
+    // Get or generate AI insights with smart caching (cost-optimized)
+    // Only calls Claude API if: no insights exist, or insights are >7 days old
     (async () => {
       try {
         const insightData = prepareInsightData(actualTerms[0], actualTerms[1], series as any[]);
-        const result = await generateAIInsights(insightData);
+        const result = await getOrGenerateAIInsights(
+          canonical || '',
+          timeframe || '12m',
+          geo || '',
+          insightData,
+          false // Set to true to force refresh
+        );
 
         if (result) {
-          console.log('[AI Insights] ✅ Generated successfully for:', actualTerms.join(' vs '));
+          console.log('[AI Insights] ✅ Retrieved insights for:', actualTerms.join(' vs '));
           return result;
         } else {
-          console.log('[AI Insights] ⚠️ Not generated - check budget limits or API key');
+          console.log('[AI Insights] ⚠️ Not available - check cache, budget limits or API key');
           return null;
         }
       } catch (error) {
-        console.error('[AI Insights] ❌ Generation error:', error);
+        console.error('[AI Insights] ❌ Error:', error);
         return null;
       }
     })(),
@@ -565,36 +572,7 @@ export default async function ComparePage({
     })(),
   ]);
 
-  // Save detected category to database for caching and future filtering
-  if (aiInsights?.category && canonical && rawSeries) {
-    try {
-      await prisma.comparison.update({
-        where: {
-          slug_timeframe_geo: {
-            slug: canonical,
-            timeframe: timeframe || '12m',
-            geo: geo || ''
-          }
-        },
-        data: { category: aiInsights.category },
-      }).catch((err: any) => {
-        // Gracefully handle database schema issues
-        if (err?.message?.includes('column')) {
-          console.warn('[Category Save] Database schema not ready, skipping category save');
-        } else {
-          console.warn('[Category Save] Failed to save category:', err.message);
-        }
-      });
-      console.log('[Category Save] ✅ Saved category:', aiInsights.category);
-    } catch (error: any) {
-      // Gracefully handle database schema issues
-      if (error?.message?.includes('column')) {
-        console.warn('[Category Save] Database schema not ready, skipping category save');
-      } else {
-        console.warn('[Category Save] ⚠️ Could not save category:', error.message);
-      }
-    }
-  }
+  // Note: Category and AI insights are now saved automatically by getOrGenerateAIInsights()
 
   // compute totals and shares for stats
   const keyA = actualTerms[0];

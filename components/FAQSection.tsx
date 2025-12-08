@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: "Is TrendArc free to use?",
-    a: "Yes! Unlimited basic comparisons forever. Pro features start at $9/month for advanced analytics and historical data.",
+    a: "Yes! TrendArc is completely free to use with unlimited comparisons, trend analysis, and AI-powered insights.",
   },
   {
     q: "What can I compare?",
