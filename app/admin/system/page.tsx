@@ -37,6 +37,9 @@ export default function EnhancedSystemDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "core" | "api" | "feature" | "system">("all");
+  const [bulkRefreshCount, setBulkRefreshCount] = useState("10");
+  const [bulkRefreshing, setBulkRefreshing] = useState(false);
+  const [bulkRefreshProgress, setBulkRefreshProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     checkAuth();
@@ -627,6 +630,90 @@ export default function EnhancedSystemDashboard() {
     }));
   };
 
+  const handleBulkRefresh = async (staleComparisons: any[]) => {
+    const count = parseInt(bulkRefreshCount);
+    if (isNaN(count) || count <= 0) {
+      alert("Please enter a valid number");
+      return;
+    }
+
+    const toRefresh = staleComparisons.slice(0, count);
+    const estimatedCost = (count * 0.0014).toFixed(4);
+
+    if (!confirm(
+      `Refresh ${toRefresh.length} comparison${toRefresh.length !== 1 ? 's' : ''}?\n\n` +
+      `Estimated cost: ~$${estimatedCost}\n` +
+      `This will use your Claude API budget.`
+    )) {
+      return;
+    }
+
+    setBulkRefreshing(true);
+    setBulkRefreshProgress({ current: 0, total: toRefresh.length });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < toRefresh.length; i++) {
+      const comp = toRefresh[i];
+      setBulkRefreshProgress({ current: i + 1, total: toRefresh.length });
+
+      try {
+        const res = await fetch('/api/admin/ai-insights-refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug: comp.slug,
+            timeframe: comp.timeframe,
+            geo: comp.geo || '',
+          }),
+        });
+
+        if (res.ok) {
+          successCount++;
+          addLog("AI Insights Cache", {
+            timestamp: new Date().toISOString(),
+            level: "success",
+            message: `✅ Refreshed: ${comp.slug}`,
+          });
+        } else {
+          failCount++;
+          const result = await res.json();
+          addLog("AI Insights Cache", {
+            timestamp: new Date().toISOString(),
+            level: "error",
+            message: `❌ Failed: ${comp.slug} - ${result.error}`,
+          });
+        }
+      } catch (error) {
+        failCount++;
+        addLog("AI Insights Cache", {
+          timestamp: new Date().toISOString(),
+          level: "error",
+          message: `❌ Error: ${comp.slug} - ${error}`,
+        });
+      }
+
+      // Small delay to avoid overwhelming the API
+      if (i < toRefresh.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    setBulkRefreshing(false);
+    setBulkRefreshProgress({ current: 0, total: 0 });
+
+    alert(
+      `Bulk refresh completed!\n\n` +
+      `✅ Success: ${successCount}\n` +
+      `❌ Failed: ${failCount}\n\n` +
+      `Check the logs for details.`
+    );
+
+    // Reload status to show updated data
+    loadSystemStatus();
+  };
+
   const toggleService = (serviceName: string) => {
     setExpandedService(expandedService === serviceName ? null : serviceName);
   };
@@ -836,9 +923,56 @@ export default function EnhancedSystemDashboard() {
                   {/* AI Insights Cache - Special UI with Refresh */}
                   {service.name === "AI Insights Cache" && service.details?.comparisons?.stale && (
                     <div className="mb-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                        Comparisons Needing Refresh ({service.details.comparisons.stale.length}):
-                      </h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          Comparisons Needing Refresh ({service.details.comparisons.stale.length}):
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={service.details.comparisons.stale.length}
+                            value={bulkRefreshCount}
+                            onChange={(e) => setBulkRefreshCount(e.target.value)}
+                            disabled={bulkRefreshing}
+                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="10"
+                          />
+                          <button
+                            onClick={() => handleBulkRefresh(service.details.comparisons.stale)}
+                            disabled={bulkRefreshing || service.details.comparisons.stale.length === 0}
+                            className={`px-4 py-1 text-sm font-medium text-white rounded transition-colors ${
+                              bulkRefreshing
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                          >
+                            {bulkRefreshing
+                              ? `Refreshing ${bulkRefreshProgress.current}/${bulkRefreshProgress.total}...`
+                              : `🔄 Bulk Refresh`}
+                          </button>
+                        </div>
+                      </div>
+                      {bulkRefreshing && (
+                        <div className="mb-3 bg-blue-50 border border-blue-200 rounded p-3">
+                          <div className="flex items-center justify-between text-sm text-blue-900 mb-2">
+                            <span className="font-medium">
+                              Refreshing {bulkRefreshProgress.current} of {bulkRefreshProgress.total}...
+                            </span>
+                            <span className="text-xs">
+                              {Math.round((bulkRefreshProgress.current / bulkRefreshProgress.total) * 100)}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-blue-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${(bulkRefreshProgress.current / bulkRefreshProgress.total) * 100}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <div className="bg-white rounded border border-gray-200 max-h-96 overflow-y-auto">
                         {service.details.comparisons.stale.map((comp: any, idx: number) => (
                           <div
