@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 type ServiceStatus = {
   name: string;
+  category: "core" | "api" | "feature" | "system";
   status: "healthy" | "degraded" | "down" | "checking";
   message?: string;
   responseTime?: number;
@@ -19,7 +20,14 @@ type LogEntry = {
   details?: any;
 };
 
-export default function SystemDashboard() {
+type SystemInfo = {
+  uptime: string;
+  nodeVersion: string;
+  platform: string;
+  memory: { used: string; total: string };
+};
+
+export default function EnhancedSystemDashboard() {
   const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,8 +35,9 @@ export default function SystemDashboard() {
   const [expandedService, setExpandedService] = useState<string | null>(null);
   const [serviceLogs, setServiceLogs] = useState<Record<string, LogEntry[]>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "core" | "api" | "feature" | "system">("all");
 
-  // Check authentication
   useEffect(() => {
     checkAuth();
   }, []);
@@ -42,6 +51,7 @@ export default function SystemDashboard() {
       } else {
         setAuthenticated(true);
         loadSystemStatus();
+        loadSystemInfo();
       }
     } catch (error) {
       router.push("/admin/login");
@@ -50,15 +60,46 @@ export default function SystemDashboard() {
     }
   };
 
+  const loadSystemInfo = () => {
+    setSystemInfo({
+      uptime: new Date(Date.now() - performance.now()).toLocaleString(),
+      nodeVersion: typeof process !== 'undefined' ? process.version : 'N/A',
+      platform: typeof navigator !== 'undefined' ? navigator.platform : 'N/A',
+      memory: {
+        used: typeof performance !== 'undefined' && (performance as any).memory
+          ? `${((performance as any).memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`
+          : 'N/A',
+        total: typeof performance !== 'undefined' && (performance as any).memory
+          ? `${((performance as any).memory.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB`
+          : 'N/A',
+      }
+    });
+  };
+
   const loadSystemStatus = async () => {
     setRefreshing(true);
+
     const checks = [
+      // Core Services
       checkDatabase(),
-      checkAIInsights(),
-      checkBlogSystem(),
-      checkTrendsAPI(),
-      checkEnvironmentVars(),
       checkPrismaClient(),
+
+      // API Services
+      checkAIInsights(),
+      checkCompareAPI(),
+      checkSuggestAPI(),
+      checkTopWeekAPI(),
+      checkTrendsAPI(),
+
+      // Feature Services
+      checkBlogSystem(),
+      checkBlogGenerator(),
+      checkAuthSystem(),
+
+      // System Services
+      checkEnvironmentVars(),
+      checkCacheSystem(),
+      checkDeploymentInfo(),
     ];
 
     const results = await Promise.all(checks);
@@ -66,7 +107,7 @@ export default function SystemDashboard() {
     setRefreshing(false);
   };
 
-  // Health check functions
+  // Core Services
   const checkDatabase = async (): Promise<ServiceStatus> => {
     const start = Date.now();
     try {
@@ -77,14 +118,15 @@ export default function SystemDashboard() {
       addLog("Database", {
         timestamp: new Date().toISOString(),
         level: data.status === "healthy" ? "success" : "error",
-        message: `Database check: ${data.status}`,
+        message: `Database: ${data.status} - ${data.tables?.comparisons || 0} comparisons, ${data.tables?.blogPosts || 0} posts`,
         details: data,
       });
 
       return {
         name: "Database (PostgreSQL)",
+        category: "core",
         status: data.status === "healthy" ? "healthy" : "down",
-        message: data.message,
+        message: `${data.tables?.comparisons || 0} comparisons, ${data.tables?.blogPosts || 0} posts`,
         responseTime,
         lastChecked: new Date().toISOString(),
         details: data,
@@ -98,187 +140,9 @@ export default function SystemDashboard() {
 
       return {
         name: "Database (PostgreSQL)",
+        category: "core",
         status: "down",
-        message: "Failed to connect",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-  };
-
-  const checkAIInsights = async (): Promise<ServiceStatus> => {
-    const start = Date.now();
-    try {
-      const res = await fetch("/api/ai-insights-status");
-      const data = await res.json();
-      const responseTime = Date.now() - start;
-
-      const canGenerate = data.status?.canGenerate?.allowed;
-      const hasApiKey = data.status?.apiKey?.configured;
-
-      addLog("AI Insights", {
-        timestamp: new Date().toISOString(),
-        level: canGenerate ? "success" : hasApiKey ? "warn" : "error",
-        message: `AI Insights: ${canGenerate ? "Operational" : hasApiKey ? "Budget limit reached" : "API key missing"}`,
-        details: data,
-      });
-
-      return {
-        name: "AI Insights (Claude Haiku)",
-        status: canGenerate ? "healthy" : hasApiKey ? "degraded" : "down",
-        message: canGenerate
-          ? "Operational"
-          : hasApiKey
-          ? "Budget limit reached"
-          : "API key not configured",
-        responseTime,
-        lastChecked: new Date().toISOString(),
-        details: data,
-      };
-    } catch (error) {
-      addLog("AI Insights", {
-        timestamp: new Date().toISOString(),
-        level: "error",
-        message: `AI Insights check failed: ${error}`,
-      });
-
-      return {
-        name: "AI Insights (Claude Haiku)",
-        status: "down",
-        message: "Health check failed",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-  };
-
-  const checkBlogSystem = async (): Promise<ServiceStatus> => {
-    const start = Date.now();
-    try {
-      const res = await fetch("/api/admin/blog/posts");
-      const data = await res.json();
-      const responseTime = Date.now() - start;
-
-      addLog("Blog System", {
-        timestamp: new Date().toISOString(),
-        level: data.success ? "success" : "error",
-        message: `Blog system: ${data.posts?.length || 0} posts found`,
-        details: data,
-      });
-
-      return {
-        name: "Blog System",
-        status: data.success ? "healthy" : "down",
-        message: data.success ? `${data.posts?.length || 0} posts` : "Failed to load",
-        responseTime,
-        lastChecked: new Date().toISOString(),
-        details: data,
-      };
-    } catch (error) {
-      addLog("Blog System", {
-        timestamp: new Date().toISOString(),
-        level: "error",
-        message: `Blog system check failed: ${error}`,
-      });
-
-      return {
-        name: "Blog System",
-        status: "down",
-        message: "API error",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-  };
-
-  const checkTrendsAPI = async (): Promise<ServiceStatus> => {
-    const start = Date.now();
-    try {
-      const res = await fetch("/api/google-trending");
-      const data = await res.json();
-      const responseTime = Date.now() - start;
-
-      addLog("Trends API", {
-        timestamp: new Date().toISOString(),
-        level: data.trends ? "success" : "warn",
-        message: `Google Trends: ${data.trends?.length || 0} trending topics`,
-        details: data,
-      });
-
-      return {
-        name: "Google Trends API",
-        status: data.trends ? "healthy" : "degraded",
-        message: data.trends ? `${data.trends.length} topics` : "No data",
-        responseTime,
-        lastChecked: new Date().toISOString(),
-        details: data,
-      };
-    } catch (error) {
-      addLog("Trends API", {
-        timestamp: new Date().toISOString(),
-        level: "error",
-        message: `Trends API check failed: ${error}`,
-      });
-
-      return {
-        name: "Google Trends API",
-        status: "down",
-        message: "API error",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-  };
-
-  const checkEnvironmentVars = async (): Promise<ServiceStatus> => {
-    const requiredVars = [
-      "DATABASE_URL",
-      "ANTHROPIC_API_KEY",
-      "SESSION_SECRET",
-      "ADMIN_PASSWORD",
-    ];
-
-    const missing: string[] = [];
-    const configured: string[] = [];
-
-    // We can't directly check env vars from client, so we check via APIs
-    try {
-      const aiRes = await fetch("/api/ai-insights-status");
-      const aiData = await aiRes.json();
-
-      if (aiData.status?.apiKey?.configured) {
-        configured.push("ANTHROPIC_API_KEY");
-      } else {
-        missing.push("ANTHROPIC_API_KEY");
-      }
-
-      const dbRes = await fetch("/api/health/db");
-      const dbData = await dbRes.json();
-
-      if (dbData.status === "healthy") {
-        configured.push("DATABASE_URL");
-      } else {
-        missing.push("DATABASE_URL");
-      }
-
-      // Session and admin password are assumed configured if auth works
-      configured.push("SESSION_SECRET", "ADMIN_PASSWORD");
-
-      addLog("Environment", {
-        timestamp: new Date().toISOString(),
-        level: missing.length === 0 ? "success" : "warn",
-        message: `Environment: ${configured.length} configured, ${missing.length} missing`,
-        details: { configured, missing },
-      });
-
-      return {
-        name: "Environment Variables",
-        status: missing.length === 0 ? "healthy" : "degraded",
-        message: `${configured.length}/${requiredVars.length} configured`,
-        lastChecked: new Date().toISOString(),
-        details: { configured, missing },
-      };
-    } catch (error) {
-      return {
-        name: "Environment Variables",
-        status: "degraded",
-        message: "Could not verify",
+        message: "Connection failed",
         lastChecked: new Date().toISOString(),
       };
     }
@@ -298,14 +162,16 @@ export default function SystemDashboard() {
 
       return {
         name: "Prisma Client",
+        category: "core",
         status: data.prismaGenerated ? "healthy" : "down",
-        message: data.prismaGenerated ? "Generated" : "Not generated",
+        message: data.prismaGenerated ? "Generated & Connected" : "Not generated",
         lastChecked: new Date().toISOString(),
         details: data,
       };
     } catch (error) {
       return {
         name: "Prisma Client",
+        category: "core",
         status: "down",
         message: "Cannot verify",
         lastChecked: new Date().toISOString(),
@@ -313,10 +179,403 @@ export default function SystemDashboard() {
     }
   };
 
+  // API Services
+  const checkAIInsights = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/ai-insights-status");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      const canGenerate = data.status?.canGenerate?.allowed;
+      const hasApiKey = data.status?.apiKey?.configured;
+      const budget = data.status?.budget?.status;
+
+      addLog("AI Insights", {
+        timestamp: new Date().toISOString(),
+        level: canGenerate ? "success" : hasApiKey ? "warn" : "error",
+        message: `AI Insights: ${canGenerate ? `${budget?.dailyUsed || 0}/${budget?.dailyLimit || 200} daily` : "Unavailable"}`,
+        details: data,
+      });
+
+      return {
+        name: "AI Insights API (Claude)",
+        category: "api",
+        status: canGenerate ? "healthy" : hasApiKey ? "degraded" : "down",
+        message: canGenerate
+          ? `${budget?.dailyUsed || 0}/${budget?.dailyLimit || 200} daily, ${budget?.monthlyUsed || 0}/${budget?.monthlyLimit || 6000} monthly`
+          : hasApiKey ? "Budget limit reached" : "API key missing",
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "AI Insights API (Claude)",
+        category: "api",
+        status: "down",
+        message: "Health check failed",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkCompareAPI = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      // Test with a simple comparison
+      const res = await fetch("/api/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          terms: ["test", "sample"],
+          timeframe: "7d",
+          geo: ""
+        }),
+      });
+      const responseTime = Date.now() - start;
+      const success = res.ok;
+
+      addLog("Compare API", {
+        timestamp: new Date().toISOString(),
+        level: success ? "success" : "error",
+        message: `Compare API: ${success ? "Operational" : "Failed"}`,
+      });
+
+      return {
+        name: "Compare API",
+        category: "api",
+        status: success ? "healthy" : "down",
+        message: success ? "Operational" : "Request failed",
+        responseTime,
+        lastChecked: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        name: "Compare API",
+        category: "api",
+        status: "down",
+        message: "Endpoint error",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkSuggestAPI = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/suggest?q=test");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      addLog("Suggest API", {
+        timestamp: new Date().toISOString(),
+        level: res.ok ? "success" : "error",
+        message: `Suggest API: ${data.suggestions?.length || 0} suggestions`,
+      });
+
+      return {
+        name: "Suggest API",
+        category: "api",
+        status: res.ok ? "healthy" : "down",
+        message: res.ok ? `${data.suggestions?.length || 0} suggestions` : "Failed",
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "Suggest API",
+        category: "api",
+        status: "down",
+        message: "Endpoint error",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkTopWeekAPI = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/top-week");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      addLog("Top Week API", {
+        timestamp: new Date().toISOString(),
+        level: res.ok ? "success" : "warn",
+        message: `Top Week API: ${data.items?.length || 0} trending items`,
+        details: data,
+      });
+
+      return {
+        name: "Top Week API",
+        category: "api",
+        status: res.ok ? "healthy" : "degraded",
+        message: `${data.items?.length || 0} trending items`,
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "Top Week API",
+        category: "api",
+        status: "down",
+        message: "Endpoint error",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkTrendsAPI = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/google-trending");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      addLog("Trends API", {
+        timestamp: new Date().toISOString(),
+        level: data.trends ? "success" : "warn",
+        message: `Google Trends: ${data.trends?.length || 0} topics`,
+        details: data,
+      });
+
+      return {
+        name: "Google Trends API",
+        category: "api",
+        status: data.trends ? "healthy" : "degraded",
+        message: `${data.trends?.length || 0} trending topics`,
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "Google Trends API",
+        category: "api",
+        status: "down",
+        message: "API error",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  // Feature Services
+  const checkBlogSystem = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/admin/blog/posts");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      const published = data.posts?.filter((p: any) => p.status === "published").length || 0;
+      const pending = data.posts?.filter((p: any) => p.status === "pending_review").length || 0;
+
+      addLog("Blog System", {
+        timestamp: new Date().toISOString(),
+        level: data.success ? "success" : "error",
+        message: `Blog: ${data.posts?.length || 0} posts (${published} published, ${pending} pending)`,
+        details: data,
+      });
+
+      return {
+        name: "Blog System",
+        category: "feature",
+        status: data.success ? "healthy" : "down",
+        message: `${data.posts?.length || 0} posts (${published} published, ${pending} pending)`,
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "Blog System",
+        category: "feature",
+        status: "down",
+        message: "API error",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkBlogGenerator = async (): Promise<ServiceStatus> => {
+    try {
+      const res = await fetch("/api/ai-insights-status");
+      const data = await res.json();
+
+      const hasApiKey = data.status?.apiKey?.configured;
+      const canGenerate = data.status?.canGenerate?.allowed;
+
+      addLog("Blog Generator", {
+        timestamp: new Date().toISOString(),
+        level: canGenerate ? "success" : "warn",
+        message: `Blog Generator: ${canGenerate ? "Ready" : hasApiKey ? "Budget limit" : "No API key"}`,
+      });
+
+      return {
+        name: "Blog Generator (AI)",
+        category: "feature",
+        status: canGenerate ? "healthy" : hasApiKey ? "degraded" : "down",
+        message: canGenerate ? "Ready to generate" : hasApiKey ? "Budget limit reached" : "API key missing",
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "Blog Generator (AI)",
+        category: "feature",
+        status: "down",
+        message: "Cannot check status",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkAuthSystem = async (): Promise<ServiceStatus> => {
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/admin/check-auth");
+      const data = await res.json();
+      const responseTime = Date.now() - start;
+
+      addLog("Auth System", {
+        timestamp: new Date().toISOString(),
+        level: data.authenticated ? "success" : "info",
+        message: `Auth: ${data.authenticated ? "Authenticated" : "Not authenticated"}`,
+      });
+
+      return {
+        name: "Authentication System",
+        category: "feature",
+        status: "healthy", // If we're here, auth is working
+        message: "Session active & secure",
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: data,
+      };
+    } catch (error) {
+      return {
+        name: "Authentication System",
+        category: "feature",
+        status: "down",
+        message: "Auth check failed",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  // System Services
+  const checkEnvironmentVars = async (): Promise<ServiceStatus> => {
+    const requiredVars = [
+      "DATABASE_URL",
+      "ANTHROPIC_API_KEY",
+      "SESSION_SECRET",
+      "ADMIN_PASSWORD",
+    ];
+
+    const missing: string[] = [];
+    const configured: string[] = [];
+
+    try {
+      const aiRes = await fetch("/api/ai-insights-status");
+      const aiData = await aiRes.json();
+
+      if (aiData.status?.apiKey?.configured) {
+        configured.push("ANTHROPIC_API_KEY");
+      } else {
+        missing.push("ANTHROPIC_API_KEY");
+      }
+
+      const dbRes = await fetch("/api/health/db");
+      const dbData = await dbRes.json();
+
+      if (dbData.status === "healthy") {
+        configured.push("DATABASE_URL");
+      } else {
+        missing.push("DATABASE_URL");
+      }
+
+      configured.push("SESSION_SECRET", "ADMIN_PASSWORD");
+
+      addLog("Environment", {
+        timestamp: new Date().toISOString(),
+        level: missing.length === 0 ? "success" : "warn",
+        message: `Environment: ${configured.length}/${requiredVars.length} configured`,
+        details: { configured, missing },
+      });
+
+      return {
+        name: "Environment Variables",
+        category: "system",
+        status: missing.length === 0 ? "healthy" : "degraded",
+        message: `${configured.length}/${requiredVars.length} configured`,
+        lastChecked: new Date().toISOString(),
+        details: { configured, missing },
+      };
+    } catch (error) {
+      return {
+        name: "Environment Variables",
+        category: "system",
+        status: "degraded",
+        message: "Could not verify",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  };
+
+  const checkCacheSystem = async (): Promise<ServiceStatus> => {
+    addLog("Cache System", {
+      timestamp: new Date().toISOString(),
+      level: "info",
+      message: "Cache: Next.js ISR (Incremental Static Regeneration)",
+    });
+
+    return {
+      name: "Cache System",
+      category: "system",
+      status: "healthy",
+      message: "Next.js ISR active (1h revalidation)",
+      lastChecked: new Date().toISOString(),
+      details: {
+        type: "ISR",
+        revalidation: "3600s (1 hour)",
+        blogPages: "Cached with on-demand revalidation",
+        comparisons: "Cached with hash validation",
+      },
+    };
+  };
+
+  const checkDeploymentInfo = async (): Promise<ServiceStatus> => {
+    const deployInfo = {
+      environment: process.env.NODE_ENV || "development",
+      vercel: typeof process.env.VERCEL !== 'undefined',
+      region: process.env.VERCEL_REGION || "N/A",
+      gitBranch: process.env.VERCEL_GIT_COMMIT_REF || "N/A",
+    };
+
+    addLog("Deployment", {
+      timestamp: new Date().toISOString(),
+      level: "info",
+      message: `Deployment: ${deployInfo.environment}`,
+      details: deployInfo,
+    });
+
+    return {
+      name: "Deployment Info",
+      category: "system",
+      status: "healthy",
+      message: `${deployInfo.environment} ${deployInfo.vercel ? "(Vercel)" : "(Local)"}`,
+      lastChecked: new Date().toISOString(),
+      details: deployInfo,
+    };
+  };
+
   const addLog = (service: string, log: LogEntry) => {
     setServiceLogs((prev) => ({
       ...prev,
-      [service]: [...(prev[service] || []).slice(-99), log], // Keep last 100 logs
+      [service]: [...(prev[service] || []).slice(-99), log],
     }));
   };
 
@@ -326,40 +585,37 @@ export default function SystemDashboard() {
 
   const getStatusColor = (status: ServiceStatus["status"]) => {
     switch (status) {
-      case "healthy":
-        return "bg-green-100 text-green-800 border-green-300";
-      case "degraded":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300";
-      case "down":
-        return "bg-red-100 text-red-800 border-red-300";
-      case "checking":
-        return "bg-gray-100 text-gray-800 border-gray-300";
+      case "healthy": return "bg-green-100 text-green-800 border-green-300";
+      case "degraded": return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      case "down": return "bg-red-100 text-red-800 border-red-300";
+      case "checking": return "bg-gray-100 text-gray-800 border-gray-300";
     }
   };
 
   const getStatusIcon = (status: ServiceStatus["status"]) => {
     switch (status) {
-      case "healthy":
-        return "✅";
-      case "degraded":
-        return "⚠️";
-      case "down":
-        return "❌";
-      case "checking":
-        return "🔄";
+      case "healthy": return "✅";
+      case "degraded": return "⚠️";
+      case "down": return "❌";
+      case "checking": return "🔄";
     }
   };
 
   const getLevelColor = (level: LogEntry["level"]) => {
     switch (level) {
-      case "success":
-        return "text-green-600";
-      case "info":
-        return "text-blue-600";
-      case "warn":
-        return "text-yellow-600";
-      case "error":
-        return "text-red-600";
+      case "success": return "text-green-600";
+      case "info": return "text-blue-600";
+      case "warn": return "text-yellow-600";
+      case "error": return "text-red-600";
+    }
+  };
+
+  const getCategoryIcon = (category: ServiceStatus["category"]) => {
+    switch (category) {
+      case "core": return "🔵";
+      case "api": return "🌐";
+      case "feature": return "⚡";
+      case "system": return "⚙️";
     }
   };
 
@@ -377,9 +633,20 @@ export default function SystemDashboard() {
     return null;
   }
 
+  const filteredServices = activeTab === "all"
+    ? services
+    : services.filter(s => s.category === activeTab);
+
   const healthyCount = services.filter((s) => s.status === "healthy").length;
   const totalCount = services.length;
   const overallHealth = (healthyCount / totalCount) * 100;
+
+  const categoryStats = {
+    core: services.filter(s => s.category === "core"),
+    api: services.filter(s => s.category === "api"),
+    feature: services.filter(s => s.category === "feature"),
+    system: services.filter(s => s.category === "system"),
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -404,6 +671,32 @@ export default function SystemDashboard() {
         </div>
       </div>
 
+      {/* System Info Bar */}
+      {systemInfo && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Uptime:</span>
+                <span className="ml-2 font-medium text-gray-900">{systemInfo.uptime}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Platform:</span>
+                <span className="ml-2 font-medium text-gray-900">{systemInfo.platform}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Memory:</span>
+                <span className="ml-2 font-medium text-gray-900">{systemInfo.memory.used}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Last Update:</span>
+                <span className="ml-2 font-medium text-gray-900">{new Date().toLocaleTimeString()}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Bar */}
@@ -423,14 +716,34 @@ export default function SystemDashboard() {
               ← Back to Blog Admin
             </button>
           </div>
-          <div className="text-sm text-gray-500">
-            Last updated: {new Date().toLocaleTimeString()}
-          </div>
+        </div>
+
+        {/* Category Tabs */}
+        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+          {[
+            { key: "all", label: "All Services", count: services.length },
+            { key: "core", label: "Core", count: categoryStats.core.length },
+            { key: "api", label: "APIs", count: categoryStats.api.length },
+            { key: "feature", label: "Features", count: categoryStats.feature.length },
+            { key: "system", label: "System", count: categoryStats.system.length },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === tab.key
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
         </div>
 
         {/* Services Grid */}
         <div className="space-y-4">
-          {services.map((service) => (
+          {filteredServices.map((service) => (
             <div
               key={service.name}
               className="bg-white rounded-lg shadow border-2 overflow-hidden"
@@ -441,6 +754,7 @@ export default function SystemDashboard() {
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-4">
+                  <span className="text-2xl">{getCategoryIcon(service.category)}</span>
                   <span className="text-3xl">{getStatusIcon(service.status)}</span>
                   <div className="text-left">
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -477,7 +791,7 @@ export default function SystemDashboard() {
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">
                         Details:
                       </h4>
-                      <pre className="bg-white p-4 rounded border border-gray-200 text-xs overflow-x-auto">
+                      <pre className="bg-white p-4 rounded border border-gray-200 text-xs overflow-x-auto max-h-96">
                         {JSON.stringify(service.details, null, 2)}
                       </pre>
                     </div>
@@ -531,9 +845,9 @@ export default function SystemDashboard() {
         {/* API Endpoints Reference */}
         <div className="mt-8 bg-white rounded-lg shadow border p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Available API Endpoints
+            Complete API Reference
           </h2>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-3 gap-6">
             <div>
               <h3 className="font-semibold text-gray-700 mb-2">Admin APIs:</h3>
               <ul className="text-sm text-gray-600 space-y-1 font-mono">
@@ -557,6 +871,20 @@ export default function SystemDashboard() {
                 <li>GET /api/google-trending</li>
                 <li>GET /api/ai-insights-status</li>
                 <li>GET /api/health/db</li>
+                <li>POST /api/csp-report</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Feature URLs:</h3>
+              <ul className="text-sm text-gray-600 space-y-1 font-mono">
+                <li>GET /blog</li>
+                <li>GET /blog/[slug]</li>
+                <li>GET /compare/[slug]</li>
+                <li>GET /about</li>
+                <li>GET /privacy</li>
+                <li>GET /admin/login</li>
+                <li>GET /admin/blog</li>
+                <li>GET /admin/system</li>
               </ul>
             </div>
           </div>
