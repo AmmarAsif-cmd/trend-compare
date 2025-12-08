@@ -223,23 +223,25 @@ export default function EnhancedSystemDashboard() {
   const checkCompareAPI = async (): Promise<ServiceStatus> => {
     const start = Date.now();
     try {
-      // Test with a simple comparison
-      const res = await fetch("/api/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          terms: ["test", "sample"],
-          timeframe: "7d",
-          geo: ""
-        }),
-      });
+      // Test with a simple comparison using GET request
+      const res = await fetch("/api/compare?a=test&b=sample&tf=7d&geo=");
       const responseTime = Date.now() - start;
       const success = res.ok;
+
+      let details = null;
+      if (success) {
+        try {
+          details = await res.json();
+        } catch (e) {
+          // Ignore JSON parse errors
+        }
+      }
 
       addLog("Compare API", {
         timestamp: new Date().toISOString(),
         level: success ? "success" : "error",
         message: `Compare API: ${success ? "Operational" : "Failed"}`,
+        details: details,
       });
 
       return {
@@ -249,6 +251,7 @@ export default function EnhancedSystemDashboard() {
         message: success ? "Operational" : "Request failed",
         responseTime,
         lastChecked: new Date().toISOString(),
+        details: details,
       };
     } catch (error) {
       return {
