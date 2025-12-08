@@ -5,7 +5,7 @@ import FeaturesSection from "@/components/FeaturesSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
-import LiveTrendingDashboard from "@/components/LiveTrendingDashboard";
+import SimpleTrendingKeywords from "@/components/SimpleTrendingKeywords";
 import DataSources from "@/components/DataSources";
 
 export default function Home() {
@@ -13,12 +13,12 @@ export default function Home() {
     <main>
       <HeroSection />
 
-      {/* Trending This Week + Live Dashboard */}
+      {/* Trending This Week + Live Keywords */}
       <div className="bg-white py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8">
             <TopThisWeekWrapper />
-            <LiveTrendingDashboard />
+            <SimpleTrendingKeywords />
           </div>
         </div>
       </div>

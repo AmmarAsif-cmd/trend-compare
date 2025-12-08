@@ -5,7 +5,9 @@ import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
+import DataSourceBadge from "@/components/DataSourceBadge";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
+import { getDataSources } from "@/lib/trends-router";
 import BackButton from "@/components/BackButton";
 import FAQSection from "@/components/FAQSection";
 import { buildHumanCopy } from "@/lib/humanize";
@@ -121,9 +123,9 @@ function trendWord(m: number) {
 }
 
 function volatilityWord(std: number) {
-  if (std >= 20) return "very choppy";
-  if (std >= 10) return "choppy";
-  return "steady";
+  if (std >= 20) return "highly variable";
+  if (std >= 10) return "somewhat variable";
+  return "consistent";
 }
 
 function peakFor(term: string, series: TrendPoint[]) {
@@ -342,8 +344,8 @@ function buildInsightBundle(
       trendWord: trendWord(sl),
       stabilityWord: volatilityWord(std),
       peakLabel: pk.value
-        ? `${monthYearLabel(pk.date)} (score ${pk.value})`
-        : "no obvious peak",
+        ? `Peaked in ${monthYearLabel(pk.date)}`
+        : "no clear peak",
       bestMonthLabel: bestMonth,
     };
   };
@@ -522,6 +524,9 @@ export default async function ComparePage({
   }
 
   const insight = buildInsightBundle(series as any, actualTerms, timeframe);
+
+  // Get data sources for transparency badge
+  const dataSources = await getDataSources(actualTerms, { timeframe, geo });
 
   // Run all async operations in parallel for faster loading ⚡
   const [contentEngineResult, geographicData, aiInsights, aiInsightsError] = await Promise.all([
@@ -735,6 +740,9 @@ export default async function ComparePage({
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
                 Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
               </p>
+              <div className="mt-3">
+                <DataSourceBadge sources={dataSources} />
+              </div>
             </div>
             <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
