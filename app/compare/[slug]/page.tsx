@@ -7,8 +7,10 @@ import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import DataSourceBadge from "@/components/DataSourceBadge";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
-import { getDataSources } from "@/lib/trends-router";
+import { getDataSources, getMultiSourceData } from "@/lib/trends-router";
 import BackButton from "@/components/BackButton";
+import RedditBuzzSection from "@/components/RedditBuzzSection";
+import WikipediaInterestSection from "@/components/WikipediaInterestSection";
 import FAQSection from "@/components/FAQSection";
 import { buildHumanCopy } from "@/lib/humanize";
 import TopThisWeekServer from "@/components/TopThisWeekServer";
@@ -529,7 +531,7 @@ export default async function ComparePage({
   const dataSources = await getDataSources(actualTerms, { timeframe, geo });
 
   // Run all async operations in parallel for faster loading ⚡
-  const [contentEngineResult, geographicData, aiInsights, aiInsightsError] = await Promise.all([
+  const [contentEngineResult, geographicData, aiInsights, aiInsightsError, multiSourceData] = await Promise.all([
     // Generate Content Engine insights (advanced pattern detection)
     generateComparisonContent(actualTerms, rawSeries as any[], {
       deepAnalysis: true,
@@ -575,6 +577,12 @@ export default async function ComparePage({
       }
       return null;
     })(),
+
+    // Get multi-source data for source-specific insights (Option A architecture)
+    getMultiSourceData(actualTerms, { timeframe, geo }).catch((error) => {
+      console.error('[Multi-Source] Failed to fetch multi-source data:', error);
+      return { termA: null, termB: null };
+    }),
   ]);
 
   // Note: Category and AI insights are now saved automatically by getOrGenerateAIInsights()
@@ -867,6 +875,26 @@ export default async function ComparePage({
         termA={actualTerms[0]}
         termB={actualTerms[1]}
       />
+
+      {/* Multi-Source Insights - Reddit Buzz */}
+      {multiSourceData && (
+        <RedditBuzzSection
+          termA={actualTerms[0]}
+          termB={actualTerms[1]}
+          dataA={multiSourceData.termA?.sources.find(s => s.source === 'reddit') || null}
+          dataB={multiSourceData.termB?.sources.find(s => s.source === 'reddit') || null}
+        />
+      )}
+
+      {/* Multi-Source Insights - Wikipedia Interest */}
+      {multiSourceData && (
+        <WikipediaInterestSection
+          termA={actualTerms[0]}
+          termB={actualTerms[1]}
+          dataA={multiSourceData.termA?.sources.find(s => s.source === 'wikipedia') || null}
+          dataB={multiSourceData.termB?.sources.find(s => s.source === 'wikipedia') || null}
+        />
+      )}
 
       {/* AI Practical Implications - Actionable Insights */}
       {aiInsights?.practicalImplications && (

@@ -13,6 +13,7 @@ import type {
   SourceHealth,
   DataSourceType,
 } from './types';
+import { GoogleTrendsAdapter } from './adapters/google-trends';
 import { RedditAdapter } from './adapters/reddit';
 import { WikipediaAdapter } from './adapters/wikipedia';
 import { GitHubAdapter } from './adapters/github';
@@ -40,10 +41,11 @@ export class DataOrchestrator {
     this.adapters = new Map();
     this.healthCache = new Map();
 
-    // Initialize adapters
-    this.registerAdapter(new RedditAdapter());
-    this.registerAdapter(new WikipediaAdapter());
-    this.registerAdapter(new GitHubAdapter());
+    // Initialize adapters (in priority order)
+    this.registerAdapter(new GoogleTrendsAdapter()); // Priority 1 - most reliable
+    this.registerAdapter(new RedditAdapter());       // Priority 2
+    this.registerAdapter(new WikipediaAdapter());    // Priority 3
+    this.registerAdapter(new GitHubAdapter());       // Priority 4
   }
 
   /**

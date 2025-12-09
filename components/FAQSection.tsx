@@ -7,7 +7,7 @@ import { HelpCircle, ChevronDown } from "lucide-react";
 const faqs = [
   {
     q: "Where does TrendArc get its data?",
-    a: "TrendArc uses Google Trends data to show search interest over time. This provides reliable, real-time insights into what people are searching for globally.",
+    a: "TrendArc combines data from multiple sources: Google Trends (primary source for charts), Reddit (social engagement), and Wikipedia (knowledge interest). This multi-source approach gives you a complete picture of how topics trend across different platforms.",
   },
   {
     q: "How often is data updated?",
