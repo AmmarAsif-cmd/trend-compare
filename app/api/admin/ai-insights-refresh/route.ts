@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
           id: comp.id,
           slug: comp.slug,
           timeframe: comp.timeframe,
-          geo: comp.geo || 'worldwide',
+          geo: comp.geo, // Keep actual database value (empty string for worldwide)
+          geoDisplay: comp.geo || 'worldwide', // Separate field for display only
           terms: comp.terms,
           category: comp.category,
           hasInsights,
