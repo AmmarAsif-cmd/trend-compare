@@ -24,13 +24,19 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: Middleware-based rate limiting (40 requests per minute per IP)
 
 ### Core Features
-1. **Comparison Engine** (`lib/content-engine.ts`): Orchestrates multi-source data fetching, pattern detection, and narrative generation
-2. **Intelligent Comparison System** (`lib/intelligent-comparison.ts`): Multi-source comparison with TrendArc Score algorithm
+1. **Intelligent Comparison System** (`lib/intelligent-comparison.ts`): Multi-source comparison with TrendArc Score algorithm
    - **Category Detection** (`lib/category-resolver.ts`): Detects if comparing movies, products, tech, people, etc.
    - **TrendArc Score** (`lib/trendarc-score.ts`): Weighted composite scoring (0-100) combining multiple data sources
-   - **Data Adapters** (`lib/sources/adapters/`): YouTube, TMDB, Reddit adapters for category-specific data
-3. **TrendArc Verdict** (`components/ComparisonVerdict.tsx`): Displays winner/loser with scores, confidence, and actionable recommendations
-4. **Insights System** (`lib/insights/`): Statistical analysis including z-scores, regression, spike detection, and temporal analysis
+   - Google Trends is the primary factor (40-45% weight across all categories)
+2. **TrendArc Verdict** (`components/ComparisonVerdict.tsx`): Displays winner/loser with scores, confidence, and actionable recommendations
+3. **Simplified Comparison Page** (`app/compare/[slug]/page.tsx`): Streamlined 495-line page with:
+   - TrendArc Verdict (main result)
+   - AI Key Insights (when available)
+   - Interactive trend chart
+   - Compare Stats (numbers breakdown)
+   - Geographic breakdown
+   - Related comparisons + FAQ
+4. **Event Detection** (`lib/insights/events/`): Multi-source spike explanation using GDELT, Wikipedia, and curated tech events database (2023-2025)
 5. **Blog System**: Auto-generates SEO-optimized blog posts from trending comparisons using Claude Haiku
 6. **Caching**: Comparisons are stored in PostgreSQL with data hashing to avoid redundant API calls
 
