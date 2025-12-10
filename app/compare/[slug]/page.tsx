@@ -955,7 +955,8 @@ export default async function ComparePage({
         termB={actualTerms[1]}
       />
 
-      {/* Multi-Source Insights - Reddit Buzz */}
+      {/* Multi-Source Insights - Reddit Buzz - Hidden until Reddit API is available */}
+      {/* TODO: Uncomment when Reddit API credentials are added
       {multiSourceData && (
         <RedditBuzzSection
           termA={actualTerms[0]}
@@ -964,6 +965,7 @@ export default async function ComparePage({
           dataB={multiSourceData.termB?.sources.find(s => s.source === 'reddit') || null}
         />
       )}
+      */}
 
       {/* Multi-Source Insights - Wikipedia Interest */}
       {multiSourceData && (

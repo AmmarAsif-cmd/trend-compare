@@ -71,20 +71,22 @@ export type ComparisonVerdict = {
 };
 
 // Category-specific weights for each metric
+// Google Trends (searchInterest) is always the primary factor to ensure consistency
+// with chart and AI insights which are based on search trends
 const CATEGORY_WEIGHTS: Record<ComparisonCategory, {
   searchInterest: number;
   socialBuzz: number;
   authority: number;
   momentum: number;
 }> = {
-  movies: { searchInterest: 0.2, socialBuzz: 0.2, authority: 0.5, momentum: 0.1 },
-  products: { searchInterest: 0.4, socialBuzz: 0.3, authority: 0.2, momentum: 0.1 },
-  tech: { searchInterest: 0.25, socialBuzz: 0.25, authority: 0.3, momentum: 0.2 },
-  people: { searchInterest: 0.4, socialBuzz: 0.4, authority: 0.1, momentum: 0.1 },
-  games: { searchInterest: 0.3, socialBuzz: 0.4, authority: 0.2, momentum: 0.1 },
-  brands: { searchInterest: 0.35, socialBuzz: 0.25, authority: 0.3, momentum: 0.1 },
-  places: { searchInterest: 0.4, socialBuzz: 0.2, authority: 0.3, momentum: 0.1 },
-  general: { searchInterest: 0.4, socialBuzz: 0.25, authority: 0.25, momentum: 0.1 },
+  movies: { searchInterest: 0.45, socialBuzz: 0.15, authority: 0.3, momentum: 0.1 },
+  products: { searchInterest: 0.45, socialBuzz: 0.25, authority: 0.2, momentum: 0.1 },
+  tech: { searchInterest: 0.4, socialBuzz: 0.2, authority: 0.25, momentum: 0.15 },
+  people: { searchInterest: 0.45, socialBuzz: 0.35, authority: 0.1, momentum: 0.1 },
+  games: { searchInterest: 0.4, socialBuzz: 0.3, authority: 0.2, momentum: 0.1 },
+  brands: { searchInterest: 0.4, socialBuzz: 0.25, authority: 0.25, momentum: 0.1 },
+  places: { searchInterest: 0.45, socialBuzz: 0.2, authority: 0.25, momentum: 0.1 },
+  general: { searchInterest: 0.45, socialBuzz: 0.25, authority: 0.2, momentum: 0.1 },
 };
 
 /**
