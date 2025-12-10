@@ -112,8 +112,6 @@ export async function runIntelligentComparison(
 
   // Step 1: Detect category
   const category = detectCategory(terms);
-  console.log('[IntelligentComparison] Category detected:', category.category, 'for terms:', terms);
-  console.log('[IntelligentComparison] TMDB enabled:', enableTMDB, 'TMDB_API_KEY exists:', !!process.env.TMDB_API_KEY);
   
   // Step 2: Calculate base stats from Google Trends data
   // Pass actual term names to avoid Object.keys() order issues
@@ -172,9 +170,7 @@ export async function runIntelligentComparison(
   }
 
   // TMDB data (for movies category)
-  console.log('[IntelligentComparison] TMDB check:', { enableTMDB, categoryIsMovies: category.category === 'movies', hasApiKey: !!process.env.TMDB_API_KEY });
   if (enableTMDB && category.category === 'movies' && process.env.TMDB_API_KEY) {
-    console.log('[IntelligentComparison] Fetching TMDB data for:', terms);
     fetchPromises.push(
       (async () => {
         try {
@@ -182,7 +178,6 @@ export async function runIntelligentComparison(
             tmdbAdapter.searchMovie(terms[0]),
             tmdbAdapter.searchMovie(terms[1]),
           ]);
-          console.log('[IntelligentComparison] TMDB results:', { movieA: movieA?.title, movieB: movieB?.title });
           
           if (movieA) {
             metricsA.tmdb = {
