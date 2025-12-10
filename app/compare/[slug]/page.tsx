@@ -426,7 +426,7 @@ export async function generateMetadata({
         actualTerms[1]
       );
 
-      const ogImageUrl = `/api/og?a=${encodeURIComponent(actualTerms[0])}&b=${encodeURIComponent(actualTerms[1])}&winner=${encodeURIComponent(comparisonData.winner)}&advantage=${Math.round(comparisonData.advantagePercent)}`;
+      const ogImageUrl = `/api/og?a=${encodeURIComponent(actualTerms[0])}&b=${encodeURIComponent(actualTerms[1])}&winner=${encodeURIComponent(comparisonData.leader)}&advantage=${Math.round(comparisonData.advantage)}`;
 
       return {
         title: `${title} | TrendArc`,
@@ -665,7 +665,7 @@ export default async function ComparePage({
       winnerScore: Math.round(Math.max(aShare, bShare) * 100),
       loserScore: Math.round(Math.min(aShare, bShare) * 100),
       margin,
-      confidence: margin < 5 ? 'low' : margin < 15 ? 'medium' : 'high',
+      confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80,
       headline: margin < 5 
         ? `${prettyTerm(actualTerms[0])} and ${prettyTerm(actualTerms[1])} are virtually tied`
         : `${prettyTerm(winner)} leads in search interest`,
