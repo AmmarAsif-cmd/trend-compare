@@ -35,7 +35,7 @@ export type IntelligentComparisonResult = {
 /**
  * Calculate stats from series data for a specific term
  */
-function calculateSeriesStats(series: SeriesPoint[], termIndex: 0 | 1): {
+function calculateSeriesStats(series: SeriesPoint[], termName: string, otherTermName: string): {
   avgInterest: number;
   momentum: number;
   leadPercentage: number;
@@ -45,10 +45,9 @@ function calculateSeriesStats(series: SeriesPoint[], termIndex: 0 | 1): {
     return { avgInterest: 50, momentum: 0, leadPercentage: 50, volatility: 0 };
   }
 
-  // Get term keys from first data point (excluding 'date')
-  const keys = Object.keys(series[0]).filter(k => k !== 'date');
-  const termKey = keys[termIndex] || keys[0];
-  const otherKey = keys[termIndex === 0 ? 1 : 0] || keys[0];
+  // Use actual term names instead of relying on Object.keys() order
+  const termKey = termName;
+  const otherKey = otherTermName;
 
   const values = series.map(p => {
     const val = p[termKey];
@@ -115,8 +114,9 @@ export async function runIntelligentComparison(
   const category = detectCategory(terms);
   
   // Step 2: Calculate base stats from Google Trends data
-  const statsA = calculateSeriesStats(series, 0);
-  const statsB = calculateSeriesStats(series, 1);
+  // Pass actual term names to avoid Object.keys() order issues
+  const statsA = calculateSeriesStats(series, terms[0], terms[1]);
+  const statsB = calculateSeriesStats(series, terms[1], terms[0]);
 
   // Initialize metrics
   const metricsA: SourceMetrics = {
@@ -247,8 +247,8 @@ export function generateQuickVerdict(
   headline: string;
   confidence: number;
 } {
-  const statsA = calculateSeriesStats(series, 0);
-  const statsB = calculateSeriesStats(series, 1);
+  const statsA = calculateSeriesStats(series, terms[0], terms[1]);
+  const statsB = calculateSeriesStats(series, terms[1], terms[0]);
   
   const category = detectCategory(terms);
   
