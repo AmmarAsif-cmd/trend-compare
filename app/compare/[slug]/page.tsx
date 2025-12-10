@@ -660,14 +660,9 @@ export default async function ComparePage({
               <TimeframeSelect />
             </div>
 
-            {/* Report Actions - PDF and Share */}
-            <div className="flex flex-wrap items-center gap-4">
-              <ReportActions
-                title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Trend Comparison`}
-                url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.net/compare/${slug}`}
-                termA={actualTerms[0]}
-                termB={actualTerms[1]}
-              />
+            {/* Actions - PDF and Social Share */}
+            <div className="flex flex-wrap items-center gap-3">
+              <ReportActions />
               <SocialShareButtons
                 url={`https://trendarc.net/compare/${slug}`}
                 title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
