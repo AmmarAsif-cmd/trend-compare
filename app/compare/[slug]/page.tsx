@@ -35,6 +35,8 @@ import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
 import { prisma } from "@/lib/db";
+import ComparisonVerdict from "@/components/ComparisonVerdict";
+import { runIntelligentComparison } from "@/lib/intelligent-comparison";
 
 // Revalidate every 10 minutes for fresh data while maintaining performance
 export const revalidate = 600; // 10 minutes
@@ -623,6 +625,57 @@ export default async function ComparePage({
     aShare = totalA / totalSearches;
     bShare = totalB / totalSearches;
   }
+
+  // Run intelligent multi-source comparison with error handling
+  let verdictData;
+  try {
+    const intelligentComparison = await runIntelligentComparison(
+      actualTerms,
+      series as any[],
+      {
+        enableYouTube: !!process.env.YOUTUBE_API_KEY,
+        enableTMDB: !!process.env.TMDB_API_KEY,
+      }
+    );
+    
+    // Build verdict data from intelligent comparison
+    verdictData = {
+      winner: intelligentComparison.verdict.winner,
+      loser: intelligentComparison.verdict.loser,
+      winnerScore: intelligentComparison.verdict.winnerScore.overall,
+      loserScore: intelligentComparison.verdict.loserScore.overall,
+      margin: intelligentComparison.verdict.margin,
+      confidence: intelligentComparison.verdict.confidence,
+      headline: intelligentComparison.verdict.headline,
+      recommendation: intelligentComparison.verdict.recommendation,
+      evidence: intelligentComparison.verdict.evidence || [],
+      category: intelligentComparison.category.category,
+      sources: intelligentComparison.performance.sourcesQueried || ['Google Trends'],
+    };
+  } catch (error) {
+    console.error('[Intelligent Comparison] Error:', error);
+    // Fallback to basic verdict based on Google Trends data
+    const winner = aShare > bShare ? actualTerms[0] : actualTerms[1];
+    const loser = winner === actualTerms[0] ? actualTerms[1] : actualTerms[0];
+    const margin = Math.abs(aShare - bShare) * 100;
+    
+    verdictData = {
+      winner,
+      loser,
+      winnerScore: Math.round(Math.max(aShare, bShare) * 100),
+      loserScore: Math.round(Math.min(aShare, bShare) * 100),
+      margin,
+      confidence: margin < 5 ? 'low' : margin < 15 ? 'medium' : 'high',
+      headline: margin < 5 
+        ? `${prettyTerm(actualTerms[0])} and ${prettyTerm(actualTerms[1])} are virtually tied`
+        : `${prettyTerm(winner)} leads in search interest`,
+      recommendation: `Based on search trends, ${prettyTerm(winner)} shows ${margin >= 10 ? 'significantly' : 'slightly'} more interest.`,
+      evidence: ['Based on Google Trends data'],
+      category: 'general' as const,
+      sources: ['Google Trends'],
+    };
+  }
+
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6 lg:px-8 py-6">
       <BackButton label="Back to Home" />
@@ -663,6 +716,13 @@ export default async function ComparePage({
             <SocialShareButtons
               url={`https://trendarc.net/compare/${slug}`}
               title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+
+            {/* TrendArc Verdict - The main comparison result */}
+            <ComparisonVerdict
+              verdict={verdictData}
               termA={actualTerms[0]}
               termB={actualTerms[1]}
             />

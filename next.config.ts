@@ -63,6 +63,18 @@ const securityHeaders: { key: string; value: string }[] = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   turbopack: { root: __dirname },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'm.media-amazon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images-na.ssl-images-amazon.com',
+      },
+    ],
+  },
   async headers() {
     return [
       {

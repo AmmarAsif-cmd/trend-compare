@@ -3,7 +3,7 @@
  * Unified interface for different data sources
  */
 
-export type DataSourceType = 'google-trends' | 'reddit' | 'wikipedia' | 'hackernews' | 'github';
+export type DataSourceType = 'google-trends' | 'reddit' | 'wikipedia' | 'hackernews' | 'github' | 'youtube' | 'tmdb' | 'omdb';
 
 export type SourceStatus = 'active' | 'degraded' | 'failed' | 'rate-limited';
 
