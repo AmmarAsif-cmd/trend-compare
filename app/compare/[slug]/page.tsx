@@ -22,7 +22,6 @@ import CompareStats from "@/components/CompareStats";
 import ContentEngineInsights from "@/components/ContentEngineInsights";
 import { generateComparisonContent } from "@/lib/content-engine";
 import SearchBreakdown from "@/components/SearchBreakdown";
-import ReportActions from "@/components/ReportActions";
 import SocialShareButtons from "@/components/SocialShareButtons";
 import RealTimeContext from "@/components/RealTimeContext";
 import StructuredData from "@/components/StructuredData";
@@ -660,16 +659,13 @@ export default async function ComparePage({
               <TimeframeSelect />
             </div>
 
-            {/* Actions - PDF and Social Share */}
-            <div className="flex flex-wrap items-center gap-3">
-              <ReportActions />
-              <SocialShareButtons
-                url={`https://trendarc.net/compare/${slug}`}
-                title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
-                termA={actualTerms[0]}
-                termB={actualTerms[1]}
-              />
-            </div>
+            {/* Social Share */}
+            <SocialShareButtons
+              url={`https://trendarc.net/compare/${slug}`}
+              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
 
             {/* Real-Time Context - Live comparison status */}
             <RealTimeContext
