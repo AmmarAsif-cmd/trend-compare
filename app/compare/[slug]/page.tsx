@@ -23,6 +23,7 @@ import ContentEngineInsights from "@/components/ContentEngineInsights";
 import { generateComparisonContent } from "@/lib/content-engine";
 import SearchBreakdown from "@/components/SearchBreakdown";
 import ReportActions from "@/components/ReportActions";
+import SocialShareButtons from "@/components/SocialShareButtons";
 import RealTimeContext from "@/components/RealTimeContext";
 import StructuredData from "@/components/StructuredData";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
@@ -424,6 +425,8 @@ export async function generateMetadata({
         actualTerms[1]
       );
 
+      const ogImageUrl = `/api/og?a=${encodeURIComponent(actualTerms[0])}&b=${encodeURIComponent(actualTerms[1])}&winner=${encodeURIComponent(comparisonData.winner)}&advantage=${Math.round(comparisonData.advantagePercent)}`;
+
       return {
         title: `${title} | TrendArc`,
         description,
@@ -433,11 +436,20 @@ export async function generateMetadata({
           description,
           type: "website",
           url: `/compare/${canonical}`,
+          images: [
+            {
+              url: ogImageUrl,
+              width: 1200,
+              height: 630,
+              alt: `${actualTerms[0]} vs ${actualTerms[1]} trend comparison`,
+            },
+          ],
         },
         twitter: {
           card: "summary_large_image",
           title: `${title} | TrendArc`,
           description,
+          images: [ogImageUrl],
         },
       };
     }
@@ -649,12 +661,20 @@ export default async function ComparePage({
             </div>
 
             {/* Report Actions - PDF and Share */}
-            <ReportActions
-              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Trend Comparison`}
-              url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-            />
+            <div className="flex flex-wrap items-center gap-4">
+              <ReportActions
+                title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Trend Comparison`}
+                url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.net/compare/${slug}`}
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+              />
+              <SocialShareButtons
+                url={`https://trendarc.net/compare/${slug}`}
+                title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+              />
+            </div>
 
             {/* Real-Time Context - Live comparison status */}
             <RealTimeContext
