@@ -407,6 +407,92 @@ export const TECH_EVENTS_2024: TechEvent[] = [
   },
 ];
 
+// 2023 Events - Major movie releases and entertainment
+export const TECH_EVENTS_2023: TechEvent[] = [
+  // Barbenheimer - July 2023
+  {
+    date: '2023-07-21',
+    title: 'Barbie Movie Theatrical Release',
+    description: 'Greta Gerwig\'s Barbie starring Margot Robbie releases in theaters, becoming highest-grossing film of 2023',
+    keywords: ['barbie', 'margot-robbie', 'movie', 'greta-gerwig'],
+    category: 'news',
+    company: 'Warner Bros',
+    impact: 'high',
+  },
+  {
+    date: '2023-07-21',
+    title: 'Oppenheimer Theatrical Release',
+    description: 'Christopher Nolan\'s Oppenheimer starring Cillian Murphy releases in theaters',
+    keywords: ['oppenheimer', 'christopher-nolan', 'cillian-murphy', 'movie'],
+    category: 'news',
+    company: 'Universal Pictures',
+    impact: 'high',
+  },
+  {
+    date: '2023-03-10',
+    title: 'Oscars 2023 - Everything Everywhere All at Once Wins',
+    description: '95th Academy Awards with Everything Everywhere All at Once winning Best Picture',
+    keywords: ['oscars', 'academy-awards', 'movie', 'everything-everywhere'],
+    category: 'news',
+    company: 'Entertainment',
+    impact: 'high',
+  },
+  {
+    date: '2023-07-12',
+    title: 'Threads App Launch',
+    description: 'Meta launches Threads as Twitter competitor',
+    keywords: ['threads', 'meta', 'instagram', 'twitter'],
+    category: 'product-launch',
+    company: 'Meta',
+    impact: 'high',
+  },
+  {
+    date: '2023-11-06',
+    title: 'ChatGPT Anniversary & GPT-4 Turbo Launch',
+    description: 'OpenAI DevDay with GPT-4 Turbo announcement',
+    keywords: ['chatgpt', 'openai', 'gpt-4', 'ai'],
+    category: 'product-launch',
+    company: 'OpenAI',
+    impact: 'high',
+  },
+  {
+    date: '2023-05-03',
+    title: 'The Super Mario Bros. Movie Success',
+    description: 'Super Mario Bros. Movie becomes highest-grossing video game adaptation',
+    keywords: ['mario', 'nintendo', 'movie', 'super-mario'],
+    category: 'news',
+    company: 'Nintendo',
+    impact: 'high',
+  },
+  {
+    date: '2023-12-13',
+    title: 'Google Gemini Launch',
+    description: 'Google launches Gemini AI model family',
+    keywords: ['gemini', 'google', 'ai', 'bard'],
+    category: 'product-launch',
+    company: 'Google',
+    impact: 'high',
+  },
+  {
+    date: '2023-11-22',
+    title: 'The Lion King Mufasa Trailer Release',
+    description: 'Disney releases first trailer for Mufasa: The Lion King prequel',
+    keywords: ['lion-king', 'mufasa', 'disney', 'movie'],
+    category: 'news',
+    company: 'Disney',
+    impact: 'medium',
+  },
+  {
+    date: '2023-09-12',
+    title: 'Apple iPhone 15 Launch',
+    description: 'Apple announces iPhone 15 with USB-C and Dynamic Island',
+    keywords: ['iphone', 'apple', 'iphone 15'],
+    category: 'product-launch',
+    company: 'Apple',
+    impact: 'high',
+  },
+];
+
 export const TECH_EVENTS_2025: TechEvent[] = [
   // Apple Events
   {
@@ -480,7 +566,7 @@ export function findEventsNearDate(
   const targetDate = new Date(date);
   const targetTime = targetDate.getTime();
 
-  const allEvents = [...TECH_EVENTS_2024, ...TECH_EVENTS_2025];
+  const allEvents = [...TECH_EVENTS_2023, ...TECH_EVENTS_2024, ...TECH_EVENTS_2025];
 
   return allEvents.filter(event => {
     // Check if event is within time window

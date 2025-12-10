@@ -198,6 +198,13 @@ function calculateEventRelevance(event: { title: string; description: string }, 
  */
 async function inferSpikeContext(point: EnrichedDataPoint, keywords: string[]): Promise<string | undefined> {
   const date = new Date(point.date);
+  const now = new Date();
+
+  // Skip future dates - we can't detect events for dates that haven't happened
+  if (date > now) {
+    console.log(`[Event Detection] Skipping future date: ${point.date}`);
+    return undefined;
+  }
 
   // Log what we're searching for
   console.log(`[Event Detection] Searching for events on ${point.date} with keywords:`, keywords);
