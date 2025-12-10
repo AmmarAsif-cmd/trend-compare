@@ -22,7 +22,10 @@ import { prepareInsightData, getOrGenerateAIInsights } from "@/lib/aiInsightsGen
 import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
+import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
 import ComparisonVerdict from "@/components/ComparisonVerdict";
+import HistoricalTimeline from "@/components/HistoricalTimeline";
+import SearchBreakdown from "@/components/SearchBreakdown";
 import { runIntelligentComparison } from "@/lib/intelligent-comparison";
 
 // Revalidate every 10 minutes for fresh data while maintaining performance
@@ -455,6 +458,57 @@ export default async function ComparePage({
           {/* AI Prediction - Forecast */}
           {aiInsights?.prediction && (
             <AIPrediction prediction={aiInsights.prediction} />
+          )}
+
+          {/* Reasoning - Why This Matters & Key Differences */}
+          {aiInsights && (aiInsights.whyThisMatters || aiInsights.keyDifferences || aiInsights.volatilityAnalysis) && (
+            <section className="bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-lg p-5 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full" />
+                Why This Comparison Matters
+              </h2>
+              <div className="space-y-4">
+                {aiInsights.whyThisMatters && (
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+                    <h3 className="font-semibold text-emerald-800 mb-2 text-sm uppercase tracking-wide">Context</h3>
+                    <p className="text-slate-700 leading-relaxed">{aiInsights.whyThisMatters}</p>
+                  </div>
+                )}
+                {aiInsights.keyDifferences && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 mb-2 text-sm uppercase tracking-wide">Key Differences</h3>
+                    <p className="text-slate-700 leading-relaxed">{aiInsights.keyDifferences}</p>
+                  </div>
+                )}
+                {aiInsights.volatilityAnalysis && (
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+                    <h3 className="font-semibold text-amber-800 mb-2 text-sm uppercase tracking-wide">Trend Behavior</h3>
+                    <p className="text-slate-700 leading-relaxed">{aiInsights.volatilityAnalysis}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Search Interest Breakdown */}
+          <SearchBreakdown
+            series={series as any[]}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
+
+          {/* Historical Timeline */}
+          <HistoricalTimeline
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            series={series as any[]}
+          />
+
+          {/* What This Means For You - Practical Implications */}
+          {aiInsights?.practicalImplications && (
+            <AIPracticalImplications
+              practicalImplications={aiInsights.practicalImplications}
+            />
           )}
         </div>
 
