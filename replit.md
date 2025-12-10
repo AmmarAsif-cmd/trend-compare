@@ -25,9 +25,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Features
 1. **Comparison Engine** (`lib/content-engine.ts`): Orchestrates multi-source data fetching, pattern detection, and narrative generation
-2. **Insights System** (`lib/insights/`): Statistical analysis including z-scores, regression, spike detection, and temporal analysis
-3. **Blog System**: Auto-generates SEO-optimized blog posts from trending comparisons using Claude Haiku
-4. **Caching**: Comparisons are stored in PostgreSQL with data hashing to avoid redundant API calls
+2. **Intelligent Comparison System** (`lib/intelligent-comparison.ts`): Multi-source comparison with TrendArc Score algorithm
+   - **Category Detection** (`lib/category-resolver.ts`): Detects if comparing movies, products, tech, people, etc.
+   - **TrendArc Score** (`lib/trendarc-score.ts`): Weighted composite scoring (0-100) combining multiple data sources
+   - **Data Adapters** (`lib/sources/adapters/`): YouTube, TMDB, Reddit adapters for category-specific data
+3. **TrendArc Verdict** (`components/ComparisonVerdict.tsx`): Displays winner/loser with scores, confidence, and actionable recommendations
+4. **Insights System** (`lib/insights/`): Statistical analysis including z-scores, regression, spike detection, and temporal analysis
+5. **Blog System**: Auto-generates SEO-optimized blog posts from trending comparisons using Claude Haiku
+6. **Caching**: Comparisons are stored in PostgreSQL with data hashing to avoid redundant API calls
 
 ### Data Flow
 1. User submits comparison request
