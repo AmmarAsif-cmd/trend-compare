@@ -1,6 +1,6 @@
 'use client';
 
-import { Trophy, TrendingUp, ArrowRight, Star, Youtube, Film, Search, MessageCircle, CheckCircle } from 'lucide-react';
+import { Trophy, TrendingUp, ArrowRight, Star, Youtube, Film, Search, Music, Gamepad2, ShoppingCart, CheckCircle } from 'lucide-react';
 
 type VerdictData = {
   winner: string;
@@ -145,16 +145,28 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
               YouTube
             </span>
           )}
-          {verdict.sources.includes('Reddit') && (
-            <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-600 rounded">
-              <MessageCircle className="w-3 h-3" />
-              Reddit
-            </span>
-          )}
           {verdict.sources.includes('TMDB') && (
-            <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-600 rounded">
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-600 rounded">
               <Film className="w-3 h-3" />
               TMDB
+            </span>
+          )}
+          {verdict.sources.includes('Spotify') && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-600 rounded">
+              <Music className="w-3 h-3" />
+              Spotify
+            </span>
+          )}
+          {verdict.sources.includes('Steam') && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-slate-600 rounded">
+              <Gamepad2 className="w-3 h-3" />
+              Steam
+            </span>
+          )}
+          {verdict.sources.includes('Best Buy') && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded">
+              <ShoppingCart className="w-3 h-3" />
+              Best Buy
             </span>
           )}
         </div>
