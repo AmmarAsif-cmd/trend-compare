@@ -271,8 +271,10 @@ export default async function ComparePage({
 
   // Run intelligent multi-source comparison with error handling
   let verdictData;
+  let intelligentComparison;
+
   try {
-    const intelligentComparison = await runIntelligentComparison(
+    intelligentComparison = await runIntelligentComparison(
       actualTerms,
       series as any[],
       {
