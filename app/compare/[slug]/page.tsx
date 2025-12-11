@@ -6,6 +6,7 @@ import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaG
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import DataSourceBadge from "@/components/DataSourceBadge";
+import MultiSourceBreakdown from "@/components/MultiSourceBreakdown";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
 import { getDataSources } from "@/lib/trends-router";
 import BackButton from "@/components/BackButton";
@@ -434,6 +435,44 @@ export default async function ComparePage({
               <TrendChart series={series} />
             </div>
           </section>
+
+          {/* Multi-Source Score Breakdown */}
+          {verdictData && intelligentComparison && (
+            <MultiSourceBreakdown
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              scoreA={intelligentComparison.scores.termA.overall}
+              scoreB={intelligentComparison.scores.termB.overall}
+              sources={[
+                {
+                  name: 'Search Interest (Google Trends)',
+                  termA: intelligentComparison.scores.termA.breakdown.searchInterest,
+                  termB: intelligentComparison.scores.termB.breakdown.searchInterest,
+                },
+                {
+                  name: 'Social Buzz (YouTube' + (intelligentComparison.performance.sourcesQueried.includes('Spotify') ? ', Spotify' : '') + ')',
+                  termA: intelligentComparison.scores.termA.breakdown.socialBuzz,
+                  termB: intelligentComparison.scores.termB.breakdown.socialBuzz,
+                },
+                {
+                  name: 'Authority' + (
+                    intelligentComparison.performance.sourcesQueried.includes('TMDB') ? ' (TMDB)' :
+                    intelligentComparison.performance.sourcesQueried.includes('Steam') ? ' (Steam)' :
+                    intelligentComparison.performance.sourcesQueried.includes('Best Buy') ? ' (Best Buy)' :
+                    ''
+                  ),
+                  termA: intelligentComparison.scores.termA.breakdown.authority,
+                  termB: intelligentComparison.scores.termB.breakdown.authority,
+                },
+                {
+                  name: 'Momentum (Trend Direction)',
+                  termA: intelligentComparison.scores.termA.breakdown.momentum,
+                  termB: intelligentComparison.scores.termB.breakdown.momentum,
+                },
+              ]}
+              category={intelligentComparison.category.category}
+            />
+          )}
 
           {/* AI Peak Explanations - Right After Chart */}
           {aiInsights?.peakExplanations && (
