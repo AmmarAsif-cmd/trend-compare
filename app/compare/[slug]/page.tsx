@@ -420,10 +420,11 @@ export default async function ComparePage({
             <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
               <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-                How {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Compare Over Time
+                Search Interest Over Time
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
+                <span className="font-semibold">Google Trends</span> search volume on a 0-100 scale.
+                <span className="text-slate-500 ml-1">(Note: TrendArc Score above combines multiple data sources)</span>
               </p>
               <div className="mt-3">
                 <DataSourceBadge sources={dataSources} />

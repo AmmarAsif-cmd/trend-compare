@@ -50,15 +50,18 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-6 mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 bg-purple-100 rounded-full text-purple-600">
-          {getCategoryIcon()}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="p-2 bg-purple-100 rounded-full text-purple-600">
+            {getCategoryIcon()}
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">TrendArc Verdict</h2>
+          <span className="ml-auto text-sm text-gray-500 flex items-center gap-1">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            {verdict.confidence}% confidence
+          </span>
         </div>
-        <h2 className="text-lg font-bold text-gray-900">TrendArc Verdict</h2>
-        <span className="ml-auto text-sm text-gray-500 flex items-center gap-1">
-          <CheckCircle className="w-4 h-4 text-green-500" />
-          {verdict.confidence}% confidence
-        </span>
+        <p className="text-xs text-gray-500 ml-12">Multi-source score combining {verdict.sources.join(', ')}</p>
       </div>
 
       <div className="bg-white rounded-xl p-5 mb-4 shadow-sm">
