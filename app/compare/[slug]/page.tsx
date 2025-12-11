@@ -277,6 +277,9 @@ export default async function ComparePage({
       {
         enableYouTube: !!process.env.YOUTUBE_API_KEY,
         enableTMDB: !!process.env.TMDB_API_KEY,
+        enableBestBuy: !!process.env.BESTBUY_API_KEY,
+        enableSpotify: !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET),
+        enableSteam: true, // Steam API works without a key
       }
     );
     

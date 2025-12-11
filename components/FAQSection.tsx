@@ -7,7 +7,7 @@ import { HelpCircle, ChevronDown } from "lucide-react";
 const faqs = [
   {
     q: "Where does TrendArc get its data?",
-    a: "TrendArc combines data from multiple sources: Google Trends (primary source for charts), Reddit (social engagement), and Wikipedia (knowledge interest). This multi-source approach gives you a complete picture of how topics trend across different platforms.",
+    a: "TrendArc is a multi-source trend intelligence dashboard. We combine Google Trends (search interest) with category-specific sources: TMDB for movies/TV, Spotify for music, Steam for games, Best Buy for products, and YouTube for engagement data. This gives you a comprehensive view of what's trending across platforms.",
   },
   {
     q: "How often is data updated?",
@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     q: "What can I compare?",
-    a: "You can compare almost any two topics that people search for - products, brands, people, events, or general terms.",
+    a: "You can compare movies, music artists, video games, products, brands, people, and general topics. Our smart category detection automatically fetches the most relevant data sources for your comparison.",
   },
   {
     q: "Can I share a comparison?",

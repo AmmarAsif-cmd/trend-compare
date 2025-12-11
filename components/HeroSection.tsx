@@ -16,16 +16,16 @@ export default function HeroSection() {
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight px-4">
-            <span className="block">Compare Trends.</span>
+            <span className="block">See What's Trending.</span>
             <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Make Smarter Decisions.
+              Discover What's Next.
             </span>
           </h1>
 
           {/* Subhead */}
           <p className="text-lg sm:text-xl text-slate-600 mb-10 sm:mb-12 max-w-2xl mx-auto leading-relaxed px-4">
-            Instantly visualize which topics are winning the conversation.
-            Beautiful charts, real-time data, zero complexity.
+            Your trend intelligence dashboard. Compare what's hot across movies, music, games, and products.
+            Multi-source data, AI insights, zero complexity.
           </p>
 
 

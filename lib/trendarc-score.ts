@@ -24,14 +24,24 @@ export type SourceMetrics = {
     avgScore: number;
     sentiment: number;        // -1 to 1
   };
-  wikipedia?: {
-    pageViews: number;
-    articleQuality: number;   // 0-100
-  };
   tmdb?: {
     rating: number;           // 0-10
     voteCount: number;
     popularity: number;
+  };
+  bestbuy?: {
+    rating: number;           // 0-5
+    reviewCount: number;
+    price: number;
+  };
+  spotify?: {
+    popularity: number;       // 0-100
+    followers: number;
+  };
+  steam?: {
+    reviewScore: number;      // 0-100 (% positive)
+    currentPlayers: number;
+    totalReviews: number;
   };
   omdb?: {
     imdbRating: number;
@@ -84,6 +94,7 @@ const CATEGORY_WEIGHTS: Record<ComparisonCategory, {
   tech: { searchInterest: 0.4, socialBuzz: 0.2, authority: 0.25, momentum: 0.15 },
   people: { searchInterest: 0.45, socialBuzz: 0.35, authority: 0.1, momentum: 0.1 },
   games: { searchInterest: 0.4, socialBuzz: 0.3, authority: 0.2, momentum: 0.1 },
+  music: { searchInterest: 0.4, socialBuzz: 0.3, authority: 0.2, momentum: 0.1 },
   brands: { searchInterest: 0.4, socialBuzz: 0.25, authority: 0.25, momentum: 0.1 },
   places: { searchInterest: 0.45, socialBuzz: 0.2, authority: 0.25, momentum: 0.1 },
   general: { searchInterest: 0.45, socialBuzz: 0.25, authority: 0.2, momentum: 0.1 },
@@ -122,29 +133,42 @@ export function calculateTrendArcScore(
   }
   
   if (metrics.reddit) {
-    const redditScore = Math.min(100, 
-      metrics.reddit.avgScore * 2 + 
+    const redditScore = Math.min(100,
+      metrics.reddit.avgScore * 2 +
       (metrics.reddit.sentiment + 1) * 25);
     socialScores.push(redditScore);
     sources.push('Reddit');
   }
-  
+
+  if (metrics.spotify) {
+    // Spotify popularity is already 0-100
+    socialScores.push(metrics.spotify.popularity);
+    sources.push('Spotify');
+  }
+
   if (socialScores.length > 0) {
     socialBuzz = socialScores.reduce((a, b) => a + b, 0) / socialScores.length;
   }
 
-  // Authority (Wikipedia, TMDB ratings, expert sources)
+  // Authority (TMDB ratings, Best Buy reviews, Steam reviews, expert sources)
   const authorityScores: number[] = [];
-  
-  if (metrics.wikipedia) {
-    authorityScores.push(Math.min(100, (metrics.wikipedia.pageViews / 10000) * 30 + 
-      metrics.wikipedia.articleQuality * 0.7));
-    sources.push('Wikipedia');
-  }
-  
+
   if (metrics.tmdb) {
     authorityScores.push(metrics.tmdb.rating * 10);
     sources.push('TMDB');
+  }
+
+  if (metrics.bestbuy) {
+    // Convert 0-5 rating to 0-100 scale
+    const bestbuyScore = (metrics.bestbuy.rating / 5) * 100;
+    authorityScores.push(bestbuyScore);
+    sources.push('Best Buy');
+  }
+
+  if (metrics.steam) {
+    // Steam review score is already 0-100 (percentage positive)
+    authorityScores.push(metrics.steam.reviewScore);
+    sources.push('Steam');
   }
   
   if (metrics.omdb) {

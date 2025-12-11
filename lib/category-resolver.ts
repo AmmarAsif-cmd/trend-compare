@@ -4,13 +4,14 @@
  * Uses heuristics + external API validation
  */
 
-export type ComparisonCategory = 
+export type ComparisonCategory =
   | 'movies'        // Films, TV shows
   | 'products'      // Consumer products, gadgets
   | 'tech'          // Software, programming languages
   | 'people'        // Celebrities, politicians, athletes
   | 'brands'        // Companies, services
   | 'games'         // Video games
+  | 'music'         // Artists, albums, songs
   | 'places'        // Cities, countries, locations
   | 'general';      // Anything else
 
@@ -66,6 +67,13 @@ const BRAND_PATTERNS = [
   /\b(inc|corp|llc|ltd|co)\b/i,
 ];
 
+const MUSIC_PATTERNS = [
+  /\b(music|song|album|artist|singer|band|concert|tour|spotify|apple music|sound|track)\b/i,
+  /\b(rap|pop|rock|jazz|country|hip hop|edm|classical|metal|indie)\b/i,
+  /\b(grammy|billboard|charts|playlist|streaming|discography)\b/i,
+  /\b(lyrics|featuring|feat|collaboration|single|ep|lp)\b/i,
+];
+
 const KNOWN_MOVIES = new Set([
   'avengers', 'avatar', 'titanic', 'inception', 'interstellar', 'oppenheimer', 'barbie',
   'batman', 'superman', 'spiderman', 'ironman', 'thor', 'hulk', 'deadpool',
@@ -93,6 +101,24 @@ const KNOWN_PEOPLE = new Set([
   'trump', 'biden', 'obama', 'modi', 'putin',
 ]);
 
+const KNOWN_MUSIC = new Set([
+  'taylor swift', 'beyonce', 'drake', 'kanye west', 'rihanna', 'ariana grande',
+  'ed sheeran', 'the weeknd', 'bad bunny', 'billie eilish', 'dua lipa',
+  'post malone', 'travis scott', 'justin bieber', 'lady gaga', 'eminem',
+  'kendrick lamar', 'j cole', 'cardi b', 'nicki minaj', 'lil nas x',
+  'olivia rodrigo', 'harry styles', 'adele', 'bruno mars', 'the beatles',
+  'queen', 'nirvana', 'metallica', 'radiohead', 'pink floyd',
+]);
+
+const KNOWN_GAMES = new Set([
+  'fortnite', 'minecraft', 'call of duty', 'gta', 'grand theft auto',
+  'fifa', 'pubg', 'valorant', 'league of legends', 'dota',
+  'counter strike', 'cs go', 'overwatch', 'apex legends', 'warzone',
+  'world of warcraft', 'wow', 'elden ring', 'god of war', 'zelda',
+  'pokemon', 'mario', 'halo', 'destiny', 'cyberpunk', 'witcher',
+  'roblox', 'among us', 'fall guys', 'rocket league', 'genshin impact',
+]);
+
 /**
  * Detect category for a pair of comparison terms
  */
@@ -106,6 +132,7 @@ export function detectCategory(terms: string[]): CategoryResult {
     people: 0,
     brands: 0,
     games: 0,
+    music: 0,
     places: 0,
     general: 10, // Base score for general
   };
@@ -127,6 +154,16 @@ export function detectCategory(terms: string[]): CategoryResult {
     if (KNOWN_PEOPLE.has(lower) || [...KNOWN_PEOPLE].some(p => lower.includes(p))) {
       scores.people += 40;
       evidence.push({ source: 'known_entity', signal: `${term} is a known person`, confidence: 80 });
+    }
+
+    if (KNOWN_MUSIC.has(lower) || [...KNOWN_MUSIC].some(m => lower.includes(m))) {
+      scores.music += 40;
+      evidence.push({ source: 'known_entity', signal: `${term} is a known artist/band`, confidence: 80 });
+    }
+
+    if (KNOWN_GAMES.has(lower) || [...KNOWN_GAMES].some(g => lower.includes(g))) {
+      scores.games += 40;
+      evidence.push({ source: 'known_entity', signal: `${term} is a known game`, confidence: 80 });
     }
   }
 
@@ -173,6 +210,13 @@ export function detectCategory(terms: string[]): CategoryResult {
     }
   }
 
+  for (const pattern of MUSIC_PATTERNS) {
+    if (pattern.test(combined)) {
+      scores.music += 25;
+      evidence.push({ source: 'pattern', signal: `Matched music pattern`, confidence: 65 });
+    }
+  }
+
   // Find highest scoring category
   let maxCategory: ComparisonCategory = 'general';
   let maxScore = scores.general;
@@ -200,19 +244,21 @@ export function detectCategory(terms: string[]): CategoryResult {
 export function getDataSourcesForCategory(category: ComparisonCategory): string[] {
   switch (category) {
     case 'movies':
-      return ['google-trends', 'tmdb', 'omdb', 'youtube', 'wikipedia'];
+      return ['google-trends', 'tmdb', 'youtube'];
     case 'products':
-      return ['google-trends', 'youtube', 'reddit', 'wikipedia'];
+      return ['google-trends', 'bestbuy', 'youtube'];
     case 'tech':
-      return ['google-trends', 'github', 'reddit', 'youtube'];
+      return ['google-trends', 'github', 'youtube'];
     case 'people':
-      return ['google-trends', 'youtube', 'wikipedia', 'reddit'];
+      return ['google-trends', 'youtube'];
     case 'games':
-      return ['google-trends', 'youtube', 'reddit', 'twitch'];
+      return ['google-trends', 'steam', 'youtube'];
+    case 'music':
+      return ['google-trends', 'spotify', 'youtube'];
     case 'brands':
-      return ['google-trends', 'youtube', 'reddit', 'wikipedia'];
+      return ['google-trends', 'youtube'];
     default:
-      return ['google-trends', 'youtube', 'wikipedia'];
+      return ['google-trends', 'youtube'];
   }
 }
 
@@ -254,6 +300,12 @@ export function getRecommendationTemplate(category: ComparisonCategory): {
         action: 'play',
         comparison: 'more popular game',
         suggestion: 'Based on player interest and engagement,',
+      };
+    case 'music':
+      return {
+        action: 'listen',
+        comparison: 'more popular artist',
+        suggestion: 'Based on streaming data and listener engagement,',
       };
     case 'brands':
       return {

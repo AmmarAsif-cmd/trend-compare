@@ -7,6 +7,9 @@ import { detectCategory, getRecommendationTemplate, type ComparisonCategory, typ
 import { calculateTrendArcScore, generateVerdict, type SourceMetrics, type TrendArcScore, type ComparisonVerdict } from './trendarc-score';
 import { youtubeAdapter } from './sources/adapters/youtube';
 import { tmdbAdapter } from './sources/adapters/tmdb';
+import { bestBuyAdapter } from './sources/adapters/bestbuy';
+import { spotifyAdapter } from './sources/adapters/spotify';
+import { steamAdapter } from './sources/adapters/steam';
 import type { SeriesPoint } from './trends';
 
 export type IntelligentComparisonResult = {
@@ -24,6 +27,18 @@ export type IntelligentComparisonResult = {
     tmdb?: {
       termA: { rating: number; title: string } | null;
       termB: { rating: number; title: string } | null;
+    };
+    bestbuy?: {
+      termA: { rating: number; reviews: number; name: string } | null;
+      termB: { rating: number; reviews: number; name: string } | null;
+    };
+    spotify?: {
+      termA: { popularity: number; followers: number; name: string } | null;
+      termB: { popularity: number; followers: number; name: string } | null;
+    };
+    steam?: {
+      termA: { reviewScore: number; players: number; name: string } | null;
+      termB: { reviewScore: number; players: number; name: string } | null;
     };
   };
   performance: {
@@ -99,15 +114,20 @@ export async function runIntelligentComparison(
   options: {
     enableYouTube?: boolean;
     enableTMDB?: boolean;
-    enableReddit?: boolean;
+    enableBestBuy?: boolean;
+    enableSpotify?: boolean;
+    enableSteam?: boolean;
   } = {}
 ): Promise<IntelligentComparisonResult> {
   const startTime = Date.now();
   const sourcesQueried: string[] = ['Google Trends'];
-  
+
   const {
     enableYouTube = true,
     enableTMDB = true,
+    enableBestBuy = true,
+    enableSpotify = true,
+    enableSteam = true,
   } = options;
 
   // Step 1: Detect category
@@ -203,6 +223,121 @@ export async function runIntelligentComparison(
           sourcesQueried.push('TMDB');
         } catch (error) {
           console.warn('[IntelligentComparison] TMDB fetch failed:', error);
+        }
+      })()
+    );
+  }
+
+  // Best Buy data (for products category)
+  if (enableBestBuy && category.category === 'products' && process.env.BESTBUY_API_KEY) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const [productA, productB] = await Promise.all([
+            bestBuyAdapter.searchProduct(terms[0]),
+            bestBuyAdapter.searchProduct(terms[1]),
+          ]);
+
+          if (productA) {
+            metricsA.bestbuy = {
+              rating: productA.customerReviewAverage,
+              reviewCount: productA.customerReviewCount,
+              price: productA.regularPrice,
+            };
+          }
+
+          if (productB) {
+            metricsB.bestbuy = {
+              rating: productB.customerReviewAverage,
+              reviewCount: productB.customerReviewCount,
+              price: productB.regularPrice,
+            };
+          }
+
+          enrichedData.bestbuy = {
+            termA: productA ? { rating: productA.customerReviewAverage, reviews: productA.customerReviewCount, name: productA.name } : null,
+            termB: productB ? { rating: productB.customerReviewAverage, reviews: productB.customerReviewCount, name: productB.name } : null,
+          };
+
+          sourcesQueried.push('Best Buy');
+        } catch (error) {
+          console.warn('[IntelligentComparison] Best Buy fetch failed:', error);
+        }
+      })()
+    );
+  }
+
+  // Spotify data (for music category)
+  if (enableSpotify && category.category === 'music' && process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const [artistA, artistB] = await Promise.all([
+            spotifyAdapter.searchArtist(terms[0]),
+            spotifyAdapter.searchArtist(terms[1]),
+          ]);
+
+          if (artistA) {
+            metricsA.spotify = {
+              popularity: artistA.popularity,
+              followers: artistA.followers,
+            };
+          }
+
+          if (artistB) {
+            metricsB.spotify = {
+              popularity: artistB.popularity,
+              followers: artistB.followers,
+            };
+          }
+
+          enrichedData.spotify = {
+            termA: artistA ? { popularity: artistA.popularity, followers: artistA.followers, name: artistA.name } : null,
+            termB: artistB ? { popularity: artistB.popularity, followers: artistB.followers, name: artistB.name } : null,
+          };
+
+          sourcesQueried.push('Spotify');
+        } catch (error) {
+          console.warn('[IntelligentComparison] Spotify fetch failed:', error);
+        }
+      })()
+    );
+  }
+
+  // Steam data (for games category)
+  if (enableSteam && category.category === 'games') {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const [gameA, gameB] = await Promise.all([
+            steamAdapter.searchGame(terms[0]),
+            steamAdapter.searchGame(terms[1]),
+          ]);
+
+          if (gameA) {
+            metricsA.steam = {
+              reviewScore: gameA.reviewScore,
+              currentPlayers: gameA.currentPlayers,
+              totalReviews: gameA.totalReviews,
+            };
+          }
+
+          if (gameB) {
+            metricsB.steam = {
+              reviewScore: gameB.reviewScore,
+              currentPlayers: gameB.currentPlayers,
+              totalReviews: gameB.totalReviews,
+            };
+          }
+
+          enrichedData.steam = {
+            termA: gameA ? { reviewScore: gameA.reviewScore, players: gameA.currentPlayers, name: gameA.name } : null,
+            termB: gameB ? { reviewScore: gameB.reviewScore, players: gameB.currentPlayers, name: gameB.name } : null,
+          };
+
+          sourcesQueried.push('Steam');
+        } catch (error) {
+          console.warn('[IntelligentComparison] Steam fetch failed:', error);
         }
       })()
     );
