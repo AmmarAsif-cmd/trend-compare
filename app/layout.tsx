@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
+import TopLoadingBar from "@/components/TopLoadingBar";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Script from "next/script";
 
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased flex flex-col">
+        <TopLoadingBar />
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <footer className="bg-white border-t border-slate-200">
