@@ -18,12 +18,6 @@ export type SourceMetrics = {
     videoCount: number;
     engagement: number;       // likes/views ratio
   };
-  reddit?: {
-    postCount: number;
-    totalScore: number;
-    avgScore: number;
-    sentiment: number;        // -1 to 1
-  };
   tmdb?: {
     rating: number;           // 0-10
     voteCount: number;
@@ -47,11 +41,6 @@ export type SourceMetrics = {
     imdbRating: number;
     rottenTomatoes: number;
     metascore: number;
-  };
-  github?: {
-    stars: number;
-    forks: number;
-    contributors: number;
   };
 };
 
@@ -122,7 +111,7 @@ export function calculateTrendArcScore(
     sources.push('Google Trends');
   }
 
-  // Social Buzz (YouTube + Reddit)
+  // Social Buzz (YouTube + Spotify)
   const socialScores: number[] = [];
   
   if (metrics.youtube) {
@@ -133,14 +122,6 @@ export function calculateTrendArcScore(
     const ytScore = viewScore + engagementScore;
     socialScores.push(ytScore);
     sources.push('YouTube');
-  }
-  
-  if (metrics.reddit) {
-    const redditScore = Math.min(100,
-      metrics.reddit.avgScore * 2 +
-      (metrics.reddit.sentiment + 1) * 25);
-    socialScores.push(redditScore);
-    sources.push('Reddit');
   }
 
   if (metrics.spotify) {
@@ -183,15 +164,7 @@ export function calculateTrendArcScore(
     authorityScores.push(avgRating);
     sources.push('OMDb');
   }
-  
-  if (metrics.github) {
-    const ghScore = Math.min(100, 
-      Math.log10(metrics.github.stars + 1) * 15 +
-      Math.log10(metrics.github.forks + 1) * 10);
-    authorityScores.push(ghScore);
-    sources.push('GitHub');
-  }
-  
+
   if (authorityScores.length > 0) {
     authority = authorityScores.reduce((a, b) => a + b, 0) / authorityScores.length;
   }
