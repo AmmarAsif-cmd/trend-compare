@@ -4,6 +4,7 @@
  */
 
 import { detectCategory, getRecommendationTemplate, type ComparisonCategory, type CategoryResult } from './category-resolver';
+import { detectCategoryByAPI, detectCategoryByPatterns } from './smart-category-detector';
 import { calculateTrendArcScore, generateVerdict, type SourceMetrics, type TrendArcScore, type ComparisonVerdict } from './trendarc-score';
 import { youtubeAdapter } from './sources/adapters/youtube';
 import { tmdbAdapter } from './sources/adapters/tmdb';
@@ -130,9 +131,28 @@ export async function runIntelligentComparison(
     enableSteam = true,
   } = options;
 
-  // Step 1: Detect category
-  const category = detectCategory(terms);
-  console.log('[IntelligentComparison] Category detected:', category.category, 'for terms:', terms);
+  // Step 1: Intelligent category detection using API probing
+  console.log('[IntelligentComparison] 🔍 Starting smart category detection for:', terms);
+
+  const smartCategory = await detectCategoryByAPI(terms[0], terms[1], {
+    enableSpotify,
+    enableTMDB,
+    enableSteam,
+    enableBestBuy,
+  });
+
+  // Convert to CategoryResult format for compatibility
+  const category: CategoryResult = {
+    category: smartCategory.category,
+    confidence: smartCategory.confidence,
+    evidence: smartCategory.evidence,
+  };
+
+  console.log('[IntelligentComparison] ✅ Smart detection result:', {
+    category: category.category,
+    confidence: category.confidence,
+    apiMatches: smartCategory.apiMatches,
+  });
   
   // Step 2: Calculate base stats from Google Trends data
   // Pass actual term names to avoid Object.keys() order issues
@@ -150,10 +170,128 @@ export async function runIntelligentComparison(
   // Initialize enriched data
   const enrichedData: IntelligentComparisonResult['enrichedData'] = {};
 
-  // Step 3: Fetch additional data based on category
+  // Step 3: Use cached results from smart detector (no duplicate API calls!)
   const fetchPromises: Promise<void>[] = [];
 
-  // YouTube data (for all categories)
+  // Process Spotify data if available
+  if (smartCategory.cachedResults.spotify) {
+    const artistA = smartCategory.cachedResults.spotify.termA;
+    const artistB = smartCategory.cachedResults.spotify.termB;
+
+    if (artistA) {
+      metricsA.spotify = {
+        popularity: artistA.popularity,
+        followers: artistA.followers,
+      };
+    }
+
+    if (artistB) {
+      metricsB.spotify = {
+        popularity: artistB.popularity,
+        followers: artistB.followers,
+      };
+    }
+
+    enrichedData.spotify = {
+      termA: artistA ? { popularity: artistA.popularity, followers: artistA.followers, name: artistA.name } : null,
+      termB: artistB ? { popularity: artistB.popularity, followers: artistB.followers, name: artistB.name } : null,
+    };
+
+    sourcesQueried.push('Spotify');
+    console.log('[IntelligentComparison] ✅ Using cached Spotify data');
+  }
+
+  // Process TMDB data if available
+  if (smartCategory.cachedResults.tmdb) {
+    const movieA = smartCategory.cachedResults.tmdb.termA;
+    const movieB = smartCategory.cachedResults.tmdb.termB;
+
+    if (movieA) {
+      metricsA.tmdb = {
+        rating: movieA.voteAverage,
+        voteCount: movieA.voteCount,
+        popularity: movieA.popularity,
+      };
+    }
+
+    if (movieB) {
+      metricsB.tmdb = {
+        rating: movieB.voteAverage,
+        voteCount: movieB.voteCount,
+        popularity: movieB.popularity,
+      };
+    }
+
+    enrichedData.tmdb = {
+      termA: movieA ? { rating: movieA.voteAverage, title: movieA.title } : null,
+      termB: movieB ? { rating: movieB.voteAverage, title: movieB.title } : null,
+    };
+
+    sourcesQueried.push('TMDB');
+    console.log('[IntelligentComparison] ✅ Using cached TMDB data');
+  }
+
+  // Process Steam data if available
+  if (smartCategory.cachedResults.steam) {
+    const gameA = smartCategory.cachedResults.steam.termA;
+    const gameB = smartCategory.cachedResults.steam.termB;
+
+    if (gameA) {
+      metricsA.steam = {
+        reviewScore: gameA.reviewScore,
+        currentPlayers: gameA.currentPlayers,
+        totalReviews: gameA.totalReviews,
+      };
+    }
+
+    if (gameB) {
+      metricsB.steam = {
+        reviewScore: gameB.reviewScore,
+        currentPlayers: gameB.currentPlayers,
+        totalReviews: gameB.totalReviews,
+      };
+    }
+
+    enrichedData.steam = {
+      termA: gameA ? { reviewScore: gameA.reviewScore, players: gameA.currentPlayers, name: gameA.name } : null,
+      termB: gameB ? { reviewScore: gameB.reviewScore, players: gameB.currentPlayers, name: gameB.name } : null,
+    };
+
+    sourcesQueried.push('Steam');
+    console.log('[IntelligentComparison] ✅ Using cached Steam data');
+  }
+
+  // Process Best Buy data if available
+  if (smartCategory.cachedResults.bestbuy) {
+    const productA = smartCategory.cachedResults.bestbuy.termA;
+    const productB = smartCategory.cachedResults.bestbuy.termB;
+
+    if (productA) {
+      metricsA.bestbuy = {
+        rating: productA.customerReviewAverage,
+        reviewCount: productA.customerReviewCount,
+        price: productA.regularPrice,
+      };
+    }
+
+    if (productB) {
+      metricsB.bestbuy = {
+        rating: productB.customerReviewAverage,
+        reviewCount: productB.customerReviewCount,
+        price: productB.regularPrice,
+      };
+    }
+
+    enrichedData.bestbuy = {
+      termA: productA ? { rating: productA.customerReviewAverage, reviews: productA.customerReviewCount, name: productA.name } : null,
+      termB: productB ? { rating: productB.customerReviewAverage, reviews: productB.customerReviewCount, name: productB.name } : null,
+    };
+
+    sourcesQueried.push('Best Buy');
+    console.log('[IntelligentComparison] ✅ Using cached Best Buy data');
+  }
+
+  // YouTube data (for all categories - always fetch)
   if (enableYouTube && process.env.YOUTUBE_API_KEY) {
     fetchPromises.push(
       (async () => {
@@ -190,164 +328,10 @@ export async function runIntelligentComparison(
     );
   }
 
-  // TMDB data (for movies category)
-  if (enableTMDB && category.category === 'movies' && process.env.TMDB_API_KEY) {
-    fetchPromises.push(
-      (async () => {
-        try {
-          const [movieA, movieB] = await Promise.all([
-            tmdbAdapter.searchMovie(terms[0]),
-            tmdbAdapter.searchMovie(terms[1]),
-          ]);
-          
-          if (movieA) {
-            metricsA.tmdb = {
-              rating: movieA.voteAverage,
-              voteCount: movieA.voteCount,
-              popularity: movieA.popularity,
-            };
-          }
-          
-          if (movieB) {
-            metricsB.tmdb = {
-              rating: movieB.voteAverage,
-              voteCount: movieB.voteCount,
-              popularity: movieB.popularity,
-            };
-          }
-          
-          enrichedData.tmdb = {
-            termA: movieA ? { rating: movieA.voteAverage, title: movieA.title } : null,
-            termB: movieB ? { rating: movieB.voteAverage, title: movieB.title } : null,
-          };
-          
-          sourcesQueried.push('TMDB');
-        } catch (error) {
-          console.warn('[IntelligentComparison] TMDB fetch failed:', error);
-        }
-      })()
-    );
-  }
+  // All specialized APIs (Spotify, TMDB, Steam, Best Buy) are now handled via cached results above
+  // No duplicate API calls needed!
 
-  // Best Buy data (for products category)
-  if (enableBestBuy && category.category === 'products' && process.env.BESTBUY_API_KEY) {
-    fetchPromises.push(
-      (async () => {
-        try {
-          const [productA, productB] = await Promise.all([
-            bestBuyAdapter.searchProduct(terms[0]),
-            bestBuyAdapter.searchProduct(terms[1]),
-          ]);
-
-          if (productA) {
-            metricsA.bestbuy = {
-              rating: productA.customerReviewAverage,
-              reviewCount: productA.customerReviewCount,
-              price: productA.regularPrice,
-            };
-          }
-
-          if (productB) {
-            metricsB.bestbuy = {
-              rating: productB.customerReviewAverage,
-              reviewCount: productB.customerReviewCount,
-              price: productB.regularPrice,
-            };
-          }
-
-          enrichedData.bestbuy = {
-            termA: productA ? { rating: productA.customerReviewAverage, reviews: productA.customerReviewCount, name: productA.name } : null,
-            termB: productB ? { rating: productB.customerReviewAverage, reviews: productB.customerReviewCount, name: productB.name } : null,
-          };
-
-          sourcesQueried.push('Best Buy');
-        } catch (error) {
-          console.warn('[IntelligentComparison] Best Buy fetch failed:', error);
-        }
-      })()
-    );
-  }
-
-  // Spotify data (for music category)
-  if (enableSpotify && category.category === 'music' && process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
-    console.log('[IntelligentComparison] ✅ Fetching Spotify data for music category');
-    fetchPromises.push(
-      (async () => {
-        try {
-          const [artistA, artistB] = await Promise.all([
-            spotifyAdapter.searchArtist(terms[0]),
-            spotifyAdapter.searchArtist(terms[1]),
-          ]);
-
-          if (artistA) {
-            metricsA.spotify = {
-              popularity: artistA.popularity,
-              followers: artistA.followers,
-            };
-          }
-
-          if (artistB) {
-            metricsB.spotify = {
-              popularity: artistB.popularity,
-              followers: artistB.followers,
-            };
-          }
-
-          enrichedData.spotify = {
-            termA: artistA ? { popularity: artistA.popularity, followers: artistA.followers, name: artistA.name } : null,
-            termB: artistB ? { popularity: artistB.popularity, followers: artistB.followers, name: artistB.name } : null,
-          };
-
-          sourcesQueried.push('Spotify');
-        } catch (error) {
-          console.warn('[IntelligentComparison] Spotify fetch failed:', error);
-        }
-      })()
-    );
-  } else {
-    console.log('[IntelligentComparison] ❌ Spotify skipped - enableSpotify:', enableSpotify, 'category:', category.category, 'hasClientId:', !!process.env.SPOTIFY_CLIENT_ID, 'hasClientSecret:', !!process.env.SPOTIFY_CLIENT_SECRET);
-  }
-
-  // Steam data (for games category)
-  if (enableSteam && category.category === 'games') {
-    fetchPromises.push(
-      (async () => {
-        try {
-          const [gameA, gameB] = await Promise.all([
-            steamAdapter.searchGame(terms[0]),
-            steamAdapter.searchGame(terms[1]),
-          ]);
-
-          if (gameA) {
-            metricsA.steam = {
-              reviewScore: gameA.reviewScore,
-              currentPlayers: gameA.currentPlayers,
-              totalReviews: gameA.totalReviews,
-            };
-          }
-
-          if (gameB) {
-            metricsB.steam = {
-              reviewScore: gameB.reviewScore,
-              currentPlayers: gameB.currentPlayers,
-              totalReviews: gameB.totalReviews,
-            };
-          }
-
-          enrichedData.steam = {
-            termA: gameA ? { reviewScore: gameA.reviewScore, players: gameA.currentPlayers, name: gameA.name } : null,
-            termB: gameB ? { reviewScore: gameB.reviewScore, players: gameB.currentPlayers, name: gameB.name } : null,
-          };
-
-          sourcesQueried.push('Steam');
-        } catch (error) {
-          console.warn('[IntelligentComparison] Steam fetch failed:', error);
-        }
-      })()
-    );
-  }
-
-  // Wait for all enrichment data
+  // Wait for all enrichment data (only YouTube now)
   await Promise.allSettled(fetchPromises);
 
   // Step 4: Calculate TrendArc Scores
