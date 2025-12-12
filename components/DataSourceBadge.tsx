@@ -8,8 +8,11 @@ type DataSourceBadgeProps = {
 
 const SOURCE_ICONS: Record<string, string> = {
   "Google Trends": "📈",
-  "Reddit": "🔴",
-  "Wikipedia": "📚",
+  "YouTube": "📺",
+  "TMDB": "🎬",
+  "Spotify": "🎵",
+  "Steam": "🎮",
+  "Best Buy": "🛒",
   "Mock Data": "🔧",
 };
 
