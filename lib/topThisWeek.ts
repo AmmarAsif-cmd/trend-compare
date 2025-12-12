@@ -10,6 +10,41 @@ export type TopItem = {
   geo?: string;          // last seen region (optional)
 };
 
+// Quality blacklist - filter out test/demo comparisons
+const QUALITY_BLACKLIST = new Set([
+  'test', 'sample', 'demo', 'example', 'dummy', 'placeholder',
+  'aaa', 'bbb', 'xxx', 'yyy', 'zzz', 'asdf', 'qwerty',
+  'test1', 'test2', 'sample1', 'sample2', 'foo', 'bar', 'baz'
+]);
+
+// Check if term looks like a real search query
+function isQualityTerm(term: string): boolean {
+  const lower = term.toLowerCase().trim();
+
+  // Block blacklisted terms
+  if (QUALITY_BLACKLIST.has(lower)) return false;
+
+  // Block if term is just numbers
+  if (/^\d+$/.test(lower)) return false;
+
+  // Block single letters
+  if (lower.length === 1) return false;
+
+  // Block terms with excessive special characters
+  const specialCharCount = (lower.match(/[^a-z0-9\s]/g) || []).length;
+  if (specialCharCount > lower.length / 2) return false;
+
+  // Block terms that are all consonants or all vowels (likely gibberish)
+  const noSpaces = lower.replace(/\s+/g, '');
+  if (noSpaces.length > 3) {
+    const hasVowels = /[aeiou]/.test(noSpaces);
+    const hasConsonants = /[bcdfghjklmnpqrstvwxyz]/.test(noSpaces);
+    if (!hasVowels || !hasConsonants) return false;
+  }
+
+  return true;
+}
+
 // Strict type guard for a term string
 const okTerm = (x: unknown): x is string => {
   if (typeof x !== "string") return false;
@@ -59,6 +94,10 @@ export async function getTopThisWeek(limit = 8): Promise<TopItem[]> {
     const terms = readTerms(r.terms);
     if (!terms) continue;
 
+    // Quality filter: Skip low-quality comparisons
+    const allTermsQuality = terms.every(term => isQualityTerm(term));
+    if (!allTermsQuality) continue;
+
     // Canonicalise to "a-vs-b"
     const slug = toCanonicalSlug(terms);
     if (!slug) continue;
@@ -84,10 +123,14 @@ export async function getTopThisWeek(limit = 8): Promise<TopItem[]> {
   }
 
   // Rank by count, then alphabetically for stability
-  const sorted = Array.from(agg.values()).sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return a.title.localeCompare(b.title);
-  });
+  // Also filter out comparisons with very low view counts (likely not interesting)
+  const MIN_VIEWS_FOR_TRENDING = 2;
+  const sorted = Array.from(agg.values())
+    .filter(item => item.count >= MIN_VIEWS_FOR_TRENDING)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.title.localeCompare(b.title);
+    });
 
   return sorted.slice(0, Math.max(1, limit));
 }

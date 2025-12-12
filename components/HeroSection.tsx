@@ -34,22 +34,59 @@ export default function HeroSection() {
             <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl border-2 border-slate-200">
               <HomeCompareForm />
             </div>
-            <p className="text-sm text-slate-500 mt-4 sm:mt-5">
-              Try:{" "}
-              <Link
-                href="/compare/chatgpt-vs-gemini"
-                className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium"
-              >
-                chatgpt vs gemini
-              </Link>{" "}
-              or{" "}
-              <Link
-                href="/compare/iphone-vs-android"
-                className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium"
-              >
-                iphone vs android
-              </Link>
-            </p>
+            <div className="mt-4 sm:mt-5 text-sm text-slate-600">
+              <p className="font-medium mb-3 text-slate-700">Popular comparisons across all categories:</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center max-w-3xl mx-auto">
+                <Link
+                  href="/compare/chatgpt-vs-gemini"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  🤖 ChatGPT vs Gemini
+                </Link>
+                <Link
+                  href="/compare/iphone-vs-samsung"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  📱 iPhone vs Samsung
+                </Link>
+                <Link
+                  href="/compare/spotify-vs-apple-music"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  🎵 Spotify vs Apple Music
+                </Link>
+                <Link
+                  href="/compare/netflix-vs-disney-plus"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  🎬 Netflix vs Disney+
+                </Link>
+                <Link
+                  href="/compare/fortnite-vs-minecraft"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  🎮 Fortnite vs Minecraft
+                </Link>
+                <Link
+                  href="/compare/react-vs-vue"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  💻 React vs Vue
+                </Link>
+                <Link
+                  href="/compare/taylor-swift-vs-beyonce"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  🎤 Taylor Swift vs Beyoncé
+                </Link>
+                <Link
+                  href="/compare/tesla-vs-bmw"
+                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
+                >
+                  🚗 Tesla vs BMW
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* Dynamic chart preview */}
