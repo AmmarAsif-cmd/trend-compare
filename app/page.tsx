@@ -1,6 +1,6 @@
 import HeroSection from "@/components/HeroSection";
 import FAQSection from "@/components/FAQSection";
-import TopThisWeekWrapper from "@/components/TopThisWeekWrapper";
+import BrowseByCategoryServer from "@/components/BrowseByCategoryServer";
 import FeaturesSection from "@/components/FeaturesSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import UseCasesSection from "@/components/UseCasesSection";
@@ -13,18 +13,22 @@ export default function Home() {
     <main>
       <HeroSection />
 
-      {/* Trending This Week + Live Keywords */}
+      {/* Browse by Category */}
       <div className="bg-white py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-8">
-            <TopThisWeekWrapper />
-            <SimpleTrendingKeywords />
-          </div>
+          <BrowseByCategoryServer />
+        </div>
+      </div>
+
+      {/* Live Trending Keywords */}
+      <div className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SimpleTrendingKeywords />
         </div>
       </div>
 
       {/* Data Sources - Build Trust */}
-      <div className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-20">
+      <div className="bg-slate-50 py-16 sm:py-20">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <DataSources />
         </div>
