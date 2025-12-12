@@ -41,89 +41,99 @@ export async function detectCategoryWithAI(
       model: 'claude-3-5-haiku-20241022', // Fast, cheap model for classification
       max_tokens: 250,
       temperature: 0, // Deterministic
-      system: `You are an expert category classification system for trend comparisons. Your job is to classify what type of things are being compared by analyzing BOTH terms together and understanding the context.
+      system: `You are an expert category classification system for trend comparisons. Your job is to classify what type of things are being compared by analyzing BOTH terms together.
 
-CRITICAL: CONTEXT MATTERS
-- "tery ishq mein" vs "jawan" = BOTH are Bollywood films → "movies"
-- "tery ishq mein" (song) vs "kesariya" (song) = BOTH are songs → "music"
-- Look at BOTH terms to understand the comparison context
-- A term can mean different things in different contexts
+CRITICAL RULES:
+1. CONTEXT MATTERS - analyze BOTH terms together
+2. When comparing 2 films → ALWAYS return "movies" (even if one name sounds like a song)
+3. When comparing 2 songs/artists → ALWAYS return "music"
+4. Regional content (Bollywood, K-pop, anime) follows same rules as English content
+5. You MUST return valid JSON with the exact format specified below
 
-CATEGORY DEFINITIONS (choose EXACTLY ONE):
+CATEGORY DEFINITIONS (choose EXACTLY ONE from these 9 categories):
 
-1. "music" - Music artists, singers, bands, rappers, albums, songs, music genres
-   Examples: drake vs kanye, taylor swift vs beyonce, rap vs pop, album names, song titles
-   Regional: K-pop artists, Bollywood singers, regional music
+1. "movies" - ANY comparison of:
+   • Film titles (Hollywood, Bollywood, Tollywood, Korean, anime, etc.)
+   • TV shows, web series, streaming content
+   • Movie franchises
+   • Actors/directors when compared in movie context
 
-2. "movies" - Films, TV shows, web series, movie franchises, actors (in movie context), directors
-   Examples: avatar vs inception, netflix vs hbo, bollywood films, korean dramas
-   Regional: Bollywood, Tollywood, K-dramas, anime
+   Examples:
+   - "jawan vs pathaan" → movies (Bollywood films)
+   - "homebound vs tery ishq mein" → movies (films)
+   - "avatar vs inception" → movies
+   - "squid game vs money heist" → movies (TV series)
+   - ANY film-like titles, even if you don't recognize them → movies
 
-3. "games" - Video games, gaming platforms, game franchises, esports
-   Examples: fortnite vs minecraft, playstation vs xbox, cod vs pubg
-   Includes: PC games, console games, mobile games
+   IMPORTANT: If both terms look like film/show titles → "movies" (confidence 90+)
 
-4. "products" - Physical consumer products, electronics, gadgets, food items, consumer goods
-   Examples: iphone vs samsung, nike vs adidas, coca cola vs pepsi
-   NOT tech frameworks (those are "tech")
+2. "music" - ANY comparison of:
+   • Artists, singers, bands, rappers, DJs
+   • Albums, songs, music tracks
+   • Music genres
 
-5. "tech" - Programming languages, frameworks, software tools, cloud platforms, developer tools
-   Examples: react vs vue, python vs javascript, aws vs azure, vscode vs intellij
-   NOT physical products (those are "products")
+   Examples:
+   - "drake vs kanye" → music (artists)
+   - "kesariya vs tery ishq mein song" → music (songs)
+   - "BTS vs blackpink" → music (K-pop)
+   - "arijit singh vs sonu nigam" → music (Bollywood singers)
 
-6. "people" - Politicians, athletes, celebrities, public figures (who are NOT primarily musicians or actors)
-   Examples: trump vs biden, messi vs ronaldo, elon musk vs jeff bezos
-   NOT musicians (use "music") or actors in movie comparisons (use "movies")
+3. "games" - Video games, gaming platforms, esports
+   Examples: fortnite vs minecraft, playstation vs xbox, valorant vs cs2
 
-7. "brands" - Companies, corporations, business services, platforms, organizations
-   Examples: apple vs microsoft (as companies), google vs facebook, startups
+4. "products" - Physical consumer products
+   Examples: iphone vs samsung, nike vs adidas, cola vs pepsi
+   NOT software/frameworks
 
-8. "places" - Cities, countries, regions, tourist destinations, locations
-   Examples: new york vs los angeles, india vs china, beach vs mountain
+5. "tech" - Programming, software, cloud, dev tools
+   Examples: react vs vue, python vs javascript, aws vs azure
+   NOT physical electronics
 
-9. "general" - Anything that doesn't clearly fit above categories
-   Examples: abstract concepts, mixed categories, unclear comparisons
+6. "people" - Politicians, athletes, public figures (NOT musicians/actors in entertainment context)
+   Examples: trump vs biden, messi vs ronaldo, elon vs bezos
 
-DISAMBIGUATION RULES:
-1. If BOTH terms are clearly in the same specific category → choose that category
-2. If terms are in different categories BUT one is more specific → choose the more specific one
-3. If you see film titles, movie names, or "vs" between movies → "movies" (even if one word could be a song)
-4. If you see artist names with "vs" → likely "music" unless context suggests otherwise
-5. Regional content:
-   - Bollywood/Tollywood film names → "movies"
-   - Indian/Korean/Latin music artists → "music"
-   - Recognize non-English content correctly
+7. "brands" - Companies, corporations, platforms
+   Examples: apple vs microsoft, google vs facebook, uber vs lyft
 
-PRIORITY ORDER (when ambiguous):
-music > people (if person is known musician)
-movies > people (if person is known actor)
-tech > brands (if comparing software/frameworks)
-games > products (if comparing gaming-related items)
+8. "places" - Locations, cities, countries, regions
+   Examples: paris vs london, india vs china, beach vs mountain
+
+9. "general" - ONLY use when:
+   • Abstract concepts that don't fit above
+   • Mixed/unclear categories
+   • NOT for movies you don't recognize - unknown film titles should still be "movies"
+
+DECISION PROCESS:
+Step 1: Look at BOTH terms - what do they appear to be?
+Step 2: Are they both the same type? (both films, both songs, both games, etc.)
+Step 3: If yes → choose that specific category
+Step 4: If unsure but they look like films → "movies" (not "general")
 
 CONFIDENCE SCORING:
-- 90-100: Both terms clearly in same category, no ambiguity
-- 70-89: Strong indicators for category, minor ambiguity
-- 50-69: Moderate confidence, some ambiguity
-- Below 50: High uncertainty (return this if very unsure)
+- 95-100: Both terms clearly identifiable as same category type
+- 80-94: Strong evidence, minor uncertainty about one term
+- 70-79: Good evidence but some ambiguity
+- Below 70: High uncertainty (system will use API fallback)
 
-RESPONSE FORMAT (MUST be valid JSON):
+RESPONSE FORMAT (MUST be ONLY valid JSON, nothing else):
 {
-  "category": "one_of_the_nine_categories",
-  "confidence": 85,
-  "reasoning": "Brief explanation of why this category (1 sentence)"
+  "category": "movies",
+  "confidence": 95,
+  "reasoning": "Both terms appear to be film titles"
 }
 
-IMPORTANT: Analyze BOTH terms together to understand comparison context!`,
+EXAMPLES OF CORRECT RESPONSES:
+• "jawan vs pathaan" → {"category": "movies", "confidence": 95, "reasoning": "Both are Bollywood film titles"}
+• "drake vs kanye" → {"category": "music", "confidence": 100, "reasoning": "Both are well-known music artists"}
+• "unknown1 vs unknown2" → {"category": "general", "confidence": 40, "reasoning": "Cannot determine what is being compared"}
+
+IMPORTANT: Return ONLY the JSON object, no additional text!`,
       messages: [
         {
           role: 'user',
-          content: `Classify this comparison: "${termA}" vs "${termB}"
+          content: `Classify: "${termA}" vs "${termB}"
 
-Analyze both terms together and determine what is being compared. Consider:
-- What do both terms represent?
-- Is this comparing movies, music, games, products, tech, people, brands, places, or something else?
-- Are these regional/non-English terms? (Bollywood films, K-pop, etc.)
-- What is the most specific category that applies to BOTH terms?`,
+What type of things are being compared? Return ONLY valid JSON.`,
         },
       ],
     });
@@ -134,7 +144,19 @@ Analyze both terms together and determine what is being compared. Consider:
     }
 
     // Parse AI response
-    const result = JSON.parse(content.text.trim());
+    const responseText = content.text.trim();
+    console.log('[AICategoryDetector] 📝 Raw AI response:', responseText);
+
+    // Extract JSON if wrapped in markdown code blocks
+    let jsonText = responseText;
+    if (responseText.includes('```')) {
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1];
+      }
+    }
+
+    const result = JSON.parse(jsonText);
 
     // Validate category
     const validCategories: ComparisonCategory[] = [
@@ -167,11 +189,17 @@ Analyze both terms together and determine what is being compared. Consider:
       success: true,
     };
   } catch (error) {
-    console.warn('[AICategoryDetector] ❌ AI detection failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn('[AICategoryDetector] ❌ AI detection failed:', {
+      error: errorMessage,
+      termA,
+      termB,
+    });
+
     return {
       category: 'general',
       confidence: 0,
-      reasoning: 'AI classification failed',
+      reasoning: `AI classification failed: ${errorMessage}`,
       success: false,
     };
   }
