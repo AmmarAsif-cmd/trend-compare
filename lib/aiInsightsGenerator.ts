@@ -17,6 +17,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
 import { ensureDatabaseMigration } from "./ensureDatabaseMigration";
+import { saveCategoryToCache } from "./category-cache";
 
 const prisma = new PrismaClient();
 
@@ -387,7 +388,7 @@ COMPETITIVE DYNAMICS:
 STEP 4: GENERATE INSIGHTS
 Provide insights in this EXACT JSON format:
 {
-  "category": "One word category: Technology, Business, Entertainment, ConsumerProducts, Health, Education, Finance, etc.",
+  "category": "EXACTLY ONE of: music, movies, games, products, tech, people, brands, places, general (lowercase only)",
   "whatDataTellsUs": [
     "First key insight with exact numbers and dates from the data above",
     "Second key insight with exact numbers and dates from the data above",
@@ -408,14 +409,15 @@ Provide insights in this EXACT JSON format:
 }
 
 CRITICAL REQUIREMENTS:
-1. category MUST be ONE WORD in PascalCase (e.g., "Technology", "ConsumerProducts", "Entertainment")
-2. In practicalImplications, use camelCase audience names (e.g., "webDevelopers", "healthConsciousConsumers", "parents")
-3. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
-4. DO NOT use generic audiences like "content creators" unless the terms are about content creation
-5. In peakExplanations, research and explain WHY each term peaked on its specific date - mention real events, product launches, news, etc.
-6. Every insight must include specific numbers, dates, or percentages from the data
-7. Be concise but insightful - quality over quantity
-8. Return ONLY the JSON, no markdown formatting or additional text`;
+1. category MUST be EXACTLY ONE of these lowercase values: music, movies, games, products, tech, people, brands, places, general
+2. Choose category based on what the keywords represent (music artists→music, movies/shows→movies, video games→games, physical items→products, software/programming→tech, politicians/athletes→people, companies→brands, cities/countries→places)
+3. In practicalImplications, use camelCase audience names (e.g., "webDevelopers", "healthConsciousConsumers", "parents")
+4. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
+5. DO NOT use generic audiences like "content creators" unless the terms are about content creation
+6. In peakExplanations, research and explain WHY each term peaked on its specific date - mention real events, product launches, news, etc.
+7. Every insight must include specific numbers, dates, or percentages from the data
+8. Be concise but insightful - quality over quantity
+9. Return ONLY the JSON, no markdown formatting or additional text`;
 
 
     console.log("[AI Insights] 📡 Calling Anthropic API...");
@@ -552,6 +554,14 @@ export async function getOrGenerateAIInsights(
         },
       });
       console.log(`[AI Cache] ✅ Saved insights to database for future use`);
+
+      // 4. ALSO cache individual keyword categories for future use
+      // This eliminates duplicate AI calls when same keywords appear in different comparisons
+      await Promise.allSettled([
+        saveCategoryToCache(data.termA, insights.category as any, 95, 'ai'),
+        saveCategoryToCache(data.termB, insights.category as any, 95, 'ai'),
+      ]);
+      console.log(`[CategoryCache] ✅ Cached categories for both keywords`);
     } catch (saveError) {
       console.error('[AI Cache] ⚠️ Failed to save insights to database:', saveError);
       // Return insights anyway even if save failed

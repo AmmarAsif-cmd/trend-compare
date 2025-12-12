@@ -6,6 +6,7 @@
 import { detectCategory, getRecommendationTemplate, type ComparisonCategory, type CategoryResult } from './category-resolver';
 import { detectCategoryByAPI, detectCategoryByPatterns } from './smart-category-detector';
 import { detectCategoryWithAI, getAPIsForCategory } from './ai-category-detector';
+import { getUnifiedCachedCategory } from './category-cache';
 import { calculateTrendArcScore, generateVerdict, type SourceMetrics, type TrendArcScore, type ComparisonVerdict } from './trendarc-score';
 import { youtubeAdapter } from './sources/adapters/youtube';
 import { tmdbAdapter } from './sources/adapters/tmdb';
@@ -132,54 +133,84 @@ export async function runIntelligentComparison(
     enableSteam = true,
   } = options;
 
-  // Step 1: AI-FIRST intelligent category detection
-  console.log('[IntelligentComparison] 🤖 Starting AI category detection for:', terms);
+  // Step 1: CACHE-FIRST intelligent category detection
+  console.log('[IntelligentComparison] 🔍 Checking category cache for:', terms);
 
-  const aiResult = await detectCategoryWithAI(terms[0], terms[1]);
+  // Try cache first (eliminates AI calls for repeated keywords)
+  const cachedCategory = await getUnifiedCachedCategory(terms[0], terms[1]);
   let category: CategoryResult;
   let smartCategory: any = null;
+  let aiResult: any = null; // Define in outer scope
 
-  // Use AI result if successful and confident (≥70)
-  if (aiResult.success && aiResult.confidence >= 70) {
-    console.log('[IntelligentComparison] ✅ AI detection successful:', {
-      category: aiResult.category,
-      confidence: aiResult.confidence,
-      reasoning: aiResult.reasoning,
+  if (cachedCategory) {
+    // ✅ Cache HIT - use cached category (NO AI call!)
+    console.log('[IntelligentComparison] ✅ Using cached category:', {
+      category: cachedCategory.category,
+      confidence: cachedCategory.confidence,
+      source: cachedCategory.source,
     });
 
     category = {
-      category: aiResult.category,
-      confidence: aiResult.confidence,
+      category: cachedCategory.category,
+      confidence: cachedCategory.confidence,
       evidence: [
         {
-          source: 'ai_detection',
-          signal: aiResult.reasoning,
-          confidence: aiResult.confidence,
+          source: 'category_cache',
+          signal: cachedCategory.reasoning || 'Previously detected category',
+          confidence: cachedCategory.confidence,
         },
       ],
     };
   } else {
-    // Fallback to API probing if AI fails or is uncertain
-    console.log('[IntelligentComparison] ⚠️ AI uncertain, falling back to API probing');
+    // ❌ Cache MISS - need fresh detection
+    console.log('[IntelligentComparison] ❌ No cached category - trying AI detection');
 
-    smartCategory = await detectCategoryByAPI(terms[0], terms[1], {
-      enableSpotify,
-      enableTMDB,
-      enableSteam,
-      enableBestBuy,
-    });
+    aiResult = await detectCategoryWithAI(terms[0], terms[1]);
 
-    category = {
-      category: smartCategory.category,
-      confidence: smartCategory.confidence,
-      evidence: smartCategory.evidence,
-    };
+    // Use AI result if successful and confident (≥70)
+    if (aiResult.success && aiResult.confidence >= 70) {
+      console.log('[IntelligentComparison] ✅ AI detection successful:', {
+        category: aiResult.category,
+        confidence: aiResult.confidence,
+        reasoning: aiResult.reasoning,
+      });
 
-    console.log('[IntelligentComparison] ✅ API probing result:', {
-      category: category.category,
-      confidence: category.confidence,
-      apiMatches: smartCategory.apiMatches,
-    });
+      category = {
+        category: aiResult.category,
+        confidence: aiResult.confidence,
+        evidence: [
+          {
+            source: 'ai_detection',
+            signal: aiResult.reasoning,
+            confidence: aiResult.confidence,
+          },
+        ],
+      };
+
+      // Cache the result for future use (will be done by AI insights generator)
+    } else {
+      // Fallback to API probing if AI fails or is uncertain
+      console.log('[IntelligentComparison] ⚠️ AI uncertain, falling back to API probing');
+
+      smartCategory = await detectCategoryByAPI(terms[0], terms[1], {
+        enableSpotify,
+        enableTMDB,
+        enableSteam,
+        enableBestBuy,
+      });
+
+      category = {
+        category: smartCategory.category,
+        confidence: smartCategory.confidence,
+        evidence: smartCategory.evidence,
+      };
+
+      console.log('[IntelligentComparison] ✅ API probing result:', {
+        category: category.category,
+        confidence: category.confidence,
+        apiMatches: smartCategory.apiMatches,
+      });
+    }
   }
   
   // Step 2: Calculate base stats from Google Trends data
@@ -201,9 +232,10 @@ export async function runIntelligentComparison(
   // Step 3: Fetch data from relevant APIs based on detected category
   const fetchPromises: Promise<void>[] = [];
 
-  // If AI detection was used, fetch from specific APIs based on category
-  // If API probing was used, use cached results
-  const shouldFetchDirectly = aiResult.success && aiResult.confidence >= 70;
+  // Determine if we should fetch directly (category known) or use cached API results
+  // Use direct fetch if: cached category OR AI detection succeeded
+  // Use cached results only if: API probing was used (smartCategory exists)
+  const shouldFetchDirectly = cachedCategory || (aiResult && aiResult.success && aiResult.confidence >= 70);
 
   if (shouldFetchDirectly) {
     // AI told us the category - fetch from relevant APIs directly

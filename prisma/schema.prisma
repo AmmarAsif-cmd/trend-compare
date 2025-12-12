@@ -26,6 +26,20 @@ model Comparison {
   @@index([category])
 }
 
+model KeywordCategory {
+  id         String   @id @default(cuid())
+  keyword    String   @unique // Normalized keyword (lowercase, trimmed)
+  category   String   // music, movies, games, products, tech, people, brands, places, general
+  confidence Int      // 0-100
+  source     String   // 'ai' | 'api_probing' | 'manual'
+  reasoning  String?  // Why this category was chosen
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([keyword])
+  @@index([category])
+}
+
 model AIInsightUsage {
   id           String   @id @default(cuid())
   date         DateTime @unique // YYYY-MM-DD for daily tracking
