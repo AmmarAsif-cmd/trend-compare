@@ -17,7 +17,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
 import { ensureDatabaseMigration } from "./ensureDatabaseMigration";
-import { saveCategoryToCache } from "./category-cache";
 
 const prisma = new PrismaClient();
 
@@ -555,13 +554,9 @@ export async function getOrGenerateAIInsights(
       });
       console.log(`[AI Cache] ✅ Saved insights to database for future use`);
 
-      // 4. ALSO cache individual keyword categories for future use
-      // This eliminates duplicate AI calls when same keywords appear in different comparisons
-      await Promise.allSettled([
-        saveCategoryToCache(data.termA, insights.category as any, 95, 'ai'),
-        saveCategoryToCache(data.termB, insights.category as any, 95, 'ai'),
-      ]);
-      console.log(`[CategoryCache] ✅ Cached categories for both keywords`);
+      // Note: We DON'T cache individual keyword categories because keywords
+      // can be ambiguous (e.g., "tery ishq mein" = movie OR song).
+      // Category is cached at the comparison level (above) which preserves context.
     } catch (saveError) {
       console.error('[AI Cache] ⚠️ Failed to save insights to database:', saveError);
       // Return insights anyway even if save failed
