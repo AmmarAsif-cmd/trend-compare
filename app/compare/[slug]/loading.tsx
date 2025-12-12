@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import LoadingComparisons from "@/components/LoadingComparisons";
 
 export default function Loading() {
   return (
@@ -10,20 +10,21 @@ export default function Loading() {
           <div className="h-4 bg-slate-200 rounded w-1/2"></div>
         </div>
 
-        {/* Main loading content */}
+        {/* Main loading content with interesting comparisons */}
         <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-8">
-          <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-4" />
+          <div className="flex flex-col items-center justify-center py-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
               Analyzing Trends...
             </h2>
-            <p className="text-slate-600 text-center max-w-md">
+            <p className="text-slate-600 text-center max-w-md mb-8">
               We're fetching search data, detecting patterns, and generating insights.
-              This may take a few moments.
             </p>
 
+            {/* Interesting comparisons carousel */}
+            <LoadingComparisons />
+
             {/* Progress indicators */}
-            <div className="mt-8 w-full max-w-md space-y-3">
+            <div className="mt-12 w-full max-w-md space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
                 <span className="text-slate-600">Fetching search trends data...</span>
@@ -38,7 +39,7 @@ export default function Loading() {
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-2 h-2 rounded-full bg-pink-600 animate-pulse delay-300"></div>
-                <span className="text-slate-600">Generating insights...</span>
+                <span className="text-slate-600">Generating AI insights...</span>
               </div>
             </div>
           </div>
