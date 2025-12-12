@@ -95,7 +95,6 @@ const KNOWN_PRODUCTS = new Set([
 
 const KNOWN_PEOPLE = new Set([
   'elon musk', 'jeff bezos', 'bill gates', 'mark zuckerberg', 'tim cook',
-  'taylor swift', 'beyonce', 'drake', 'kanye', 'rihanna', 'ariana grande',
   'tom cruise', 'leonardo dicaprio', 'brad pitt', 'johnny depp',
   'cristiano ronaldo', 'messi', 'lebron james', 'michael jordan',
   'trump', 'biden', 'obama', 'modi', 'putin',
@@ -157,7 +156,7 @@ export function detectCategory(terms: string[]): CategoryResult {
     }
 
     if (KNOWN_MUSIC.has(lower) || [...KNOWN_MUSIC].some(m => lower.includes(m))) {
-      scores.music += 40;
+      scores.music += 50; // Higher priority than people/tech
       evidence.push({ source: 'known_entity', signal: `${term} is a known artist/band`, confidence: 80 });
     }
 
