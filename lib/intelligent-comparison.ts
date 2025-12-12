@@ -132,6 +132,7 @@ export async function runIntelligentComparison(
 
   // Step 1: Detect category
   const category = detectCategory(terms);
+  console.log('[IntelligentComparison] Category detected:', category.category, 'for terms:', terms);
   
   // Step 2: Calculate base stats from Google Trends data
   // Pass actual term names to avoid Object.keys() order issues
@@ -269,6 +270,7 @@ export async function runIntelligentComparison(
 
   // Spotify data (for music category)
   if (enableSpotify && category.category === 'music' && process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
+    console.log('[IntelligentComparison] ✅ Fetching Spotify data for music category');
     fetchPromises.push(
       (async () => {
         try {
@@ -302,6 +304,8 @@ export async function runIntelligentComparison(
         }
       })()
     );
+  } else {
+    console.log('[IntelligentComparison] ❌ Spotify skipped - enableSpotify:', enableSpotify, 'category:', category.category, 'hasClientId:', !!process.env.SPOTIFY_CLIENT_ID, 'hasClientSecret:', !!process.env.SPOTIFY_CLIENT_SECRET);
   }
 
   // Steam data (for games category)

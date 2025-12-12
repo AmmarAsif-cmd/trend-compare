@@ -456,7 +456,10 @@ export default async function ComparePage({
                   termA: intelligentComparison.scores.termA.breakdown.socialBuzz,
                   termB: intelligentComparison.scores.termB.breakdown.socialBuzz,
                 },
-                {
+                // Only show Authority if we have authority sources (TMDB, Steam, Best Buy, OMDb, GitHub)
+                ...(intelligentComparison.performance.sourcesQueried.some(s =>
+                  ['TMDB', 'Steam', 'Best Buy', 'OMDb', 'GitHub'].includes(s)
+                ) ? [{
                   name: 'Authority' + (
                     intelligentComparison.performance.sourcesQueried.includes('TMDB') ? ' (TMDB)' :
                     intelligentComparison.performance.sourcesQueried.includes('Steam') ? ' (Steam)' :
@@ -465,7 +468,7 @@ export default async function ComparePage({
                   ),
                   termA: intelligentComparison.scores.termA.breakdown.authority,
                   termB: intelligentComparison.scores.termB.breakdown.authority,
-                },
+                }] : []),
                 {
                   name: 'Momentum (Trend Direction)',
                   termA: intelligentComparison.scores.termA.breakdown.momentum,

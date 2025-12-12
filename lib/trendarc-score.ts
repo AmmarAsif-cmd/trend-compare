@@ -126,8 +126,11 @@ export function calculateTrendArcScore(
   const socialScores: number[] = [];
   
   if (metrics.youtube) {
-    const ytScore = Math.min(100, (metrics.youtube.avgViews / 100000) * 50 + 
-      metrics.youtube.engagement * 100);
+    // Views contribute 0-60 (normalized by 500k views as "very popular")
+    const viewScore = Math.min(60, (metrics.youtube.avgViews / 500000) * 60);
+    // Engagement contributes 0-40 (5% engagement = 40, which is very high)
+    const engagementScore = Math.min(40, metrics.youtube.engagement * 800);
+    const ytScore = viewScore + engagementScore;
     socialScores.push(ytScore);
     sources.push('YouTube');
   }
