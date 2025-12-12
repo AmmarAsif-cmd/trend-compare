@@ -2,6 +2,11 @@
  * AI-Powered Category Detection
  * Uses Claude to intelligently classify comparisons
  * Fast, accurate, context-aware - no hard-coded lists needed
+ *
+ * Implements 3-tier caching:
+ * 1. Memory cache (in-process, 10 min TTL)
+ * 2. Database cache (persistent, 90 day TTL) - via category-cache.ts
+ * 3. AI detection (fallback, ~$0.0001 per call)
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -12,7 +17,28 @@ export type AICategoryResult = {
   confidence: number; // 0-100
   reasoning: string;
   success: boolean;
+  cached?: boolean; // Whether result came from cache
 };
+
+// In-memory cache for request-level caching (Tier 1)
+// Prevents duplicate AI calls within the same server process
+const memoryCache = new Map<string, { result: AICategoryResult; expires: number }>();
+const MEMORY_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Clean up expired entries from memory cache
+ */
+function cleanMemoryCache(): void {
+  const now = Date.now();
+  for (const [key, value] of memoryCache.entries()) {
+    if (value.expires < now) {
+      memoryCache.delete(key);
+    }
+  }
+}
+
+// Clean cache every 5 minutes
+setInterval(cleanMemoryCache, 5 * 60 * 1000);
 
 /**
  * Use AI to detect category - STRICT classification
@@ -22,6 +48,16 @@ export async function detectCategoryWithAI(
   termA: string,
   termB: string
 ): Promise<AICategoryResult> {
+  // Create cache key (order-independent)
+  const cacheKey = [termA.toLowerCase(), termB.toLowerCase()].sort().join('::');
+
+  // Check memory cache first (Tier 1)
+  const cached = memoryCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    console.log('[AICategoryDetector] 💨 Memory cache HIT:', cacheKey);
+    return { ...cached.result, cached: true };
+  }
+
   // Check if Anthropic API key is available
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
@@ -29,6 +65,7 @@ export async function detectCategoryWithAI(
       confidence: 0,
       reasoning: 'Anthropic API key not configured',
       success: false,
+      cached: false,
     };
   }
 
@@ -182,12 +219,22 @@ What type of things are being compared? Return ONLY valid JSON.`,
       reasoning: result.reasoning,
     });
 
-    return {
+    const aiResult: AICategoryResult = {
       category: result.category as ComparisonCategory,
       confidence: result.confidence,
       reasoning: result.reasoning,
       success: true,
+      cached: false,
     };
+
+    // Cache the result in memory for future requests (Tier 1)
+    memoryCache.set(cacheKey, {
+      result: aiResult,
+      expires: Date.now() + MEMORY_CACHE_TTL_MS,
+    });
+    console.log('[AICategoryDetector] 💾 Cached in memory:', cacheKey);
+
+    return aiResult;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.warn('[AICategoryDetector] ❌ AI detection failed:', {
@@ -201,6 +248,7 @@ What type of things are being compared? Return ONLY valid JSON.`,
       confidence: 0,
       reasoning: `AI classification failed: ${errorMessage}`,
       success: false,
+      cached: false,
     };
   }
 }

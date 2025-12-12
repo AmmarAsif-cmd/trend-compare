@@ -554,9 +554,38 @@ export async function getOrGenerateAIInsights(
       });
       console.log(`[AI Cache] ✅ Saved insights to database for future use`);
 
-      // Note: We DON'T cache individual keyword categories because keywords
-      // can be ambiguous (e.g., "tery ishq mein" = movie OR song).
-      // Category is cached at the comparison level (above) which preserves context.
+      // Cache individual keywords for future comparisons
+      // This enables keyword-level caching (TIER 2) for cost optimization
+      try {
+        const { cacheComparisonKeywords } = await import('./category-cache');
+        const categoryMap: Record<string, string> = {
+          'Technology': 'tech',
+          'Movies': 'movies',
+          'Music': 'music',
+          'Gaming': 'games',
+          'Products': 'products',
+          'People': 'people',
+          'Brands': 'brands',
+          'Places': 'places',
+          'Entertainment': 'movies', // Map Entertainment to movies as fallback
+          'Business': 'brands', // Map Business to brands as fallback
+        };
+
+        const normalizedCategory = categoryMap[insights.category] || 'general';
+
+        await cacheComparisonKeywords(
+          data.termA,
+          data.termB,
+          normalizedCategory as any,
+          90, // High confidence since it's from AI insights
+          'ai',
+          `From AI insights: ${insights.category}`
+        );
+        console.log(`[AI Cache] 💾 Cached keywords: "${data.termA}", "${data.termB}" as ${normalizedCategory}`);
+      } catch (cacheError) {
+        console.warn('[AI Cache] ⚠️ Failed to cache keywords:', cacheError);
+        // Non-critical error - continue
+      }
     } catch (saveError) {
       console.error('[AI Cache] ⚠️ Failed to save insights to database:', saveError);
       // Return insights anyway even if save failed

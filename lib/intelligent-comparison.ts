@@ -1,11 +1,17 @@
 /**
  * Intelligent Comparison System
  * Combines category detection, multi-source data, and verdict generation
+ *
+ * Implements 3-tier caching for category detection:
+ * 1. Comparison-level cache (database, passed via options.cachedCategory)
+ * 2. Keyword-level cache (database, via category-cache.ts)
+ * 3. AI detection (fallback, ~$0.0001 per call)
  */
 
 import { detectCategory, getRecommendationTemplate, type ComparisonCategory, type CategoryResult } from './category-resolver';
 import { detectCategoryByAPI, detectCategoryByPatterns } from './smart-category-detector';
 import { detectCategoryWithAI, getAPIsForCategory } from './ai-category-detector';
+import { getCachedComparisonCategory, cacheComparisonKeywords } from './category-cache';
 import { calculateTrendArcScore, generateVerdict, type SourceMetrics, type TrendArcScore, type ComparisonVerdict } from './trendarc-score';
 import { youtubeAdapter } from './sources/adapters/youtube';
 import { tmdbAdapter } from './sources/adapters/tmdb';
@@ -119,6 +125,7 @@ export async function runIntelligentComparison(
     enableBestBuy?: boolean;
     enableSpotify?: boolean;
     enableSteam?: boolean;
+    cachedCategory?: string | null; // Previously detected category from database
   } = {}
 ): Promise<IntelligentComparisonResult> {
   const startTime = Date.now();
@@ -130,64 +137,128 @@ export async function runIntelligentComparison(
     enableBestBuy = true,
     enableSpotify = true,
     enableSteam = true,
+    cachedCategory = null,
   } = options;
 
-  // Step 1: Smart category detection
-  // We DON'T use individual keyword caching because keywords can be ambiguous
-  // (e.g., "tery ishq mein" = movie OR song depending on context)
-  // Instead, we rely on comparison-level caching (in Comparison table)
-  // and AI insights which understands context
+  // Step 1: 3-Tier Category Detection with Caching
+  // TIER 1: Comparison-level cache (from database Comparison.category field)
+  // TIER 2: Keyword-level cache (from database KeywordCategory table)
+  // TIER 3: AI detection (fallback, ~$0.0001 per call)
   console.log('[IntelligentComparison] 🔍 Starting category detection for:', terms);
 
   let category: CategoryResult;
   let smartCategory: any = null;
   let aiResult: any = null;
+  let cacheSource: string = 'none';
 
-  // Try AI detection (fast, context-aware)
-  aiResult = await detectCategoryWithAI(terms[0], terms[1]);
-
-  // Use AI result if successful and confident (≥70)
-  if (aiResult.success && aiResult.confidence >= 70) {
-    console.log('[IntelligentComparison] ✅ AI detection successful:', {
-      category: aiResult.category,
-      confidence: aiResult.confidence,
-      reasoning: aiResult.reasoning,
-    });
-
+  // TIER 1: Check comparison-level cache first (highest priority)
+  if (cachedCategory && cachedCategory !== 'null' && cachedCategory !== 'undefined') {
+    console.log('[IntelligentComparison] ✅ TIER 1: Using comparison-level cached category:', cachedCategory);
     category = {
-      category: aiResult.category,
-      confidence: aiResult.confidence,
+      category: cachedCategory as ComparisonCategory,
+      confidence: 100,
       evidence: [
         {
-          source: 'ai_detection',
-          signal: aiResult.reasoning,
-          confidence: aiResult.confidence,
+          source: 'comparison_cache',
+          signal: 'Previously detected and cached',
+          confidence: 100,
         },
       ],
     };
+    cacheSource = 'comparison_cache';
   } else {
-    // Fallback to API probing if AI fails or is uncertain
-    console.log('[IntelligentComparison] ⚠️ AI uncertain, falling back to API probing');
+    // TIER 2: Check keyword-level cache
+    const keywordCacheResult = await getCachedComparisonCategory(terms[0], terms[1]);
 
-    smartCategory = await detectCategoryByAPI(terms[0], terms[1], {
-      enableSpotify,
-      enableTMDB,
-      enableSteam,
-      enableBestBuy,
-    });
+    if (keywordCacheResult) {
+      console.log('[IntelligentComparison] ✅ TIER 2: Using keyword-level cached category:', keywordCacheResult.category);
+      category = {
+        category: keywordCacheResult.category,
+        confidence: keywordCacheResult.confidence,
+        evidence: [
+          {
+            source: 'keyword_cache',
+            signal: 'Both keywords cached with same category',
+            confidence: keywordCacheResult.confidence,
+          },
+        ],
+      };
+      cacheSource = 'keyword_cache';
+    } else {
+      // TIER 3: AI detection (fresh call)
+      console.log('[IntelligentComparison] ⚠️ Cache miss - performing AI detection');
+      aiResult = await detectCategoryWithAI(terms[0], terms[1]);
 
-    category = {
-      category: smartCategory.category,
-      confidence: smartCategory.confidence,
-      evidence: smartCategory.evidence,
-    };
+      // Use AI result if successful and confident (≥70)
+      if (aiResult.success && aiResult.confidence >= 70) {
+        console.log('[IntelligentComparison] ✅ TIER 3: AI detection successful:', {
+          category: aiResult.category,
+          confidence: aiResult.confidence,
+          reasoning: aiResult.reasoning,
+        });
 
-    console.log('[IntelligentComparison] ✅ API probing result:', {
-      category: category.category,
-      confidence: category.confidence,
-      apiMatches: smartCategory.apiMatches,
-    });
+        category = {
+          category: aiResult.category,
+          confidence: aiResult.confidence,
+          evidence: [
+            {
+              source: 'ai_detection',
+              signal: aiResult.reasoning,
+              confidence: aiResult.confidence,
+            },
+          ],
+        };
+        cacheSource = 'ai_detection';
+
+        // Cache both keywords for future use
+        await cacheComparisonKeywords(
+          terms[0],
+          terms[1],
+          aiResult.category,
+          aiResult.confidence,
+          'ai',
+          aiResult.reasoning
+        );
+      } else {
+        // Fallback to API probing if AI fails or is uncertain
+        console.log('[IntelligentComparison] ⚠️ AI uncertain, falling back to API probing');
+
+        smartCategory = await detectCategoryByAPI(terms[0], terms[1], {
+          enableSpotify,
+          enableTMDB,
+          enableSteam,
+          enableBestBuy,
+        });
+
+        category = {
+          category: smartCategory.category,
+          confidence: smartCategory.confidence,
+          evidence: smartCategory.evidence,
+        };
+        cacheSource = 'api_probing';
+
+        console.log('[IntelligentComparison] ✅ API probing result:', {
+          category: category.category,
+          confidence: category.confidence,
+          apiMatches: smartCategory.apiMatches,
+        });
+
+        // Cache keywords from API probing too
+        if (smartCategory.confidence >= 70) {
+          await cacheComparisonKeywords(
+            terms[0],
+            terms[1],
+            smartCategory.category,
+            smartCategory.confidence,
+            'api_probing',
+            `API probing: ${smartCategory.apiMatches || 0} matches`
+          );
+        }
+      }
+    }
   }
+
+  console.log(`[IntelligentComparison] 📊 Category detection complete: ${category.category} (source: ${cacheSource})`);
   
   // Step 2: Calculate base stats from Google Trends data
   // Pass actual term names to avoid Object.keys() order issues
