@@ -95,7 +95,7 @@ export default function StructuredData({
           leader
         )} leading by ${advantage}%.`,
         measurementTechnique:
-          "Multi-source trend aggregation including Google Trends, Reddit discussions, and HackerNews mentions",
+          "Multi-source trend aggregation including Google Trends, YouTube, TMDB, Spotify, Steam, and Best Buy data",
         variableMeasured: [
           {
             "@type": "PropertyValue",
@@ -169,7 +169,7 @@ export default function StructuredData({
             name: `How is this comparison data calculated?`,
             acceptedAnswer: {
               "@type": "Answer",
-              text: `This comparison aggregates data from multiple sources including Google Trends, Reddit discussions, and HackerNews mentions to provide a comprehensive view of relative search interest between ${prettyTerm(
+              text: `This comparison aggregates data from multiple sources including Google Trends search data, YouTube engagement, and category-specific sources (TMDB for movies, Spotify for music, Steam for games, Best Buy for products) to provide a comprehensive view of trending interest between ${prettyTerm(
                 termA
               )} and ${prettyTerm(termB)}.`,
             },

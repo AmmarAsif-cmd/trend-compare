@@ -33,41 +33,67 @@ export default function DataSources() {
           </div>
         </div>
 
-        {/* Wikipedia Current Events */}
-        <div className="flex gap-3 p-3 bg-gradient-to-br from-slate-50 to-gray-50 rounded-lg border border-slate-200">
-          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-300 shadow-sm">
-            <span className="text-lg">📰</span>
+        {/* YouTube */}
+        <div className="flex gap-3 p-3 bg-gradient-to-br from-red-50 to-pink-50 rounded-lg border border-red-200">
+          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-red-300 shadow-sm">
+            <span className="text-lg">📺</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-slate-900">Wikipedia Events</h4>
+            <h4 className="font-semibold text-sm text-slate-900">YouTube</h4>
             <p className="text-xs text-slate-600 mt-0.5">
-              Daily curated events and news from Wikipedia's Current Events portal
+              Video engagement and view data for comprehensive social buzz metrics
             </p>
           </div>
         </div>
 
-        {/* GDELT Project */}
+        {/* TMDB */}
         <div className="flex gap-3 p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200">
           <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-purple-300 shadow-sm">
-            <span className="text-lg">🌍</span>
+            <span className="text-lg">🎬</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-slate-900">GDELT Project</h4>
+            <h4 className="font-semibold text-sm text-slate-900">TMDB</h4>
             <p className="text-xs text-slate-600 mt-0.5">
-              Global news database monitoring broadcasts, print, and web in 100+ languages
+              Movie and TV ratings from The Movie Database, trusted by millions
             </p>
           </div>
         </div>
 
-        {/* NewsAPI */}
-        <div className="flex gap-3 p-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-200">
-          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-emerald-300 shadow-sm">
-            <span className="text-lg">📡</span>
+        {/* Spotify */}
+        <div className="flex gap-3 p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
+          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-green-300 shadow-sm">
+            <span className="text-lg">🎵</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-slate-900">NewsAPI</h4>
+            <h4 className="font-semibold text-sm text-slate-900">Spotify</h4>
             <p className="text-xs text-slate-600 mt-0.5">
-              Live headlines from 80,000+ news sources and blogs worldwide
+              Music artist popularity and listener data from the world's largest streaming platform
+            </p>
+          </div>
+        </div>
+
+        {/* Steam */}
+        <div className="flex gap-3 p-3 bg-gradient-to-br from-slate-50 to-gray-50 rounded-lg border border-slate-200">
+          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-300 shadow-sm">
+            <span className="text-lg">🎮</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm text-slate-900">Steam</h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Gaming data including player counts and review scores from Steam's massive community
+            </p>
+          </div>
+        </div>
+
+        {/* Best Buy */}
+        <div className="flex gap-3 p-3 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-yellow-300 shadow-sm">
+            <span className="text-lg">🛒</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm text-slate-900">Best Buy</h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Product ratings and reviews for electronics and consumer tech comparisons
             </p>
           </div>
         </div>
@@ -78,7 +104,7 @@ export default function DataSources() {
         <div className="flex gap-2 items-start">
           <span className="text-sm flex-shrink-0">⚡</span>
           <p className="text-xs text-slate-700 leading-relaxed">
-            <span className="font-semibold">Smart Multi-Source Analysis:</span> We cross-verify data from all sources to identify the most reliable insights. Events confirmed by multiple sources are marked as "Verified" for your confidence.
+            <span className="font-semibold">Smart Category Detection:</span> Our system automatically detects what you're comparing (movies, music, games, products) and fetches the most relevant data sources. Each comparison combines multiple signals into a unified TrendArc Score.
           </p>
         </div>
       </div>

@@ -984,7 +984,7 @@ export default function EnhancedSystemDashboard() {
                                 {Array.isArray(comp.terms) ? comp.terms.join(' vs ') : comp.slug}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
-                                {comp.timeframe} • {comp.geo || 'worldwide'} • {comp.ageInDays} days old
+                                {comp.timeframe} • {comp.geoDisplay || comp.geo || 'worldwide'} • {comp.ageInDays} days old
                                 {comp.category && ` • ${comp.category}`}
                               </div>
                             </div>

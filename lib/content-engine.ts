@@ -27,7 +27,7 @@ export type ContentEngineResult = {
 export type ContentEngineConfig = {
   // Data fetching
   useMultiSource?: boolean; // Try fallback sources if primary fails
-  primarySource?: 'google-trends' | 'reddit' | 'wikipedia' | 'github';
+  primarySource?: 'google-trends' | 'reddit' | 'github';
   fallbackEnabled?: boolean;
 
   // Analysis depth

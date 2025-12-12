@@ -5,355 +5,37 @@ import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import TrendChart from "@/components/TrendChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
+import DataSourceBadge from "@/components/DataSourceBadge";
+import MultiSourceBreakdown from "@/components/MultiSourceBreakdown";
 import { smoothSeries, nonZeroRatio } from "@/lib/series";
+import { getDataSources } from "@/lib/trends-router";
 import BackButton from "@/components/BackButton";
 import FAQSection from "@/components/FAQSection";
-import { buildHumanCopy } from "@/lib/humanize";
 import TopThisWeekServer from "@/components/TopThisWeekServer";
 import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
 import CompareStats from "@/components/CompareStats";
-import ContentEngineInsights from "@/components/ContentEngineInsights";
-import { generateComparisonContent } from "@/lib/content-engine";
-import SearchBreakdown from "@/components/SearchBreakdown";
-import ReportActions from "@/components/ReportActions";
-import RealTimeContext from "@/components/RealTimeContext";
+import SocialShareButtons from "@/components/SocialShareButtons";
 import StructuredData from "@/components/StructuredData";
-import HistoricalTimeline from "@/components/HistoricalTimeline";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
-import DataSpecificAIInsights from "@/components/DataSpecificAIInsights";
 import { prepareInsightData, getOrGenerateAIInsights } from "@/lib/aiInsightsGenerator";
 import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
-import { prisma } from "@/lib/db";
+import ComparisonVerdict from "@/components/ComparisonVerdict";
+import HistoricalTimeline from "@/components/HistoricalTimeline";
+import SearchBreakdown from "@/components/SearchBreakdown";
+import { runIntelligentComparison } from "@/lib/intelligent-comparison";
 
 // Revalidate every 10 minutes for fresh data while maintaining performance
 export const revalidate = 600; // 10 minutes
 
 /* ---------------- helpers ---------------- */
 
-type TrendPoint = {
-  date: string | number | Date;
-  [key: string]: unknown;
-};
-
-type TermInsight = {
-  term: string;
-  avg: number;
-  trendWord: string;
-  stabilityWord: string;
-  peakLabel: string;
-  bestMonthLabel: string;
-};
-
-type InsightBundle = {
-  headline: string;
-  subline: string;
-  badges: string[];
-  prediction: string;
-  moments: string[];
-  termInsights: TermInsight[];
-};
-
 function prettyTerm(t: string) {
   return t.replace(/-/g, " ");
-}
-
-function toDate(d: string | number | Date): Date | null {
-  const dt =
-    typeof d === "number"
-      ? new Date(d * 1000)
-      : d instanceof Date
-      ? d
-      : new Date(String(d));
-  return isNaN(dt.getTime()) ? null : dt;
-}
-
-function monthYearLabel(d: Date | null) {
-  if (!d) return "no clear month";
-  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-}
-
-function shortDateLabel(d: Date | null) {
-  if (!d) return "";
-  return d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function avg(nums: number[]) {
-  const v = nums.filter((n) => Number.isFinite(n));
-  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
-}
-
-function stdev(xs: number[]) {
-  if (xs.length < 2) return 0;
-  const m = avg(xs);
-  const v = xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1);
-  return Math.sqrt(v);
-}
-
-function slope(xs: number[]) {
-  const n = xs.length;
-  if (n < 2) return 0;
-  const xbar = (n - 1) / 2;
-  const ybar = avg(xs);
-  let num = 0;
-  let den = 0;
-  for (let i = 0; i < n; i++) {
-    num += (i - xbar) * (xs[i] - ybar);
-    den += (i - xbar) ** 2;
-  }
-  return den === 0 ? 0 : num / den;
-}
-
-function trendWord(m: number) {
-  if (m > 0.6) return "rising fast";
-  if (m > 0.2) return "rising";
-  if (m < -0.6) return "falling fast";
-  if (m < -0.2) return "falling";
-  return "steady";
-}
-
-function volatilityWord(std: number) {
-  if (std >= 20) return "very choppy";
-  if (std >= 10) return "choppy";
-  return "steady";
-}
-
-function peakFor(term: string, series: TrendPoint[]) {
-  let bestValue = -1;
-  let bestDate: Date | null = null;
-  for (const row of series) {
-    const v = Number(row[term] ?? 0);
-    if (v > bestValue) {
-      bestValue = v;
-      bestDate = toDate(row.date);
-    }
-  }
-  return { value: bestValue < 0 ? 0 : Math.round(bestValue), date: bestDate };
-}
-
-function monthlyBest(term: string, series: TrendPoint[]) {
-  const buckets = new Map<string, number[]>();
-  for (const r of series) {
-    const d = toDate(r.date);
-    if (!d) continue;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-      2,
-      "0",
-    )}`;
-    const v = Number(r[term] ?? 0);
-    const arr = buckets.get(key) ?? [];
-    arr.push(v);
-    buckets.set(key, arr);
-  }
-  const rows = Array.from(buckets.entries()).map(([key, arr]) => ({
-    key,
-    avg: avg(arr),
-  }));
-  if (!rows.length) return "not clear";
-  rows.sort((a, b) => (a.key < b.key ? -1 : 1));
-  const best = rows.reduce((p, c) => (c.avg > p.avg ? c : p), rows[0]);
-  const [y, m] = best.key.split("-");
-  return monthYearLabel(new Date(Number(y), Number(m) - 1, 1));
-}
-
-function crossovers(aVals: number[], bVals: number[], dates: TrendPoint[]) {
-  let count = 0;
-  let last: Date | null = null;
-  for (let i = 1; i < Math.min(aVals.length, bVals.length); i++) {
-    const prev = aVals[i - 1] - bVals[i - 1];
-    const curr = aVals[i] - bVals[i];
-    if ((prev <= 0 && curr > 0) || (prev >= 0 && curr < 0)) {
-      count++;
-      last = toDate(dates[i]?.date);
-    }
-  }
-  return { count, last };
-}
-
-function buildInsightBundle(
-  series: TrendPoint[],
-  terms: string[],
-  timeframe: string,
-): InsightBundle {
-  const [A, B] = terms;
-  const aVals = series.map((r) => Number(r[A] ?? 0));
-  const bVals = series.map((r) => Number(r[B] ?? 0));
-
-  const aAvg = Math.round(avg(aVals));
-  const bAvg = Math.round(avg(bVals));
-
-  const leader = aAvg >= bAvg ? A : B;
-  const trailer = leader === A ? B : A;
-  const leaderAvg = leader === A ? aAvg : bAvg;
-  const trailerAvg = leader === A ? bAvg : aAvg;
-  const gapPct = leaderAvg
-    ? Math.round(((leaderAvg - trailerAvg) / leaderAvg) * 100)
-    : 0;
-
-  const aSlope = slope(aVals);
-  const bSlope = slope(bVals);
-  const aStd = stdev(aVals);
-  const bStd = stdev(bVals);
-
-  const aTrend = trendWord(aSlope);
-  const bTrend = trendWord(bSlope);
-  const aVol = volatilityWord(aStd);
-  const bVol = volatilityWord(bStd);
-
-  const pkA = peakFor(A, series);
-  const pkB = peakFor(B, series);
-  const xo = crossovers(aVals, bVals, series);
-
-  const cleanTf =
-    timeframe === "12m"
-      ? "past 12 months"
-      : timeframe === "30d"
-      ? "past 30 days"
-      : timeframe === "5y"
-      ? "past 5 years"
-      : "chosen period";
-
-  // Headline
-  let headline: string;
-  if (Math.abs(gapPct) <= 10) {
-    headline = `${prettyTerm(A)} and ${prettyTerm(
-      B,
-    )} are basically tied — people search for both at nearly the same rate.`;
-  } else if (gapPct < 30) {
-    headline = `${prettyTerm(
-      leader,
-    )} gets more searches than ${prettyTerm(trailer)}, but it's not a blowout.`;
-  } else {
-    headline = `${prettyTerm(
-      leader,
-    )} crushes ${prettyTerm(trailer)} in search volume.`;
-  }
-
-  const subline = `Over the ${cleanTf}, ${prettyTerm(
-    leader,
-  )} averages ${leaderAvg} and ${prettyTerm(
-    trailer,
-  )} sits at ${trailerAvg} (on a 0-100 scale). The higher the number, the more people are searching for it.`;
-
-   // Badges
-  const badges: string[] = [];
-
-  if (Math.abs(gapPct) <= 10) badges.push("Close race");
-  else if (gapPct < 30) badges.push("Moderate lead");
-  else badges.push("Strong lead");
-
-  // use numeric volatility (std dev), not the text labels
-  if (aStd <= 10 && bStd <= 10) {
-    badges.push("Stable interest");
-  } else if (aStd >= 20 || bStd >= 20) {
-    badges.push("Quite spiky");
-  }
-
-  if (aSlope > 0.2 || bSlope > 0.2) badges.push("Interest growing");
-  if (aSlope < -0.2 || bSlope < -0.2) badges.push("Softening demand");
-
-  if (xo.count > 0) badges.push("Lead changes over time");
-
-  // Prediction hint (very soft)
-  let prediction: string;
-  if (Math.abs(gapPct) <= 10 && Math.abs(aSlope - bSlope) < 0.1) {
-    prediction = `${prettyTerm(A)} and ${prettyTerm(B)} are dead even right now, and neither is pulling away. Looks like they'll stay neck-and-neck unless something big changes.`;
-  } else if (leader === A && aSlope > 0.2 && bSlope <= 0) {
-    prediction = `${prettyTerm(
-      A,
-    )} is already ahead and still growing, while ${prettyTerm(
-      B,
-    )} is flat or dropping. ${prettyTerm(
-      A,
-    )} will probably keep winning.`;
-  } else if (leader === B && bSlope > 0.2 && aSlope <= 0) {
-    prediction = `${prettyTerm(
-      B,
-    )} is already ahead and still growing, while ${prettyTerm(
-      A,
-    )} is flat or dropping. ${prettyTerm(
-      B,
-    )} will probably keep winning.`;
-  } else if (leader === A && aSlope < 0 && bSlope > 0.2) {
-    prediction = `${prettyTerm(
-      A,
-    )} is winning now, but ${prettyTerm(
-      B,
-    )} is surging. If this trend continues, ${prettyTerm(
-      B,
-    )} could overtake it soon.`;
-  } else if (leader === B && bSlope < 0 && aSlope > 0.2) {
-    prediction = `${prettyTerm(
-      B,
-    )} is winning now, but ${prettyTerm(
-      A,
-    )} is surging. If this trend continues, ${prettyTerm(
-      A,
-    )} could overtake it soon.`;
-  } else {
-    prediction = `Based on what we're seeing, things will probably stay about the same. Nothing dramatic happening here — just a snapshot of where ${prettyTerm(A)} and ${prettyTerm(B)} stand right now.`;
-  }
-
-  // Moments
-  const moments: string[] = [];
-  if (pkA.value) {
-    moments.push(
-      `${prettyTerm(A)} peaked in ${monthYearLabel(
-        pkA.date,
-      )} at ${pkA.value}.`,
-    );
-  }
-  if (pkB.value) {
-    moments.push(
-      `${prettyTerm(B)} peaked in ${monthYearLabel(
-        pkB.date,
-      )} at ${pkB.value}.`,
-    );
-  }
-  if (xo.count > 0) {
-    moments.push(
-      `They swapped leads ${xo.count} time${xo.count === 1 ? "" : "s"}. Last crossover was ${shortDateLabel(
-        xo.last,
-      )}.`,
-    );
-  } else {
-    moments.push(
-      `No lead changes. One term stayed on top the entire time.`,
-    );
-  }
-
-  // Per-term insight cards
-  const makeTermInsight = (term: string, vals: number[]): TermInsight => {
-    const pk = term === A ? pkA : pkB;
-    const std = stdev(vals);
-    const sl = slope(vals);
-    const bestMonth = monthlyBest(term, series);
-    return {
-      term: prettyTerm(term),
-      avg: Math.round(avg(vals)),
-      trendWord: trendWord(sl),
-      stabilityWord: volatilityWord(std),
-      peakLabel: pk.value
-        ? `${monthYearLabel(pk.date)} (score ${pk.value})`
-        : "no obvious peak",
-      bestMonthLabel: bestMonth,
-    };
-  };
-
-  const termInsights: TermInsight[] = [
-    makeTermInsight(A, aVals),
-    makeTermInsight(B, bVals),
-  ];
-
-  return { headline, subline, badges, prediction, moments, termInsights };
 }
 
 /* ---------------- SEO helpers ---------------- */
@@ -418,6 +100,8 @@ export async function generateMetadata({
         actualTerms[1]
       );
 
+      const ogImageUrl = `/api/og?a=${encodeURIComponent(actualTerms[0])}&b=${encodeURIComponent(actualTerms[1])}&winner=${encodeURIComponent(comparisonData.leader)}&advantage=${Math.round(comparisonData.advantage)}`;
+
       return {
         title: `${title} | TrendArc`,
         description,
@@ -427,11 +111,20 @@ export async function generateMetadata({
           description,
           type: "website",
           url: `/compare/${canonical}`,
+          images: [
+            {
+              url: ogImageUrl,
+              width: 1200,
+              height: 630,
+              alt: `${actualTerms[0]} vs ${actualTerms[1]} trend comparison`,
+            },
+          ],
         },
         twitter: {
           card: "summary_large_image",
           title: `${title} | TrendArc`,
           description,
+          images: [ogImageUrl],
         },
       };
     }
@@ -521,24 +214,15 @@ export default async function ComparePage({
     );
   }
 
-  const insight = buildInsightBundle(series as any, actualTerms, timeframe);
+  // Get data sources for transparency badge
+  const dataSources = await getDataSources(actualTerms, { timeframe, geo });
 
   // Run all async operations in parallel for faster loading ⚡
-  const [contentEngineResult, geographicData, aiInsights, aiInsightsError] = await Promise.all([
-    // Generate Content Engine insights (advanced pattern detection)
-    generateComparisonContent(actualTerms, rawSeries as any[], {
-      deepAnalysis: true,
-      useMultiSource: true,
-    }).catch((error) => {
-      console.error('Content Engine error:', error);
-      return null;
-    }),
-
+  const [geographicData, aiInsights, aiInsightsError] = await Promise.all([
     // Get geographic breakdown (FREE - no API costs)
     getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
 
     // Get or generate AI insights with smart caching (cost-optimized)
-    // Only calls Claude API if: no insights exist, or insights are >7 days old
     (async () => {
       try {
         const insightData = prepareInsightData(actualTerms[0], actualTerms[1], series as any[]);
@@ -547,16 +231,9 @@ export default async function ComparePage({
           timeframe || '12m',
           geo || '',
           insightData,
-          false // Set to true to force refresh
+          false
         );
-
-        if (result) {
-          console.log('[AI Insights] ✅ Retrieved insights for:', actualTerms.join(' vs '));
-          return result;
-        } else {
-          console.log('[AI Insights] ⚠️ Not available - check cache, budget limits or API key');
-          return null;
-        }
+        return result || null;
       } catch (error) {
         console.error('[AI Insights] ❌ Error:', error);
         return null;
@@ -591,6 +268,62 @@ export default async function ComparePage({
     aShare = totalA / totalSearches;
     bShare = totalB / totalSearches;
   }
+
+  // Run intelligent multi-source comparison with error handling
+  let verdictData;
+  let intelligentComparison;
+
+  try {
+    intelligentComparison = await runIntelligentComparison(
+      actualTerms,
+      series as any[],
+      {
+        enableYouTube: !!process.env.YOUTUBE_API_KEY,
+        enableTMDB: !!process.env.TMDB_API_KEY,
+        enableBestBuy: !!process.env.BESTBUY_API_KEY,
+        enableSpotify: !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET),
+        enableSteam: true, // Steam API works without a key
+      }
+    );
+    
+    // Build verdict data from intelligent comparison
+    verdictData = {
+      winner: intelligentComparison.verdict.winner,
+      loser: intelligentComparison.verdict.loser,
+      winnerScore: intelligentComparison.verdict.winnerScore.overall,
+      loserScore: intelligentComparison.verdict.loserScore.overall,
+      margin: intelligentComparison.verdict.margin,
+      confidence: intelligentComparison.verdict.confidence,
+      headline: intelligentComparison.verdict.headline,
+      recommendation: intelligentComparison.verdict.recommendation,
+      evidence: intelligentComparison.verdict.evidence || [],
+      category: intelligentComparison.category.category,
+      sources: intelligentComparison.performance.sourcesQueried || ['Google Trends'],
+    };
+  } catch (error) {
+    console.error('[Intelligent Comparison] Error:', error);
+    // Fallback to basic verdict based on Google Trends data
+    const winner = aShare > bShare ? actualTerms[0] : actualTerms[1];
+    const loser = winner === actualTerms[0] ? actualTerms[1] : actualTerms[0];
+    const margin = Math.abs(aShare - bShare) * 100;
+    
+    verdictData = {
+      winner,
+      loser,
+      winnerScore: Math.round(Math.max(aShare, bShare) * 100),
+      loserScore: Math.round(Math.min(aShare, bShare) * 100),
+      margin,
+      confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80,
+      headline: margin < 5 
+        ? `${prettyTerm(actualTerms[0])} and ${prettyTerm(actualTerms[1])} are virtually tied`
+        : `${prettyTerm(winner)} leads in search interest`,
+      recommendation: `Based on search trends, ${prettyTerm(winner)} shows ${margin >= 10 ? 'significantly' : 'slightly'} more interest.`,
+      evidence: ['Based on Google Trends data'],
+      category: 'general' as const,
+      sources: ['Google Trends'],
+    };
+  }
+
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6 lg:px-8 py-6">
       <BackButton label="Back to Home" />
@@ -627,60 +360,20 @@ export default async function ComparePage({
               <TimeframeSelect />
             </div>
 
-            {/* Report Actions - PDF and Share */}
-            <ReportActions
-              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Trend Comparison`}
-              url={typeof window !== 'undefined' ? window.location.href : `https://trendarc.com/compare/${slug}`}
+            {/* Social Share */}
+            <SocialShareButtons
+              url={`https://trendarc.net/compare/${slug}`}
+              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
               termA={actualTerms[0]}
               termB={actualTerms[1]}
             />
 
-            {/* Real-Time Context - Live comparison status */}
-            <RealTimeContext
+            {/* TrendArc Verdict - The main comparison result */}
+            <ComparisonVerdict
+              verdict={verdictData}
               termA={actualTerms[0]}
               termB={actualTerms[1]}
-              series={series as any[]}
-              timeframe={timeframe}
             />
-
-            <section className="grid gap-4 sm:gap-6 lg:grid-cols-5">
-              {/* Headline insight */}
-              <div className="lg:col-span-3 rounded-xl sm:rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative z-10">
-                  <p className="text-xs font-bold tracking-wide text-blue-600 mb-2 uppercase flex items-center gap-1.5">
-                    <span className="text-base">📊</span> Key Insight
-                  </p>
-                  <p className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-3 leading-snug">
-                    {insight.headline}
-                  </p>
-                  <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.subline}</p>
-                </div>
-              </div>
-
-              {/* Quick context */}
-              <div className="lg:col-span-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative z-10">
-                  <p className="text-xs font-bold tracking-wide text-slate-600 mb-3 uppercase flex items-center gap-1.5">
-                    <span className="text-base">⚡</span> Quick Context
-                  </p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {insight.badges.map((b) => (
-                      <span
-                        key={b}
-                        className="inline-flex items-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
-                      >
-                        {b}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {insight.moments[0] ?? ""}
-                  </p>
-                </div>
-              </div>
-            </section>
           </header>
 
           {/* AI Key Insights - Compact Top Section */}
@@ -730,16 +423,61 @@ export default async function ComparePage({
             <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
               <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-                How {prettyTerm(terms[0])} and {prettyTerm(terms[1])} Compare Over Time
+                Search Interest Over Time
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                Search volume for each term on a 0-100 scale. The higher the line, the more searches happening.
+                <span className="font-semibold">Google Trends</span> search volume on a 0-100 scale.
+                <span className="text-slate-500 ml-1">(Note: TrendArc Score above combines multiple data sources)</span>
               </p>
+              <div className="mt-3">
+                <DataSourceBadge sources={dataSources} />
+              </div>
             </div>
             <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
             </div>
           </section>
+
+          {/* Multi-Source Score Breakdown */}
+          {verdictData && intelligentComparison && (
+            <MultiSourceBreakdown
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              scoreA={intelligentComparison.scores.termA.overall}
+              scoreB={intelligentComparison.scores.termB.overall}
+              sources={[
+                {
+                  name: 'Search Interest (Google Trends)',
+                  termA: intelligentComparison.scores.termA.breakdown.searchInterest,
+                  termB: intelligentComparison.scores.termB.breakdown.searchInterest,
+                },
+                {
+                  name: 'Social Buzz (YouTube' + (intelligentComparison.performance.sourcesQueried.includes('Spotify') ? ', Spotify' : '') + ')',
+                  termA: intelligentComparison.scores.termA.breakdown.socialBuzz,
+                  termB: intelligentComparison.scores.termB.breakdown.socialBuzz,
+                },
+                // Only show Authority if we have authority sources (TMDB, Steam, Best Buy, OMDb, GitHub)
+                ...(intelligentComparison.performance.sourcesQueried.some(s =>
+                  ['TMDB', 'Steam', 'Best Buy', 'OMDb', 'GitHub'].includes(s)
+                ) ? [{
+                  name: 'Authority' + (
+                    intelligentComparison.performance.sourcesQueried.includes('TMDB') ? ' (TMDB)' :
+                    intelligentComparison.performance.sourcesQueried.includes('Steam') ? ' (Steam)' :
+                    intelligentComparison.performance.sourcesQueried.includes('Best Buy') ? ' (Best Buy)' :
+                    ''
+                  ),
+                  termA: intelligentComparison.scores.termA.breakdown.authority,
+                  termB: intelligentComparison.scores.termB.breakdown.authority,
+                }] : []),
+                {
+                  name: 'Momentum (Trend Direction)',
+                  termA: intelligentComparison.scores.termA.breakdown.momentum,
+                  termB: intelligentComparison.scores.termB.breakdown.momentum,
+                },
+              ]}
+              category={intelligentComparison.category.category}
+            />
+          )}
 
           {/* AI Peak Explanations - Right After Chart */}
           {aiInsights?.peakExplanations && (
@@ -770,52 +508,56 @@ export default async function ComparePage({
             <AIPrediction prediction={aiInsights.prediction} />
           )}
 
-          {/* Per-term insight cards */}
-          <section className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-            {insight.termInsights.map((ti, idx) => (
-              <div
-                key={ti.term}
-                className={`rounded-xl sm:rounded-2xl border ${idx === 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-blue-50/40' : 'border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/40'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-5 lg:p-6 relative overflow-hidden group`}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${idx === 0 ? 'from-blue-400/5' : 'from-purple-400/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                <div className="relative z-10">
-                  <h3 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-sm' : 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-sm'} animate-pulse`}></span>
-                    {ti.term} Analysis
-                  </h3>
-                  <div className="space-y-3 mt-4">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-                      <span className="text-sm font-medium text-slate-700">Average Interest</span>
-                      <span className={`text-lg font-bold ${idx === 0 ? 'text-blue-600' : 'text-purple-600'}`}>{ti.avg}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-                      <span className="text-sm font-medium text-slate-700">Trend Direction</span>
-                      <span className="text-sm font-semibold text-slate-900 capitalize">{ti.trendWord}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-                      <span className="text-sm font-medium text-slate-700">Volatility</span>
-                      <span className="text-sm font-semibold text-slate-900 capitalize">{ti.stabilityWord}</span>
-                    </div>
-                    <div className="pt-2">
-                      <p className="text-xs font-medium text-slate-700 mb-1">Peak Performance</p>
-                      <p className="text-sm text-slate-900 font-medium">{ti.peakLabel}</p>
-                    </div>
+          {/* Reasoning - Why This Matters & Key Differences */}
+          {aiInsights && (aiInsights.whyThisMatters || aiInsights.keyDifferences || aiInsights.volatilityAnalysis) && (
+            <section className="bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-lg p-5 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full" />
+                Why This Comparison Matters
+              </h2>
+              <div className="space-y-4">
+                {aiInsights.whyThisMatters && (
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
+                    <h3 className="font-semibold text-emerald-800 mb-2 text-sm uppercase tracking-wide">Context</h3>
+                    <p className="text-slate-700 leading-relaxed">{aiInsights.whyThisMatters}</p>
                   </div>
-                </div>
+                )}
+                {aiInsights.keyDifferences && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 mb-2 text-sm uppercase tracking-wide">Key Differences</h3>
+                    <p className="text-slate-700 leading-relaxed">{aiInsights.keyDifferences}</p>
+                  </div>
+                )}
+                {aiInsights.volatilityAnalysis && (
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+                    <h3 className="font-semibold text-amber-800 mb-2 text-sm uppercase tracking-wide">Trend Behavior</h3>
+                    <p className="text-slate-700 leading-relaxed">{aiInsights.volatilityAnalysis}</p>
+                  </div>
+                )}
               </div>
-            ))}
-          </section>
+            </section>
+          )}
 
           {/* Search Interest Breakdown */}
-          <SearchBreakdown series={series} termA={keyA} termB={keyB} />
+          <SearchBreakdown
+            series={series as any[]}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
 
-          {/* Prediction */}
-          <section className="rounded-xl sm:rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-md p-5 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              🔮 Where This Is Heading
-            </h2>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed">{insight.prediction}</p>
-          </section>
+          {/* Historical Timeline */}
+          <HistoricalTimeline
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            series={series as any[]}
+          />
+
+          {/* What This Means For You - Practical Implications */}
+          {aiInsights?.practicalImplications && (
+            <AIPracticalImplications
+              practicalImplications={aiInsights.practicalImplications}
+            />
+          )}
         </div>
 
         {/* Sidebar */}
@@ -828,44 +570,12 @@ export default async function ComparePage({
         </aside>
       </div>
 
-      {/* Deeper Insights Section */}
-      {contentEngineResult && (
-        <div className="border-t-2 border-slate-200 pt-8 space-y-6">
-          <div className="text-center mb-2">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
-              Deeper Insights
-            </h2>
-            <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto mt-2">
-              Advanced pattern detection with real event analysis from multiple verified sources
-            </p>
-          </div>
-          <ContentEngineInsights
-            narrative={contentEngineResult.narrative}
-            terms={actualTerms}
-          />
-        </div>
-      )}
-
-      {/* Historical Timeline - Key moments */}
-      <HistoricalTimeline
-        termA={actualTerms[0]}
-        termB={actualTerms[1]}
-        series={series as any[]}
-      />
-
       {/* Geographic Breakdown - Regional preferences */}
       <GeographicBreakdown
         geoData={geographicData}
         termA={actualTerms[0]}
         termB={actualTerms[1]}
       />
-
-      {/* AI Practical Implications - Actionable Insights */}
-      {aiInsights?.practicalImplications && (
-        <AIPracticalImplications
-          practicalImplications={aiInsights.practicalImplications}
-        />
-      )}
 
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">

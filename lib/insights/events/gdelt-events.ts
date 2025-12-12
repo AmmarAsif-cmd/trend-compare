@@ -40,8 +40,10 @@ export async function searchGDELTEvents(
     const starttime = formatGDELTDate(startDate);
     const endtime = formatGDELTDate(endDate);
 
-    // Build query
-    const query = keywords.join(' OR ');
+    // Build query - GDELT requires OR'd terms wrapped in parentheses
+    const query = keywords.length > 1 
+      ? `(${keywords.join(' OR ')})` 
+      : keywords[0];
 
     // GDELT DOC API v2
     const apiUrl = `https://api.gdeltproject.org/api/v2/doc/doc?` +

@@ -13,8 +13,8 @@ import type {
   SourceHealth,
   DataSourceType,
 } from './types';
+import { GoogleTrendsAdapter } from './adapters/google-trends';
 import { RedditAdapter } from './adapters/reddit';
-import { WikipediaAdapter } from './adapters/wikipedia';
 import { GitHubAdapter } from './adapters/github';
 
 const DEFAULT_FALLBACK_CONFIG: FallbackConfig = {
@@ -24,7 +24,6 @@ const DEFAULT_FALLBACK_CONFIG: FallbackConfig = {
   weights: {
     'google-trends': 1.0,
     'reddit': 0.8,
-    'wikipedia': 0.7,
     'github': 0.6,
     'hackernews': 0.5,
   },
@@ -40,10 +39,10 @@ export class DataOrchestrator {
     this.adapters = new Map();
     this.healthCache = new Map();
 
-    // Initialize adapters
-    this.registerAdapter(new RedditAdapter());
-    this.registerAdapter(new WikipediaAdapter());
-    this.registerAdapter(new GitHubAdapter());
+    // Initialize adapters (in priority order)
+    this.registerAdapter(new GoogleTrendsAdapter()); // Priority 1 - most reliable
+    this.registerAdapter(new RedditAdapter());       // Priority 2
+    this.registerAdapter(new GitHubAdapter());       // Priority 3
   }
 
   /**
