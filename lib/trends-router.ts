@@ -119,7 +119,6 @@ export async function getDataSources(
         // Convert source IDs to display names
         const displayNames: Record<string, string> = {
           "google-trends": "Google Trends",
-          "reddit": "Reddit",
           "wikipedia": "Wikipedia",
           "github": "GitHub",
         };
