@@ -14,7 +14,6 @@ import type {
   DataSourceType,
 } from './types';
 import { GoogleTrendsAdapter } from './adapters/google-trends';
-import { GitHubAdapter } from './adapters/github';
 
 const DEFAULT_FALLBACK_CONFIG: FallbackConfig = {
   strategy: 'priority', // Try sources in priority order
@@ -22,8 +21,6 @@ const DEFAULT_FALLBACK_CONFIG: FallbackConfig = {
   combineMethod: 'weighted',
   weights: {
     'google-trends': 1.0,
-    'github': 0.6,
-    'hackernews': 0.5,
   },
 };
 
@@ -38,9 +35,8 @@ export class DataOrchestrator {
     this.healthCache = new Map();
 
     // Initialize adapters (in priority order)
-    this.registerAdapter(new GoogleTrendsAdapter()); // Priority 1 - most reliable
-    // Reddit adapter removed - no longer used as data source
-    this.registerAdapter(new GitHubAdapter());       // Priority 2
+    this.registerAdapter(new GoogleTrendsAdapter()); // Primary source for trend data
+    // Note: Category-specific sources (YouTube, TMDB, Spotify, etc.) are handled separately
   }
 
   /**

@@ -103,33 +103,8 @@ export async function getDataSources(
   const mode = process.env.TRENDS_MODE?.toLowerCase() ?? "mock";
 
   if (mode === "google") {
-    try {
-      // Get multi-source data to see which sources succeeded
-      const multiSourceData = await getMultiSourceData(terms, options);
-
-      const sources = new Set<string>();
-      if (multiSourceData.termA) {
-        multiSourceData.termA.metadata.sourcesUsed.forEach((s) => sources.add(s));
-      }
-      if (multiSourceData.termB) {
-        multiSourceData.termB.metadata.sourcesUsed.forEach((s) => sources.add(s));
-      }
-
-      if (sources.size > 0) {
-        // Convert source IDs to display names
-        const displayNames: Record<string, string> = {
-          "google-trends": "Google Trends",
-          "wikipedia": "Wikipedia",
-          "github": "GitHub",
-        };
-
-        return Array.from(sources).map((s) => displayNames[s] || s);
-      }
-    } catch (error) {
-      console.error("[Data Sources] Failed to get sources:", error);
-    }
-
-    // Fallback to Google Trends only
+    // For the main chart, we always use Google Trends data
+    // Multi-source data is used for TrendArc Score, not the chart
     return ["Google Trends"];
   }
 
