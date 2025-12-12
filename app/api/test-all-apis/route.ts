@@ -21,7 +21,7 @@ export async function GET() {
       results.apis.youtube = {
         status: 'success',
         configured: true,
-        test: `Found ${testVideo.items.length} videos`,
+        test: `Found ${testVideo.videos.length} videos`,
       };
     } else {
       results.apis.youtube = {
