@@ -4,6 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import TopLoadingBar from "@/components/TopLoadingBar";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Script from "next/script";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "TrendArc — Compare search interest for any two topics",
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased flex flex-col">
-        <TopLoadingBar />
+        <Suspense fallback={null}>
+          <TopLoadingBar />
+        </Suspense>
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <footer className="bg-white border-t border-slate-200">
