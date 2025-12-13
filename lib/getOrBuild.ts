@@ -174,6 +174,7 @@ export async function getOrBuildComparison({
         series: series as any,
         stats,
         ai,
+        category: null,
         dataHash,
         createdAt: new Date(),
         updatedAt: new Date(),
