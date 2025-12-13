@@ -193,7 +193,7 @@ export async function getCacheStats(): Promise<{
     const bySource: Record<string, number> = {};
     let totalConfidence = 0;
 
-    all.forEach(item => {
+    all.forEach((item: { category: string; confidence: number; source: string }) => {
       byCategory[item.category] = (byCategory[item.category] || 0) + 1;
       bySource[item.source] = (bySource[item.source] || 0) + 1;
       totalConfidence += item.confidence;
