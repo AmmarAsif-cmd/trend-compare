@@ -14,6 +14,7 @@ type Comparison = {
   series: any;
   stats: any;
   ai: any;
+  category: string | null;
   timeframe: string;
   geo: string;
   dataHash: string;
@@ -30,6 +31,7 @@ export type ComparisonPayload = {
   series: SeriesPoint[];
   stats: Stats;
   ai: AICopy | null;
+  category: string | null;
   dataHash: string;
   createdAt: Date;
   updatedAt: Date;
@@ -113,6 +115,7 @@ function normalizeRow(row: Comparison): ComparisonPayload | null {
     series,
     stats,
     ai,
+    category: row.category,
     dataHash: row.dataHash,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
