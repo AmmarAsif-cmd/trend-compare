@@ -283,6 +283,7 @@ export default async function ComparePage({
         enableBestBuy: !!process.env.BESTBUY_API_KEY,
         enableSpotify: !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET),
         enableSteam: true, // Steam API works without a key
+        cachedCategory: row.category, // Pass cached category from database (TIER 1 caching)
       }
     );
     
