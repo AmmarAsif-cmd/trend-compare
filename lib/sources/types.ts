@@ -3,7 +3,7 @@
  * Unified interface for different data sources
  */
 
-export type DataSourceType = 'google-trends' | 'youtube' | 'tmdb' | 'omdb' | 'bestbuy' | 'spotify' | 'steam';
+export type DataSourceType = 'google-trends' | 'youtube' | 'tmdb' | 'omdb' | 'bestbuy' | 'spotify' | 'steam' | 'wikipedia';
 
 export type SourceStatus = 'active' | 'degraded' | 'failed' | 'rate-limited';
 
