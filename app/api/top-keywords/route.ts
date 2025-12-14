@@ -2,53 +2,57 @@ import { NextResponse } from "next/server";
 import { getRealTimeTrending } from "@/lib/real-time-trending";
 import { isValidKeyword } from "@/lib/keyword-validator";
 
-export async function GET() {
+/**
+ * API endpoint for real-time trending keywords from Google Trends
+ * GET /api/top-keywords?refresh=true - Force refresh cache
+ */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.get('refresh') === 'true';
+  
   try {
-    // Fetch trending keywords from Google Trends
+    // Force refresh cache if requested
+    if (forceRefresh) {
+      const { refreshTrendingCache } = await import('@/lib/real-time-trending');
+      await refreshTrendingCache('US');
+    }
+    
+    // Fetch real-time trending keywords from Google Trends
     const trendingItems = await getRealTimeTrending('US', 20);
 
-    // Extract and validate keywords
-    const keywords: Array<{ keyword: string; traffic: string }> = [];
-    const seen = new Set<string>();
-
-    for (const item of trendingItems) {
-      // Validate keyword
-      if (!isValidKeyword(item.keyword)) {
-        continue;
-      }
-
-      const lowerKeyword = item.keyword.toLowerCase();
-
-      // Avoid duplicates
-      if (seen.has(lowerKeyword)) {
-        continue;
-      }
-
-      seen.add(lowerKeyword);
-      keywords.push({
+    // Format for frontend
+    const keywords = trendingItems
+      .filter(item => isValidKeyword(item.keyword))
+      .map(item => ({
         keyword: item.keyword,
         traffic: item.formattedTraffic || 'Trending',
-      });
-
-      // Limit to 10 keywords
-      if (keywords.length >= 10) {
-        break;
-      }
-    }
+        relatedQueries: item.relatedQueries || [],
+      }))
+      .slice(0, 10); // Top 10
 
     return NextResponse.json({
       keywords,
       lastUpdate: new Date().toISOString(),
-      source: "Google Trends (Live)",
+      source: "Google Trends (Real-Time)",
+      cacheDuration: "10 minutes",
     });
   } catch (error) {
-    console.error("Error fetching top keywords:", error);
+    console.error("[Top Keywords API] Error:", error);
+    
+    // Fallback keywords
+    const fallbackKeywords = [
+      { keyword: 'ChatGPT', traffic: '2M+', relatedQueries: ['AI', 'OpenAI'] },
+      { keyword: 'iPhone 16', traffic: '500K+', relatedQueries: ['Apple', 'iOS'] },
+      { keyword: 'Netflix', traffic: '1M+', relatedQueries: ['Shows', 'Movies'] },
+      { keyword: 'Bitcoin', traffic: '350K+', relatedQueries: ['Crypto', 'BTC'] },
+      { keyword: 'Weather', traffic: '400K+', relatedQueries: ['Forecast', 'Temperature'] },
+    ];
 
-    // Return empty array on error
     return NextResponse.json({
-      keywords: [],
+      keywords: fallbackKeywords,
       lastUpdate: new Date().toISOString(),
-      source: "Error",
+      source: "Fallback Data",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

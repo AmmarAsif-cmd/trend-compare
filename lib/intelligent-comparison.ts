@@ -19,6 +19,8 @@ import { bestBuyAdapter } from './sources/adapters/bestbuy';
 import { spotifyAdapter } from './sources/adapters/spotify';
 import { steamAdapter } from './sources/adapters/steam';
 import type { SeriesPoint } from './trends';
+import { withTimeout } from './utils/timeout';
+import { retryWithBackoff } from './utils/retry';
 
 export type IntelligentComparisonResult = {
   category: CategoryResult;
@@ -48,12 +50,45 @@ export type IntelligentComparisonResult = {
       termA: { reviewScore: number; players: number; name: string } | null;
       termB: { reviewScore: number; players: number; name: string } | null;
     };
+    wikipedia?: {
+      termA: { avgPageviews: number; articleTitle: string } | null;
+      termB: { avgPageviews: number; articleTitle: string } | null;
+    };
   };
   performance: {
     totalMs: number;
     sourcesQueried: string[];
   };
 };
+
+/**
+ * Wrap API call with timeout and retry
+ */
+async function safeAPICall<T>(
+  fn: () => Promise<T>,
+  apiName: string,
+  timeoutMs: number = 8000
+): Promise<T | null> {
+  try {
+    return await retryWithBackoff(
+      () => withTimeout(fn(), timeoutMs, `${apiName} request timed out`),
+      {
+        maxRetries: 2,
+        initialDelay: 1000,
+        shouldRetry: (error) => {
+          // Retry on timeout or network errors
+          return error?.name === 'TimeoutError' || 
+                 error?.code === 'ECONNRESET' || 
+                 error?.code === 'ETIMEDOUT' ||
+                 (error?.status >= 500 && error?.status < 600);
+        }
+      }
+    );
+  } catch (error) {
+    console.warn(`[IntelligentComparison] ${apiName} fetch failed after retries:`, error);
+    return null;
+  }
+}
 
 /**
  * Calculate stats from series data for a specific term
@@ -115,6 +150,7 @@ function calculateSeriesStats(series: SeriesPoint[], termName: string, otherTerm
 
 /**
  * Run an intelligent comparison with multi-source data
+ * Wrapped with timeout to prevent hanging
  */
 export async function runIntelligentComparison(
   terms: string[],
@@ -126,6 +162,29 @@ export async function runIntelligentComparison(
     enableSpotify?: boolean;
     enableSteam?: boolean;
     cachedCategory?: string | null; // Previously detected category from database
+  } = {}
+): Promise<IntelligentComparisonResult> {
+  // Wrap entire comparison in timeout (30 seconds max)
+  return withTimeout(
+    runIntelligentComparisonInternal(terms, series, options),
+    30000,
+    'Comparison took too long to complete'
+  );
+}
+
+/**
+ * Internal comparison function (without timeout wrapper)
+ */
+async function runIntelligentComparisonInternal(
+  terms: string[],
+  series: SeriesPoint[],
+  options: {
+    enableYouTube?: boolean;
+    enableTMDB?: boolean;
+    enableBestBuy?: boolean;
+    enableSpotify?: boolean;
+    enableSteam?: boolean;
+    cachedCategory?: string | null;
   } = {}
 ): Promise<IntelligentComparisonResult> {
   const startTime = Date.now();
@@ -265,7 +324,13 @@ export async function runIntelligentComparison(
   const statsA = calculateSeriesStats(series, terms[0], terms[1]);
   const statsB = calculateSeriesStats(series, terms[1], terms[0]);
 
-  // Initialize metrics
+  // Validate stats before using
+  if (!statsA || !statsB || typeof statsA.avgInterest !== 'number' || typeof statsB.avgInterest !== 'number') {
+    console.error('[IntelligentComparison] Invalid stats calculated:', { statsA, statsB });
+    throw new Error('Failed to calculate base statistics from series data');
+  }
+
+  // Initialize metrics - googleTrends is REQUIRED
   const metricsA: SourceMetrics = {
     googleTrends: statsA,
   };
@@ -280,13 +345,19 @@ export async function runIntelligentComparison(
   const fetchPromises: Promise<void>[] = [];
 
   // Determine if we should fetch directly (category known) or use cached API results
-  // Use direct fetch if: AI detection succeeded
-  // Use cached results only if: API probing was used (smartCategory exists)
-  const shouldFetchDirectly = aiResult && aiResult.success && aiResult.confidence >= 70;
+  // Fetch directly if:
+  // 1. AI detection succeeded (aiResult exists and is confident)
+  // 2. OR category is cached with high confidence (from comparison or keyword cache)
+  // Use cached API results only if: API probing was used (smartCategory exists)
+  const shouldFetchDirectly = 
+    (aiResult && aiResult.success && aiResult.confidence >= 70) ||
+    (cacheSource !== 'none' && category.confidence >= 70);
 
   if (shouldFetchDirectly) {
-    // AI told us the category - fetch from relevant APIs directly
+    // Category is known (from AI or cache) - fetch from relevant APIs directly
     const apisToQuery = getAPIsForCategory(category.category);
+    
+    console.log(`[IntelligentComparison] 🔍 Fetching APIs for category "${category.category}" (source: ${cacheSource}):`, apisToQuery);
 
     // Fetch Spotify data (for music)
     if (apisToQuery.spotify && enableSpotify && process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
@@ -294,9 +365,11 @@ export async function runIntelligentComparison(
         (async () => {
           try {
             const [artistA, artistB] = await Promise.all([
-              spotifyAdapter.searchArtist(terms[0]),
-              spotifyAdapter.searchArtist(terms[1]),
+              safeAPICall(() => spotifyAdapter.searchArtist(terms[0]), 'Spotify', 8000),
+              safeAPICall(() => spotifyAdapter.searchArtist(terms[1]), 'Spotify', 8000),
             ]);
+            
+            if (!artistA && !artistB) return; // Both failed, skip
 
             if (artistA) {
               metricsA.spotify = {
@@ -332,9 +405,11 @@ export async function runIntelligentComparison(
         (async () => {
           try {
             const [movieA, movieB] = await Promise.all([
-              tmdbAdapter.searchMovie(terms[0]),
-              tmdbAdapter.searchMovie(terms[1]),
+              safeAPICall(() => tmdbAdapter.searchMovie(terms[0]), 'TMDB', 8000),
+              safeAPICall(() => tmdbAdapter.searchMovie(terms[1]), 'TMDB', 8000),
             ]);
+            
+            if (!movieA && !movieB) return; // Both failed, skip
 
             if (movieA) {
               metricsA.tmdb = {
@@ -372,9 +447,11 @@ export async function runIntelligentComparison(
         (async () => {
           try {
             const [gameA, gameB] = await Promise.all([
-              steamAdapter.searchGame(terms[0]),
-              steamAdapter.searchGame(terms[1]),
+              safeAPICall(() => steamAdapter.searchGame(terms[0]), 'Steam', 8000),
+              safeAPICall(() => steamAdapter.searchGame(terms[1]), 'Steam', 8000),
             ]);
+            
+            if (!gameA && !gameB) return; // Both failed, skip
 
             if (gameA) {
               metricsA.steam = {
@@ -412,9 +489,11 @@ export async function runIntelligentComparison(
         (async () => {
           try {
             const [productA, productB] = await Promise.all([
-              bestBuyAdapter.searchProduct(terms[0]),
-              bestBuyAdapter.searchProduct(terms[1]),
+              safeAPICall(() => bestBuyAdapter.searchProduct(terms[0]), 'Best Buy', 8000),
+              safeAPICall(() => bestBuyAdapter.searchProduct(terms[1]), 'Best Buy', 8000),
             ]);
+            
+            if (!productA && !productB) return; // Both failed, skip
 
             if (productA) {
               metricsA.bestbuy = {
@@ -573,33 +652,139 @@ export async function runIntelligentComparison(
     fetchPromises.push(
       (async () => {
         try {
+          console.log('[IntelligentComparison] 🔍 Fetching YouTube data for:', terms[0], 'vs', terms[1]);
           const [ytA, ytB] = await Promise.all([
-            youtubeAdapter.getVideoStats(terms[0]),
-            youtubeAdapter.getVideoStats(terms[1]),
+            safeAPICall(() => youtubeAdapter.getVideoStats(terms[0]), 'YouTube', 10000).catch(err => {
+              // Check if it's a quota error
+              if (err?.name === 'QuotaExceededError' || err?.message?.includes('quota')) {
+                console.warn(`[IntelligentComparison] ⚠️ YouTube quota exceeded. Skipping YouTube data for this comparison.`);
+                console.warn(`[IntelligentComparison] 💡 YouTube free tier allows ~100 searches/day. Consider enabling billing for higher limits.`);
+              } else {
+                console.error(`[IntelligentComparison] ❌ YouTube failed for "${terms[0]}":`, err);
+              }
+              return null;
+            }),
+            safeAPICall(() => youtubeAdapter.getVideoStats(terms[1]), 'YouTube', 10000).catch(err => {
+              // Check if it's a quota error
+              if (err?.name === 'QuotaExceededError' || err?.message?.includes('quota')) {
+                console.warn(`[IntelligentComparison] ⚠️ YouTube quota exceeded. Skipping YouTube data for this comparison.`);
+              } else {
+                console.error(`[IntelligentComparison] ❌ YouTube failed for "${terms[1]}":`, err);
+              }
+              return null;
+            }),
           ]);
           
+          // Log what we got
+          console.log('[IntelligentComparison] YouTube results:', {
+            termA: ytA ? `✅ ${ytA.totalVideos} videos, ${ytA.totalViews.toLocaleString()} views` : '❌ Failed',
+            termB: ytB ? `✅ ${ytB.totalVideos} videos, ${ytB.totalViews.toLocaleString()} views` : '❌ Failed',
+          });
+          
+          // Handle null results - set metrics even if one fails
+          const ytAStats = ytA || { totalViews: 0, avgViews: 0, totalVideos: 0, totalLikes: 0 };
+          const ytBStats = ytB || { totalViews: 0, avgViews: 0, totalVideos: 0, totalLikes: 0 };
+          
+          // Only skip if BOTH failed AND we have no data
+          if (!ytA && !ytB && ytAStats.totalViews === 0 && ytBStats.totalViews === 0) {
+            console.warn('[IntelligentComparison] ⚠️ YouTube: Both terms returned no data');
+            console.warn('[IntelligentComparison] 💡 Possible reasons:');
+            console.warn('  - API key invalid or quota exceeded');
+            console.warn('  - Search terms too specific or no videos found');
+            console.warn('  - Network/API error');
+            return;
+          }
+          
           metricsA.youtube = {
-            totalViews: ytA.totalViews,
-            avgViews: ytA.avgViews,
-            videoCount: ytA.totalVideos,
-            engagement: ytA.totalViews > 0 ? ytA.totalLikes / ytA.totalViews : 0,
+            totalViews: ytAStats.totalViews,
+            avgViews: ytAStats.avgViews,
+            videoCount: ytAStats.totalVideos,
+            engagement: ytAStats.totalViews > 0 ? ytAStats.totalLikes / ytAStats.totalViews : 0,
           };
           
           metricsB.youtube = {
-            totalViews: ytB.totalViews,
-            avgViews: ytB.avgViews,
-            videoCount: ytB.totalVideos,
-            engagement: ytB.totalViews > 0 ? ytB.totalLikes / ytB.totalViews : 0,
+            totalViews: ytBStats.totalViews,
+            avgViews: ytBStats.avgViews,
+            videoCount: ytBStats.totalVideos,
+            engagement: ytBStats.totalViews > 0 ? ytBStats.totalLikes / ytBStats.totalViews : 0,
           };
           
           enrichedData.youtube = {
-            termA: { views: ytA.totalViews, videos: ytA.totalVideos },
-            termB: { views: ytB.totalViews, videos: ytB.totalVideos },
+            termA: { views: ytAStats.totalViews, videos: ytAStats.totalVideos },
+            termB: { views: ytBStats.totalViews, videos: ytBStats.totalVideos },
           };
           
           sourcesQueried.push('YouTube');
+          console.log('[IntelligentComparison] ✅ YouTube data fetched:', {
+            termA: { views: ytAStats.totalViews, videos: ytAStats.totalVideos, engagement: metricsA.youtube.engagement },
+            termB: { views: ytBStats.totalViews, videos: ytBStats.totalVideos, engagement: metricsB.youtube.engagement },
+          });
         } catch (error) {
-          console.warn('[IntelligentComparison] YouTube fetch failed:', error);
+          console.warn('[IntelligentComparison] ❌ YouTube fetch failed:', error);
+        }
+      })()
+    );
+  } else {
+    console.warn('[IntelligentComparison] ⚠️ YouTube disabled or API key missing');
+  }
+
+  // Wikipedia data (for general topics and all categories - FREE, no API key needed)
+  // Wikipedia provides pageview data which is great for general topics
+  if (category.category === 'general' || category.category === 'people' || category.category === 'places' || category.category === 'brands') {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const { wikipediaAdapter } = await import('./sources/adapters/wikipedia');
+          console.log('[IntelligentComparison] 🔍 Fetching Wikipedia data for:', terms[0], 'vs', terms[1]);
+          
+          const [wikiA, wikiB] = await Promise.all([
+            safeAPICall(() => wikipediaAdapter.getArticleStats(terms[0]), 'Wikipedia', 8000),
+            safeAPICall(() => wikipediaAdapter.getArticleStats(terms[1]), 'Wikipedia', 8000),
+          ]);
+          
+          if (wikiA && wikiA.articleExists && wikiA.avgPageviews > 0) {
+            metricsA.wikipedia = {
+              avgPageviews: wikiA.avgPageviews,
+              totalPageviews: wikiA.totalPageviews,
+              articleExists: true,
+            };
+            enrichedData.wikipedia = {
+              termA: { 
+                avgPageviews: wikiA.avgPageviews, 
+                articleTitle: wikiA.articleTitle || terms[0] 
+              },
+              termB: null,
+            };
+            sourcesQueried.push('Wikipedia');
+            console.log('[IntelligentComparison] ✅ Wikipedia data for term A:', {
+              article: wikiA.articleTitle,
+              avgPageviews: Math.round(wikiA.avgPageviews).toLocaleString(),
+            });
+          }
+          
+          if (wikiB && wikiB.articleExists && wikiB.avgPageviews > 0) {
+            metricsB.wikipedia = {
+              avgPageviews: wikiB.avgPageviews,
+              totalPageviews: wikiB.totalPageviews,
+              articleExists: true,
+            };
+            if (!enrichedData.wikipedia) {
+              enrichedData.wikipedia = { termA: null, termB: null };
+            }
+            enrichedData.wikipedia.termB = { 
+              avgPageviews: wikiB.avgPageviews, 
+              articleTitle: wikiB.articleTitle || terms[1] 
+            };
+            if (!sourcesQueried.includes('Wikipedia')) {
+              sourcesQueried.push('Wikipedia');
+            }
+            console.log('[IntelligentComparison] ✅ Wikipedia data for term B:', {
+              article: wikiB.articleTitle,
+              avgPageviews: Math.round(wikiB.avgPageviews).toLocaleString(),
+            });
+          }
+        } catch (error) {
+          console.warn('[IntelligentComparison] ❌ Wikipedia fetch failed:', error);
         }
       })()
     );
@@ -608,10 +793,17 @@ export async function runIntelligentComparison(
   // All specialized APIs (Spotify, TMDB, Steam, Best Buy) are now handled via cached results above
   // No duplicate API calls needed!
 
-  // Wait for all enrichment data (only YouTube now)
+  // Wait for all enrichment data (YouTube + Wikipedia)
   await Promise.allSettled(fetchPromises);
 
   // Step 4: Calculate TrendArc Scores
+  // Ensure metrics have required googleTrends data
+  if (!metricsA.googleTrends || !metricsB.googleTrends) {
+    console.error('[IntelligentComparison] Missing googleTrends in metrics:', { metricsA, metricsB });
+    throw new Error('Failed to calculate scores - missing required Google Trends data');
+  }
+  
+  // Ensure category is valid (calculateTrendArcScore handles fallback internally)
   const scoreA = calculateTrendArcScore(metricsA, category.category);
   const scoreB = calculateTrendArcScore(metricsB, category.category);
 

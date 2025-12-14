@@ -36,6 +36,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Debug logging (remove in production)
+    const hasPasswordHash = !!process.env.ADMIN_PASSWORD_HASH;
+    const hasPasswordPlain = !!process.env.ADMIN_PASSWORD;
+    console.log('[Login API] Password check:', {
+      hasPasswordHash,
+      hasPasswordPlain,
+      passwordLength: password?.length,
+      hashLength: process.env.ADMIN_PASSWORD_HASH?.length,
+    });
+
     const isValid = verifyPassword(password);
 
     if (!isValid) {
@@ -44,10 +54,16 @@ export async function POST(request: NextRequest) {
 
       const attemptsLeft = 5 - (getRemainingLockoutTime(clientIP) > 0 ? 5 : 1);
 
+      // More helpful error message
+      let errorMessage = "Invalid password";
+      if (!hasPasswordHash && !hasPasswordPlain) {
+        errorMessage = "Admin password not configured. Please set ADMIN_PASSWORD in .env.local";
+      }
+
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid password",
+          error: errorMessage,
           attemptsLeft: Math.max(0, attemptsLeft),
         },
         { status: 401 }

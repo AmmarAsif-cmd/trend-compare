@@ -14,7 +14,7 @@ import FAQSection from "@/components/FAQSection";
 import TopThisWeekServer from "@/components/TopThisWeekServer";
 import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
-import CompareStats from "@/components/CompareStats";
+import AdSense from "@/components/AdSense";
 import SocialShareButtons from "@/components/SocialShareButtons";
 import StructuredData from "@/components/StructuredData";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
@@ -27,7 +27,10 @@ import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
 import ComparisonVerdict from "@/components/ComparisonVerdict";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
+import PeakEventCitations from "@/components/PeakEventCitations";
 import { runIntelligentComparison } from "@/lib/intelligent-comparison";
+import { InsufficientDataError, getUserFriendlyMessage } from "@/lib/utils/errors";
+import { detectPeaksWithEvents } from "@/lib/peak-event-detector";
 
 // Revalidate every 10 minutes for fresh data while maintaining performance
 export const revalidate = 600; // 10 minutes
@@ -180,12 +183,64 @@ export default async function ComparePage({
   const timeframe = tf ?? "12m";
   const region = geo ?? "";
 
-  const row = await getOrBuildComparison({
-    slug: canonical,
-    terms,
-    timeframe,
-    geo: region,
-  });
+  let row;
+  try {
+    row = await getOrBuildComparison({
+      slug: canonical,
+      terms,
+      timeframe,
+      geo: region,
+    });
+  } catch (error) {
+    // Handle InsufficientDataError with helpful error page
+    if (error instanceof InsufficientDataError) {
+      return (
+        <main className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-4">
+              <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              {terms.map(prettyTerm).join(" vs ")}
+            </h1>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              {error.userMessage}
+            </p>
+            <div className="mt-8 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-2xl mx-auto">
+                <h3 className="font-semibold text-blue-900 mb-2">Suggestions:</h3>
+                <ul className="list-disc list-inside space-y-1 text-blue-800 text-sm">
+                  <li>Try a different timeframe (e.g., "5y" for longer trends)</li>
+                  <li>Check if the terms are spelled correctly</li>
+                  <li>Try more general terms (e.g., "iPhone" instead of "iPhone 15 Pro Max")</li>
+                  <li>Some terms may not have enough search volume to compare</li>
+                </ul>
+              </div>
+              <div className="flex gap-4 justify-center">
+                <a
+                  href="/"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Back to Home
+                </a>
+                <a
+                  href={`/compare/${canonical}?tf=5y`}
+                  className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                >
+                  Try 5 Year Timeframe
+                </a>
+              </div>
+            </div>
+          </div>
+        </main>
+      );
+    }
+    // Re-throw other errors
+    throw error;
+  }
+  
   if (!row) return notFound();
 
   // Use terms from database (preserves special characters like C++, Node.js)
@@ -217,15 +272,111 @@ export default async function ComparePage({
   // Get data sources for transparency badge
   const dataSources = await getDataSources(actualTerms, { timeframe, geo });
 
+  // compute totals and shares for stats (needed for fallback)
+  const keyA = actualTerms[0];
+  const keyB = actualTerms[1];
+
+  const aVals = (series as any[]).map((row) => Number(row[keyA] ?? 0));
+  const bVals = (series as any[]).map((row) => Number(row[keyB] ?? 0));
+
+  const totalA = aVals.reduce((sum, v) => sum + v, 0);
+  const totalB = bVals.reduce((sum, v) => sum + v, 0);
+  const totalSearches = totalA + totalB;
+
+  let aShare = 0;
+  let bShare = 0;
+  if (totalSearches > 0) {
+    aShare = totalA / totalSearches;
+    bShare = totalB / totalSearches;
+  }
+
+  // Run intelligent comparison FIRST (needed for AI insights)
+  let intelligentComparison: any = null;
+  let verdictData;
+
+  try {
+    intelligentComparison = await runIntelligentComparison(
+      actualTerms,
+      series as any[],
+      {
+        enableYouTube: !!process.env.YOUTUBE_API_KEY,
+        enableTMDB: !!process.env.TMDB_API_KEY,
+        enableBestBuy: !!process.env.BESTBUY_API_KEY,
+        enableSpotify: !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET),
+        enableSteam: true, // Steam API works without a key
+        cachedCategory: row.category, // Pass cached category from database (TIER 1 caching)
+      }
+    );
+    
+    // Build verdict data from intelligent comparison
+    const termAScore = intelligentComparison.scores.termA.overall;
+    const termBScore = intelligentComparison.scores.termB.overall;
+    const actualWinner = termAScore >= termBScore ? actualTerms[0] : actualTerms[1];
+    const actualLoser = actualWinner === actualTerms[0] ? actualTerms[1] : actualTerms[0];
+    
+    verdictData = {
+      winner: actualWinner,
+      loser: actualLoser,
+      winnerScore: Math.max(termAScore, termBScore),
+      loserScore: Math.min(termAScore, termBScore),
+      margin: intelligentComparison.verdict.margin,
+      confidence: intelligentComparison.verdict.confidence,
+      headline: intelligentComparison.verdict.headline,
+      recommendation: intelligentComparison.verdict.recommendation,
+      evidence: intelligentComparison.verdict.evidence || [],
+      category: intelligentComparison.category.category,
+      sources: intelligentComparison.performance.sourcesQueried || ['Google Trends'],
+    };
+  } catch (error) {
+    console.error('[Intelligent Comparison] Error:', error);
+    // Fallback to basic verdict based on Google Trends data
+    const winner = aShare > bShare ? actualTerms[0] : actualTerms[1];
+    const loser = winner === actualTerms[0] ? actualTerms[1] : actualTerms[0];
+    const margin = Math.abs(aShare - bShare) * 100;
+    
+    // Create fallback intelligentComparison structure for AI insights
+    intelligentComparison = {
+      scores: {
+        termA: { overall: Math.round(Math.max(aShare, bShare) * 100), breakdown: { searchInterest: Math.round(Math.max(aShare, bShare) * 100), socialBuzz: 50, authority: 50, momentum: 50 } },
+        termB: { overall: Math.round(Math.min(aShare, bShare) * 100), breakdown: { searchInterest: Math.round(Math.min(aShare, bShare) * 100), socialBuzz: 50, authority: 50, momentum: 50 } },
+      },
+      verdict: { margin, confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80, headline: '', recommendation: '', evidence: [] },
+      category: { category: 'general' as const },
+      performance: { sourcesQueried: ['Google Trends'] },
+    };
+    
+    verdictData = {
+      winner,
+      loser,
+      winnerScore: Math.round(Math.max(aShare, bShare) * 100),
+      loserScore: Math.round(Math.min(aShare, bShare) * 100),
+      margin,
+      confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80,
+      headline: margin < 5 
+        ? `${prettyTerm(actualTerms[0])} and ${prettyTerm(actualTerms[1])} are virtually tied`
+        : `${prettyTerm(winner)} leads in search interest`,
+      recommendation: `Based on search trends, ${prettyTerm(winner)} shows ${margin >= 10 ? 'significantly' : 'slightly'} more interest.`,
+      evidence: ['Based on Google Trends data'],
+      category: 'general' as const,
+      sources: ['Google Trends'],
+    };
+  }
+
   // Run all async operations in parallel for faster loading ⚡
-  const [geographicData, aiInsights, aiInsightsError] = await Promise.all([
+  const [geographicData, aiInsights, aiInsightsError, peakEvents] = await Promise.all([
     // Get geographic breakdown (FREE - no API costs)
     getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
 
     // Get or generate AI insights with smart caching (cost-optimized)
+    // NOW INCLUDES MULTI-SOURCE DATA!
     (async () => {
       try {
-        const insightData = prepareInsightData(actualTerms[0], actualTerms[1], series as any[]);
+        const insightData = prepareInsightData(
+          actualTerms[0], 
+          actualTerms[1], 
+          series as any[],
+          intelligentComparison // Pass full multi-source comparison data
+        );
         const result = await getOrGenerateAIInsights(
           canonical || '',
           timeframe || '12m',
@@ -247,99 +398,34 @@ export default async function ComparePage({
       }
       return null;
     })(),
+
+    // Detect peaks and find event citations (runs in background, doesn't block)
+    detectPeaksWithEvents(series as any[], actualTerms, 20).catch(error => {
+      console.warn('[Peak Detection] Error detecting peaks:', error);
+      return [];
+    }),
   ]);
 
   // Note: Category and AI insights are now saved automatically by getOrGenerateAIInsights()
-
-  // compute totals and shares for stats
-  const keyA = actualTerms[0];
-  const keyB = actualTerms[1];
-
-  const aVals = (series as any[]).map((row) => Number(row[keyA] ?? 0));
-  const bVals = (series as any[]).map((row) => Number(row[keyB] ?? 0));
-
-  const totalA = aVals.reduce((sum, v) => sum + v, 0);
-  const totalB = bVals.reduce((sum, v) => sum + v, 0);
-  const totalSearches = totalA + totalB;
-
-  let aShare = 0;
-  let bShare = 0;
-  if (totalSearches > 0) {
-    aShare = totalA / totalSearches;
-    bShare = totalB / totalSearches;
-  }
-
-  // Run intelligent multi-source comparison with error handling
-  let verdictData;
-  let intelligentComparison;
-
-  try {
-    intelligentComparison = await runIntelligentComparison(
-      actualTerms,
-      series as any[],
-      {
-        enableYouTube: !!process.env.YOUTUBE_API_KEY,
-        enableTMDB: !!process.env.TMDB_API_KEY,
-        enableBestBuy: !!process.env.BESTBUY_API_KEY,
-        enableSpotify: !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET),
-        enableSteam: true, // Steam API works without a key
-        cachedCategory: row.category, // Pass cached category from database (TIER 1 caching)
-      }
-    );
-    
-    // Build verdict data from intelligent comparison
-    verdictData = {
-      winner: intelligentComparison.verdict.winner,
-      loser: intelligentComparison.verdict.loser,
-      winnerScore: intelligentComparison.verdict.winnerScore.overall,
-      loserScore: intelligentComparison.verdict.loserScore.overall,
-      margin: intelligentComparison.verdict.margin,
-      confidence: intelligentComparison.verdict.confidence,
-      headline: intelligentComparison.verdict.headline,
-      recommendation: intelligentComparison.verdict.recommendation,
-      evidence: intelligentComparison.verdict.evidence || [],
-      category: intelligentComparison.category.category,
-      sources: intelligentComparison.performance.sourcesQueried || ['Google Trends'],
-    };
-  } catch (error) {
-    console.error('[Intelligent Comparison] Error:', error);
-    // Fallback to basic verdict based on Google Trends data
-    const winner = aShare > bShare ? actualTerms[0] : actualTerms[1];
-    const loser = winner === actualTerms[0] ? actualTerms[1] : actualTerms[0];
-    const margin = Math.abs(aShare - bShare) * 100;
-    
-    verdictData = {
-      winner,
-      loser,
-      winnerScore: Math.round(Math.max(aShare, bShare) * 100),
-      loserScore: Math.round(Math.min(aShare, bShare) * 100),
-      margin,
-      confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80,
-      headline: margin < 5 
-        ? `${prettyTerm(actualTerms[0])} and ${prettyTerm(actualTerms[1])} are virtually tied`
-        : `${prettyTerm(winner)} leads in search interest`,
-      recommendation: `Based on search trends, ${prettyTerm(winner)} shows ${margin >= 10 ? 'significantly' : 'slightly'} more interest.`,
-      evidence: ['Based on Google Trends data'],
-      category: 'general' as const,
-      sources: ['Google Trends'],
-    };
-  }
+  // Note: intelligentComparison and verdictData are now computed above, before AI insights
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6 lg:px-8 py-6">
+    <main className="mx-auto max-w-6xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <BackButton label="Back to Home" />
 
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
         {/* Main content */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 space-y-4 sm:space-y-6">
           {/* Header + insight */}
           <header className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
-                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
-                  {prettyTerm(actualTerms[0])} <span className="text-slate-400">vs</span> {prettyTerm(actualTerms[1])}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-2 sm:mb-3 leading-tight">
+                  <span className="block sm:inline">{prettyTerm(actualTerms[0])}</span>{" "}
+                  <span className="text-slate-400 text-xl sm:text-2xl lg:text-3xl">vs</span>{" "}
+                  <span className="block sm:inline">{prettyTerm(actualTerms[1])}</span>
                 </h1>
-                <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
+                <p className="text-sm sm:text-base lg:text-lg text-slate-600 leading-relaxed">
                   {ai?.metaDescription ??
                     `Compare ${prettyTerm(actualTerms[0])} and ${prettyTerm(
                       actualTerms[1],
@@ -419,16 +505,16 @@ export default async function ComparePage({
             </div>
           )}
 
-          {/* Chart */}
+          {/* Google Trends Chart - Search interest over time */}
           <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
             <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
               <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full" />
                 Search Interest Over Time
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
                 <span className="font-semibold">Google Trends</span> search volume on a 0-100 scale.
-                <span className="text-slate-500 ml-1">(Note: TrendArc Score above combines multiple data sources)</span>
+                <span className="text-slate-500 ml-1">This is the primary component (40-45% weight) of the TrendArc Score shown above.</span>
               </p>
               <div className="mt-3">
                 <DataSourceBadge sources={dataSources} />
@@ -453,12 +539,18 @@ export default async function ComparePage({
                   termB: intelligentComparison.scores.termB.breakdown.searchInterest,
                 },
                 {
-                  name: 'Social Buzz (YouTube' + (intelligentComparison.performance.sourcesQueried.includes('Spotify') ? ', Spotify' : '') + ')',
+                  name: 'Social Buzz (' + 
+                    (intelligentComparison.performance.sourcesQueried.includes('YouTube') ? 'YouTube' : '') +
+                    (intelligentComparison.performance.sourcesQueried.includes('YouTube') && intelligentComparison.performance.sourcesQueried.includes('Spotify') ? ', ' : '') +
+                    (intelligentComparison.performance.sourcesQueried.includes('Spotify') ? 'Spotify' : '') +
+                    (intelligentComparison.performance.sourcesQueried.includes('Wikipedia') ? 
+                      ((intelligentComparison.performance.sourcesQueried.includes('YouTube') || intelligentComparison.performance.sourcesQueried.includes('Spotify')) ? ', Wikipedia' : 'Wikipedia') : '') +
+                    ')',
                   termA: intelligentComparison.scores.termA.breakdown.socialBuzz,
                   termB: intelligentComparison.scores.termB.breakdown.socialBuzz,
                 },
                 // Only show Authority if we have authority sources (TMDB, Steam, Best Buy, OMDb, GitHub)
-                ...(intelligentComparison.performance.sourcesQueried.some(s =>
+                ...(intelligentComparison.performance.sourcesQueried.some((s: string) =>
                   ['TMDB', 'Steam', 'Best Buy', 'OMDb', 'GitHub'].includes(s)
                 ) ? [{
                   name: 'Authority' + (
@@ -480,6 +572,15 @@ export default async function ComparePage({
             />
           )}
 
+          {/* Peak Event Citations - Real events with citations */}
+          {peakEvents && peakEvents.length > 0 && (
+            <PeakEventCitations
+              peaks={peakEvents}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+          )}
+
           {/* AI Peak Explanations - Right After Chart */}
           {aiInsights?.peakExplanations && (
             <AIPeakExplanations
@@ -488,21 +589,6 @@ export default async function ComparePage({
               termB={actualTerms[1]}
             />
           )}
-
-          {/* Compare Stats */}
-          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl hover:shadow-2xl transition-all duration-300 p-4 sm:p-5 lg:p-6">
-            <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-              {prettyTerm(actualTerms[0])} vs {prettyTerm(actualTerms[1])}: The Numbers
-            </h2>
-            <CompareStats
-              totalSearches={totalSearches}
-              aLabel={prettyTerm(keyA)}
-              bLabel={prettyTerm(keyB)}
-              aShare={aShare}
-              bShare={bShare}
-            />
-          </section>
 
           {/* AI Prediction - Forecast */}
           {aiInsights?.prediction && (
@@ -562,11 +648,21 @@ export default async function ComparePage({
         </div>
 
         {/* Sidebar */}
-        <aside className="lg:col-span-4 space-y-6">
-          <div className="lg:sticky lg:top-24 space-y-6">
+        <aside className="lg:col-span-4 space-y-4 sm:space-y-6">
+          <div className="lg:sticky lg:top-24 space-y-4 sm:space-y-6">
             <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
               <TopThisWeekServer />
             </section>
+            
+            {/* AdSense - Sidebar */}
+            <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
+              <AdSense
+                adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR}
+                adFormat="vertical"
+                fullWidthResponsive
+                className="min-h-[250px]"
+              />
+            </div>
           </div>
         </aside>
       </div>
@@ -577,6 +673,16 @@ export default async function ComparePage({
         termA={actualTerms[0]}
         termB={actualTerms[1]}
       />
+
+      {/* AdSense - Bottom of Page */}
+      <div className="my-8 flex justify-center">
+        <AdSense
+          adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_3}
+          adFormat="horizontal"
+          fullWidthResponsive
+          className="min-h-[100px]"
+        />
+      </div>
 
       {/* Related comparisons + FAQ */}
       <div className="space-y-8">

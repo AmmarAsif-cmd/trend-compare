@@ -11,7 +11,7 @@
 import { prisma } from './db';
 import type { ComparisonCategory } from './category-resolver';
 
-const CACHE_TTL_DAYS = 90; // Cache categories for 90 days
+const CACHE_TTL_DAYS = 7; // Cache categories for 7 days (reduced from 90 for faster updates)
 const MIN_CONFIDENCE = 70; // Minimum confidence to trust cached result
 
 /**

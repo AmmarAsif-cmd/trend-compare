@@ -11,8 +11,22 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Change this in production!
+// PASSWORD CONFIGURATION:
+// Option 1 (Recommended for production): Set ADMIN_PASSWORD_HASH
+//   Generate hash: tsx scripts/generate-password-hash.ts your-password
+//   Or: node -e "console.log(require('crypto').createHash('sha256').update('your-password').digest('hex'))"
+//
+// Option 2 (Simpler for development): Set ADMIN_PASSWORD (plain text)
+//   Just set: ADMIN_PASSWORD=your-password
+//   The system will automatically hash it for comparison
+//
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '';
+const ADMIN_PASSWORD_PLAIN = process.env.ADMIN_PASSWORD || '';
 const SESSION_COOKIE = 'admin_session';
+
+// SESSION_SECRET: Used to sign session cookies for security
+// Generate one: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+// If not set, uses a default (insecure for production!)
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-secret-key';
 
 // Rate limiting store (in production, use Redis or database)
@@ -99,22 +113,67 @@ export function getRemainingLockoutTime(ip: string): number {
 }
 
 /**
+ * Hash password using SHA-256
+ */
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+/**
  * Check if password is correct
+ * 
+ * Supports two methods:
+ * 1. ADMIN_PASSWORD_HASH (recommended): Pre-hashed password (64 hex chars)
+ * 2. ADMIN_PASSWORD (simpler): Plain text password (automatically hashed for comparison)
+ * 
+ * If both are set, ADMIN_PASSWORD_HASH takes precedence.
  */
 export function verifyPassword(password: string): boolean {
   if (!password || password.trim() === '') {
     return false;
   }
 
-  // Constant-time comparison to prevent timing attacks
-  const expected = Buffer.from(ADMIN_PASSWORD);
-  const actual = Buffer.from(password);
+  // Method 1: Use pre-hashed password (ADMIN_PASSWORD_HASH)
+  if (ADMIN_PASSWORD_HASH && ADMIN_PASSWORD_HASH.length === 64) {
+    // SHA-256 hash is 64 hex characters
+    const providedHash = hashPassword(password);
+    const expectedHash = ADMIN_PASSWORD_HASH.toLowerCase();
+    
+    // Constant-time comparison to prevent timing attacks
+    const expected = Buffer.from(expectedHash, 'hex');
+    const actual = Buffer.from(providedHash, 'hex');
 
-  if (expected.length !== actual.length) {
-    return false;
+    if (expected.length !== actual.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expected, actual);
   }
 
-  return crypto.timingSafeEqual(expected, actual);
+  // Method 2: Use plain text password (ADMIN_PASSWORD)
+  // Automatically hash it for secure comparison
+  if (ADMIN_PASSWORD_PLAIN) {
+    const providedHash = hashPassword(password);
+    const expectedHash = hashPassword(ADMIN_PASSWORD_PLAIN);
+    
+    // Constant-time comparison
+    const expected = Buffer.from(expectedHash, 'hex');
+    const actual = Buffer.from(providedHash, 'hex');
+
+    if (expected.length !== actual.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expected, actual);
+  }
+
+  // No password configured
+  console.error('[Auth] ❌ No ADMIN_PASSWORD_HASH or ADMIN_PASSWORD configured!');
+  console.error('[Auth] Current env check:');
+  console.error('[Auth]   ADMIN_PASSWORD_HASH:', ADMIN_PASSWORD_HASH ? `Set (${ADMIN_PASSWORD_HASH.length} chars)` : 'NOT SET');
+  console.error('[Auth]   ADMIN_PASSWORD_PLAIN:', ADMIN_PASSWORD_PLAIN ? `Set (${ADMIN_PASSWORD_PLAIN.length} chars)` : 'NOT SET');
+  console.error('[Auth] 💡 Solution: Set ADMIN_PASSWORD=your-password in .env.local and restart server');
+  return false;
 }
 
 /**
@@ -212,7 +271,9 @@ export async function requireAuth(request: NextRequest) {
   const authenticated = await isAuthenticated();
 
   if (!authenticated) {
-    return NextResponse.redirect(new URL('/admin/login', request.url));
+    // Import admin config dynamically to avoid circular dependencies
+    const { ADMIN_ROUTES } = await import('./admin-config');
+    return NextResponse.redirect(new URL(ADMIN_ROUTES.login, request.url));
   }
 
   return null;

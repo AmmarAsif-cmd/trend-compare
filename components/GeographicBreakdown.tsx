@@ -36,13 +36,13 @@ export default function GeographicBreakdown({
   }
 
   return (
-    <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-6">
-      <div className="mb-6">
-        <h3 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-          <Globe className="w-6 h-6 text-blue-600" />
-          Geographic Breakdown
+    <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-4 sm:p-6">
+      <div className="mb-4 sm:mb-6">
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0" />
+          <span>Geographic Breakdown</span>
         </h3>
-        <p className="text-slate-600 text-sm">
+        <p className="text-slate-600 text-xs sm:text-sm">
           Which regions prefer {prettyTerm(termA)} vs {prettyTerm(termB)}
         </p>
       </div>

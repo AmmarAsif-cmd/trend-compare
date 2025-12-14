@@ -28,7 +28,7 @@ let trendingCache: {
   expiresAt: number;
 } | null = null;
 
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for more dynamic updates
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for real-time updates
 
 /**
  * Fallback trending data if Google Trends API fails

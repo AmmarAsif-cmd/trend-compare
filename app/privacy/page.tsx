@@ -2,7 +2,7 @@ import { BRAND } from "@/lib/brand";
 import BackButton from "@/components/BackButton";
 
 export const metadata = {
-  title: `Privacy Policy — ${BRAND}`,
+  title: `Privacy Policy | ${BRAND}`,
   description:
     "Learn how TrendArc handles your data and protects your privacy.",
 };

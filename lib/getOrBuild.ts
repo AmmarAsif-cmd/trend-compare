@@ -4,6 +4,9 @@ import { computeStats, type Stats } from "./stats";
 import { generateCopy, type AICopy } from "./ai";
 import type { SeriesPoint } from "./trends";
 import { stableHash } from "./hash";
+import { withTimeout } from "./utils/timeout";
+import { retryWithBackoff } from "./utils/retry";
+import { InsufficientDataError } from "./utils/errors";
 
 type Args = { slug: string; terms: string[]; timeframe: string; geo: string };
 
@@ -35,6 +38,7 @@ export type ComparisonPayload = {
   dataHash: string;
   createdAt: Date;
   updatedAt: Date;
+  error?: string; // Error code if comparison failed
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -145,9 +149,35 @@ export async function getOrBuildComparison({
   const normalizedExisting = existing ? normalizeRow(existing) : null;
   if (normalizedExisting) return normalizedExisting;
 
-  // 2) Build fresh
-  const series = await fetchSeriesUnified(terms, { timeframe, geo });
-  if (!series.length) return null;
+  // 2) Build fresh with timeout and retry
+  let series: SeriesPoint[];
+  try {
+    series = await retryWithBackoff(
+      () => withTimeout(
+        fetchSeriesUnified(terms, { timeframe, geo }),
+        15000, // 15 second timeout for Google Trends
+        'Google Trends request timed out'
+      ),
+      {
+        maxRetries: 2,
+        initialDelay: 1000,
+        shouldRetry: (error) => {
+          // Retry on timeout or network errors
+          return error?.name === 'TimeoutError' || 
+                 error?.code === 'ECONNRESET' || 
+                 error?.code === 'ETIMEDOUT';
+        }
+      }
+    );
+  } catch (error) {
+    console.error('[getOrBuildComparison] Failed to fetch series:', error);
+    // Return error payload instead of null
+    throw new InsufficientDataError(terms, timeframe, geo);
+  }
+
+  if (!series || series.length === 0) {
+    throw new InsufficientDataError(terms, timeframe, geo);
+  }
 
   const stats = computeStats(series, terms);
   const ai = generateCopy(terms, stats); // later you can swap to LLM output

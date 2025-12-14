@@ -7,28 +7,38 @@ export default function SimpleTrendingKeywords() {
   const [keywords, setKeywords] = useState<Array<{ keyword: string; traffic: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string>("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchTrendingKeywords = async (showRefreshing = false) => {
+    if (showRefreshing) setRefreshing(true);
+    try {
+      // Force fresh fetch with cache-busting timestamp
+      const res = await fetch(`/api/top-keywords?t=${Date.now()}`, { 
+        cache: "no-store",
+        next: { revalidate: 0 } // Always fetch fresh
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.keywords && Array.isArray(data.keywords)) {
+          setKeywords(data.keywords.slice(0, 10));
+          setLastUpdate(new Date().toLocaleTimeString());
+        }
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error("Failed to fetch trending keywords:", error);
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchTrendingKeywords() {
-      try {
-        const res = await fetch("/api/top-keywords", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.keywords && Array.isArray(data.keywords)) {
-            setKeywords(data.keywords.slice(0, 10));
-          }
-        }
-        setLastUpdate(new Date().toLocaleTimeString());
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch trending keywords:", error);
-        setLoading(false);
-      }
-    }
-
+    // Fetch immediately
     fetchTrendingKeywords();
-    // Refresh every 15 minutes
-    const interval = setInterval(fetchTrendingKeywords, 15 * 60 * 1000);
+    
+    // Refresh every 5 minutes for real-time updates (was 15 minutes)
+    const interval = setInterval(() => fetchTrendingKeywords(true), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -44,14 +54,33 @@ export default function SimpleTrendingKeywords() {
     <div className="bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 rounded-3xl border-2 border-orange-200 p-6 sm:p-8 shadow-xl">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-          <Flame className="w-6 h-6 text-white animate-pulse" />
+          <Flame className={`w-6 h-6 text-white ${refreshing ? 'animate-spin' : 'animate-pulse'}`} />
         </div>
         <div className="flex-1">
-          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
-            🔥 Trending Right Now
-          </h3>
-          <p className="text-xs text-slate-600">
-            Live from Google Trends • Updated {lastUpdate}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+              🔥 Trending Right Now
+            </h3>
+            <button
+              onClick={() => fetchTrendingKeywords(true)}
+              disabled={refreshing}
+              className="px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              title="Refresh now"
+            >
+              {refreshing ? (
+                <>
+                  <span className="animate-spin">🔄</span> Refreshing...
+                </>
+              ) : (
+                <>
+                  🔄 Refresh
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-slate-600 mt-1">
+            🔴 Live from Google Trends • Updated {lastUpdate || 'Just now'} • Auto-refreshes every 5 minutes
+            {refreshing && <span className="ml-2 text-orange-600 font-medium">🔄 Updating...</span>}
           </p>
         </div>
       </div>
