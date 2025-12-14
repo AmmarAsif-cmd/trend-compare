@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ADMIN_ROUTES } from "@/lib/admin-config";
 
 type BlogPost = {
   id: string;
@@ -35,11 +36,11 @@ export default function AdminBlogDashboard() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch("/api/admin/check-auth");
+      const res = await fetch(ADMIN_ROUTES.api.checkAuth);
       const data = await res.json();
 
       if (!data.authenticated) {
-        router.push("/admin/login");
+        router.push(ADMIN_ROUTES.login);
         return;
       }
 
@@ -47,7 +48,7 @@ export default function AdminBlogDashboard() {
       fetchPosts();
     } catch (err) {
       console.error("Auth check failed:", err);
-      router.push("/admin/login");
+      router.push(ADMIN_ROUTES.login);
     }
   };
 
@@ -55,8 +56,8 @@ export default function AdminBlogDashboard() {
     if (!confirm("Are you sure you want to logout?")) return;
 
     try {
-      await fetch("/api/admin/logout", { method: "POST" });
-      router.push("/admin/login");
+      await fetch(ADMIN_ROUTES.api.logout, { method: "POST" });
+      router.push(ADMIN_ROUTES.login);
     } catch (err) {
       console.error("Logout failed:", err);
     }

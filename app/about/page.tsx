@@ -3,7 +3,7 @@ import BackButton from "@/components/BackButton";
 import { Target, Zap, Users, TrendingUp } from "lucide-react";
 
 export const metadata = {
-  title: `About Us — ${BRAND}`,
+  title: `About Us | ${BRAND}`,
   description:
     "Learn what TrendArc is all about, how we make online trend comparisons simple, fast, and meaningful for everyone.",
 };
@@ -30,8 +30,9 @@ export default function AboutPage() {
             </span>
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
-            We help you understand what the world is searching for. Compare topics, spot trends,
-            and make smarter decisions with beautiful, real-time data visualization.
+            We combine data from 7+ trusted sources to give you comprehensive trend intelligence. 
+            Compare movies, music, games, products, and more with AI-powered insights that explain 
+            the "why" behind the trends.
           </p>
         </section>
 
@@ -43,9 +44,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">What We Do</h2>
             <p className="text-slate-600 leading-relaxed">
-              We transform complex Google Trends data into easy-to-understand comparisons.
-              See which topics are winning the popularity contest, track momentum shifts,
-              and discover patterns that matter to you.
+              We aggregate data from multiple sources including Google Trends, TMDB, Spotify, Steam, 
+              Best Buy, YouTube, and Wikipedia to create comprehensive trend comparisons. Our AI-powered 
+              system automatically detects categories and fetches the most relevant data, 
+              then generates insights that explain why trends exist.
             </p>
           </div>
 
@@ -55,9 +57,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">How It Works</h2>
             <p className="text-slate-600 leading-relaxed">
-              Type in any two topics you&rsquo;re curious about. We instantly fetch real-time search data,
-              create beautiful charts, and show you exactly which one is more popular.
-              No signup required. No complicated dashboards. Just insights.
+              Enter any two topics you want to compare. Our AI automatically detects the category 
+              (movies, music, games, products, etc.) and fetches relevant data from multiple sources. 
+              We calculate a unified TrendArc Score, create beautiful visualizations, and generate 
+              AI-powered insights explaining the results. All in seconds, no signup required.
             </p>
           </div>
 
@@ -67,9 +70,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">Why It Matters</h2>
             <p className="text-slate-600 leading-relaxed">
-              Understanding trends helps you make better decisions. Whether you&rsquo;re choosing
-              between products, planning content, or just satisfying curiosity, knowing what
-              people care about gives you an edge.
+              Multi-source intelligence gives you a complete picture. Instead of relying on a single 
+              data point, you get insights from search trends, streaming platforms, gaming platforms, 
+              retail data, and social engagement. This comprehensive view helps you make smarter decisions 
+              whether you&rsquo;re choosing products, planning content, or analyzing market trends.
             </p>
           </div>
 
@@ -79,9 +83,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">Our Vision</h2>
             <p className="text-slate-600 leading-relaxed">
-              To become the #1 platform for understanding public interest and cultural trends.
-              We believe data should be accessible, beautiful, and useful for everyone—not
-              just data scientists.
+              To become the #1 platform for multi-source trend intelligence. We believe comprehensive 
+              data analysis should be accessible, beautiful, and actionable for everyone, not just data 
+              scientists. By combining multiple data sources with AI-powered insights, we make trend 
+              analysis simple and meaningful.
             </p>
           </div>
         </section>
@@ -90,8 +95,9 @@ export default function AboutPage() {
         <section className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-12 text-center text-white shadow-2xl">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">Our Mission</h2>
           <p className="text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed opacity-95">
-            Democratize access to trend data. Make it fast, free, and beautiful.
-            Help people make informed decisions based on what the world is actually searching for.
+            Democratize access to multi-source trend intelligence. Combine data from search, streaming, 
+            gaming, retail, and social platforms. Make it fast, free, and beautiful. Help people make 
+            informed decisions based on comprehensive insights, not just single data points.
           </p>
         </section>
       </div>

@@ -44,56 +44,66 @@ export default function MultiSourceBreakdown({
   };
 
   return (
-    <div className="bg-white rounded-xl border-2 border-slate-200 shadow-lg p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <BarChart3 className="w-5 h-5 text-blue-600" />
-        <h3 className="text-lg font-bold text-slate-900">
-          Multi-Source Score Breakdown
-        </h3>
-        <span className="ml-auto text-sm text-slate-500">
+    <div className="bg-white rounded-xl border-2 border-slate-200 shadow-lg p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-2 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 flex-1">
+          <BarChart3 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+          <h3 className="text-base sm:text-lg font-bold text-slate-900">
+            Multi-Source Score Breakdown
+          </h3>
+        </div>
+        <span className="text-xs sm:text-sm text-slate-500 sm:ml-auto">
           {getCategoryLabel(category)}
         </span>
       </div>
 
       {/* Final Scores Comparison */}
-      <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200">
         <div className="text-center">
-          <div className="text-sm text-slate-600 mb-1">{formatTerm(termA)}</div>
-          <div className="text-3xl font-bold text-blue-600">{scoreA}</div>
+          <div className="text-xs sm:text-sm text-slate-600 mb-1 truncate">{formatTerm(termA)}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-blue-600">{scoreA}</div>
           <div className="text-xs text-slate-500 mt-1">TrendArc Score</div>
         </div>
         <div className="text-center">
-          <div className="text-sm text-slate-600 mb-1">{formatTerm(termB)}</div>
-          <div className="text-3xl font-bold text-purple-600">{scoreB}</div>
+          <div className="text-xs sm:text-sm text-slate-600 mb-1 truncate">{formatTerm(termB)}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-purple-600">{scoreB}</div>
           <div className="text-xs text-slate-500 mt-1">TrendArc Score</div>
         </div>
       </div>
 
       {/* Source Breakdown */}
-      <div className="space-y-4">
-        <div className="text-sm font-semibold text-slate-700 mb-3">
+      <div className="space-y-3 sm:space-y-4">
+        <div className="text-xs sm:text-sm font-semibold text-slate-700 mb-2 sm:mb-3">
           Score Components:
         </div>
 
-        {sources.map((source, idx) => {
+        {sources
+          .filter((source) => {
+            // Hide social buzz if both scores are 50 (indicates no data)
+            if (source.name.toLowerCase().includes('social buzz')) {
+              return !(source.termA === 50 && source.termB === 50);
+            }
+            return true;
+          })
+          .map((source, idx) => {
           const maxScore = Math.max(source.termA, source.termB, 1);
           const widthA = (source.termA / maxScore) * 100;
           const widthB = (source.termB / maxScore) * 100;
 
           return (
             <div key={idx} className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs">
                 <span className="font-medium text-slate-700">
                   {source.name}
                   {source.weight && (
-                    <span className="ml-1 text-slate-400">
+                    <span className="ml-1 text-slate-400 hidden sm:inline">
                       ({Math.round(source.weight * 100)}% weight)
                     </span>
                   )}
                 </span>
-                <div className="flex gap-4 text-slate-500">
-                  <span>{source.termA.toFixed(0)}</span>
-                  <span>{source.termB.toFixed(0)}</span>
+                <div className="flex gap-3 sm:gap-4 text-slate-500">
+                  <span className="font-medium">{source.termA.toFixed(0)}</span>
+                  <span className="font-medium">{source.termB.toFixed(0)}</span>
                 </div>
               </div>
 
@@ -132,10 +142,10 @@ export default function MultiSourceBreakdown({
       </div>
 
       {/* Explanation */}
-      <div className="mt-6 p-3 bg-amber-50 rounded-lg border border-amber-200">
+      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-amber-50 rounded-lg border border-amber-200">
         <div className="flex gap-2 items-start">
           <TrendingUp className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-700 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
             <span className="font-semibold">How it works:</span> Each data source is scored 0-100,
             then weighted based on the comparison category ({category}).
             The final TrendArc Score combines all sources using category-specific weights.

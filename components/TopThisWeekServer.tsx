@@ -7,12 +7,12 @@ type Props = {
   limit?: number;
 };
 
-// Cache top comparisons for 1 hour (3600 seconds) to keep data fresh
+// Cache top comparisons for 30 minutes (1800 seconds) to keep data fresh and show updated results
 const getCachedTopThisWeek = unstable_cache(
   async (limit: number) => getTopThisWeek(limit),
   ['top-this-week'],
   {
-    revalidate: 3600, // Revalidate every hour
+    revalidate: 1800, // Revalidate every 30 minutes (faster updates)
     tags: ['trending']
   }
 );

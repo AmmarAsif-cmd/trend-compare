@@ -60,7 +60,7 @@ export default function SocialShareButtons({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-slate-500 font-medium mr-1">Share:</span>
+      <span className="text-xs sm:text-sm text-slate-500 font-medium mr-1">Share:</span>
       
       <a
         href={shareLinks.twitter}
@@ -124,11 +124,12 @@ export default function SocialShareButtons({
 
       <button
         onClick={handleNativeShare}
-        className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-700 font-medium text-sm transition-all duration-200 hover:scale-105"
+        className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-700 font-medium text-xs sm:text-sm transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="More sharing options"
       >
         <Share2 className="w-4 h-4" />
-        <span>More</span>
+        <span className="hidden sm:inline">More</span>
+        <span className="sm:hidden">Share</span>
       </button>
     </div>
   );

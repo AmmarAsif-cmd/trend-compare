@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ADMIN_ROUTES } from "@/lib/admin-config";
 
 type ServiceStatus = {
   name: string;
@@ -47,17 +48,17 @@ export default function EnhancedSystemDashboard() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch("/api/admin/check-auth");
+      const res = await fetch(ADMIN_ROUTES.api.checkAuth);
       const data = await res.json();
       if (!data.authenticated) {
-        router.push("/admin/login");
+        router.push(ADMIN_ROUTES.login);
       } else {
         setAuthenticated(true);
         loadSystemStatus();
         loadSystemInfo();
       }
     } catch (error) {
-      router.push("/admin/login");
+      router.push(ADMIN_ROUTES.login);
     } finally {
       setLoading(false);
     }
@@ -835,8 +836,8 @@ export default function EnhancedSystemDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Bar */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex gap-3">
+        <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button
               onClick={loadSystemStatus}
               disabled={refreshing}
@@ -845,10 +846,94 @@ export default function EnhancedSystemDashboard() {
               {refreshing ? "🔄" : "↻"} Refresh All
             </button>
             <button
-              onClick={() => router.push("/admin/blog")}
+              onClick={() => router.push(ADMIN_ROUTES.blog)}
               className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
               ← Back to Blog Admin
+            </button>
+          </div>
+          
+          {/* Keyword Refresh Buttons */}
+          <div className="flex gap-2 flex-wrap items-center">
+            <button
+              onClick={async () => {
+                if (confirm("Refresh all comparisons? This will refresh all cached comparisons and may take a while.")) {
+                  try {
+                    const res = await fetch("/api/refresh?all=true&days=7&limit=100");
+                    const data = await res.json();
+                    if (res.status === 429) {
+                      alert(`⏳ ${data.error || "Refresh already in progress"}\n\n${data.status ? `Active refreshes: ${data.status.active}/${data.status.maxConcurrent}` : ""}\n\nPlease wait and try again.`);
+                    } else if (res.ok) {
+                      alert(`✅ ${data.message || "Refresh completed"}\n\nRefreshed: ${data.refreshed || 0}\nFailed: ${data.failed || 0}`);
+                      loadSystemStatus();
+                    } else {
+                      alert(`❌ Error: ${data.error || "Unknown error"}`);
+                    }
+                  } catch (error) {
+                    alert(`❌ Error: ${error}`);
+                  }
+                }
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              🔄 Refresh All Comparisons
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/refresh?trending=true&limit=20");
+                  const data = await res.json();
+                  if (res.status === 429) {
+                    alert(`⏳ ${data.error || "Refresh already in progress"}\n\n${data.status ? `Active refreshes: ${data.status.active}/${data.status.maxConcurrent}` : ""}\n\nPlease wait and try again.`);
+                  } else if (res.ok) {
+                    alert(`✅ ${data.message || "Refresh completed"}\n\nRefreshed: ${data.refreshed || 0}\nFailed: ${data.failed || 0}`);
+                    loadSystemStatus();
+                  } else {
+                    alert(`❌ Error: ${data.error || "Unknown error"}`);
+                  }
+                } catch (error) {
+                  alert(`❌ Error: ${error}`);
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              🔥 Refresh Top 20 Trending
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  // Clear trending cache and force refresh
+                  const res = await fetch("/api/top-keywords?refresh=true");
+                  const data = await res.json();
+                  alert(`✅ Trending keywords refreshed!\n\nUpdated: ${new Date().toLocaleTimeString()}\nKeywords: ${data.keywords?.length || 0}`);
+                  // Also refresh the trending comparisons cache (with concurrency check)
+                  const refreshRes = await fetch("/api/refresh?trending=true&limit=10");
+                  if (refreshRes.status === 429) {
+                    console.log("Trending refresh already in progress, skipping...");
+                  }
+                } catch (error) {
+                  alert(`❌ Error: ${error}`);
+                }
+              }}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              🔥 Refresh Trending Keywords
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/refresh?status=true");
+                  const data = await res.json();
+                  const statusMsg = `Refresh Status:\n\nActive: ${data.active}/${data.maxConcurrent}\n\nOperations:\n${data.operations.length > 0 ? data.operations.map((op: any) => `- ${op.type} (${Math.round(op.duration / 1000)}s)`).join('\n') : 'None'}`;
+                  alert(statusMsg);
+                } catch (error) {
+                  alert(`❌ Error: ${error}`);
+                }
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+              title="Check refresh status"
+            >
+              📊 Status
             </button>
           </div>
         </div>
@@ -1111,9 +1196,17 @@ export default function EnhancedSystemDashboard() {
                 <li>GET /api/suggest</li>
                 <li>GET /api/top-week</li>
                 <li>GET /api/google-trending</li>
+                <li>GET /api/top-keywords</li>
                 <li>GET /api/ai-insights-status</li>
                 <li>GET /api/health/db</li>
                 <li>POST /api/csp-report</li>
+              </ul>
+              <h3 className="font-semibold text-gray-700 mb-2 mt-4">Refresh APIs:</h3>
+              <ul className="text-sm text-gray-600 space-y-1 font-mono">
+                <li>GET /api/refresh?slug=...</li>
+                <li>GET /api/refresh?all=true</li>
+                <li>GET /api/refresh?trending=true</li>
+                <li>GET /api/refresh?clear=...</li>
               </ul>
             </div>
             <div>

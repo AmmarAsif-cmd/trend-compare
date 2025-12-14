@@ -29,13 +29,14 @@ export default function TimeframeSelect() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-sm text-gray-500">Timeframe</label>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+      <label className="text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">Timeframe:</label>
       <select
-        className="border rounded px-2 py-1"
+        className="w-full sm:w-auto border-2 border-slate-300 rounded-lg px-3 py-2 sm:px-2 sm:py-1.5 text-sm sm:text-base bg-white text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
         value={current}
         onChange={onChange}
         disabled={isPending}
+        aria-label="Select timeframe"
       >
         {OPTIONS.map(o => (
           <option key={o.v} value={o.v}>{o.label}</option>

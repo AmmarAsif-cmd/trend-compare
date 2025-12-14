@@ -1,10 +1,16 @@
-// app/robots.ts
-import type { MetadataRoute } from "next";
+import { MetadataRoute } from 'next';
+import { ADMIN_PATH } from '@/lib/admin-config';
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://trendarc.net";
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: "/*?q="}],
-    sitemap: `${base}/sitemap.xml`,
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        // Block both old and new admin paths
+        disallow: ['/api/', '/admin/', `/${ADMIN_PATH}/`],
+      },
+    ],
+    sitemap: 'https://trendarc.net/sitemap.xml',
   };
 }

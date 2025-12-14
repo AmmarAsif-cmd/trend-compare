@@ -4,6 +4,7 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler
 } from "chart.js";
 import type { SeriesPoint } from "@/lib/trends";
+import { useEffect, useState } from "react";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -21,6 +22,17 @@ const chartColors = [
 ];
 
 export default function TrendChart({ series }: { series: SeriesPoint[] }) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   if (!series?.length) return null;
 
   const labels = series.map(p => p.date);
@@ -45,12 +57,13 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
   });
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" style={{ minHeight: isMobile ? '250px' : '300px', height: isMobile ? '250px' : '400px' }}>
       <Line
         data={{ labels, datasets }}
         options={{
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
+          aspectRatio: isMobile ? 1.5 : 2,
           interaction: {
             mode: "index",
             intersect: false,
@@ -59,15 +72,16 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
             legend: {
               position: "bottom",
               labels: {
-                padding: 16,
+                padding: isMobile ? 8 : 12,
                 font: {
-                  size: 13,
+                  size: isMobile ? 11 : 13,
                   weight: 600,
                   family: "system-ui, -apple-system, sans-serif",
                 },
                 color: "#334155", // slate-700
                 usePointStyle: true,
                 pointStyle: "circle",
+                boxWidth: isMobile ? 8 : 12,
               },
             },
             tooltip: {
@@ -100,11 +114,11 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
               ticks: {
                 color: "#64748b", // slate-500
                 font: {
-                  size: 11,
+                  size: isMobile ? 9 : 11,
                   weight: 500,
                 },
-                maxRotation: 45,
-                minRotation: 0,
+                maxRotation: isMobile ? 90 : 45,
+                minRotation: isMobile ? 90 : 0,
               },
             },
             y: {
@@ -119,10 +133,10 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
               ticks: {
                 color: "#64748b", // slate-500
                 font: {
-                  size: 11,
+                  size: isMobile ? 9 : 11,
                   weight: 500,
                 },
-                padding: 8,
+                padding: isMobile ? 4 : 8,
               },
             },
           },
@@ -131,7 +145,7 @@ export default function TrendChart({ series }: { series: SeriesPoint[] }) {
             easing: "easeInOutCubic",
           },
         }}
-        height={300}
+        height={isMobile ? 250 : 300}
       />
     </div>
   );
