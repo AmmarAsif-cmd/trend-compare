@@ -31,7 +31,7 @@ export const ADMIN_ROUTES = {
 /**
  * Get the full admin URL for a given route
  */
-export function getAdminUrl(route: keyof typeof ADMIN_ROUTES): string {
+export function getAdminUrl(route: 'login' | 'blog' | 'system'): string {
   return ADMIN_ROUTES[route];
 }
 
