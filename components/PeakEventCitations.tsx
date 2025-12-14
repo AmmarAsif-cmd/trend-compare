@@ -58,7 +58,9 @@ export default function PeakEventCitations({ peaks, termA, termB }: PeakEventCit
                       )}
                     </div>
                     {peak.event?.verified && (
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" title="Verified by multiple sources" />
+                      <div title="Verified by multiple sources">
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      </div>
                     )}
                   </div>
                   
@@ -113,7 +115,9 @@ export default function PeakEventCitations({ peaks, termA, termB }: PeakEventCit
                       )}
                     </div>
                     {peak.event?.verified && (
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" title="Verified by multiple sources" />
+                      <div title="Verified by multiple sources">
+                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      </div>
                     )}
                   </div>
                   
