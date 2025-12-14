@@ -52,34 +52,34 @@ export default function SimpleTrendingKeywords() {
 
   return (
     <div className="bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 rounded-3xl border-2 border-orange-200 p-6 sm:p-8 shadow-xl">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-          <Flame className={`w-6 h-6 text-white ${refreshing ? 'animate-spin' : 'animate-pulse'}`} />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+          <Flame className={`w-5 h-5 sm:w-6 sm:h-6 text-white ${refreshing ? 'animate-spin' : 'animate-pulse'}`} />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+        <div className="flex-1 min-w-0 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2 truncate">
               🔥 Trending Right Now
             </h3>
             <button
               onClick={() => fetchTrendingKeywords(true)}
               disabled={refreshing}
-              className="px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 self-start sm:self-auto"
               title="Refresh now"
             >
               {refreshing ? (
                 <>
-                  <span className="animate-spin">🔄</span> Refreshing...
+                  <span className="animate-spin">🔄</span> <span className="hidden sm:inline">Refreshing...</span>
                 </>
               ) : (
                 <>
-                  🔄 Refresh
+                  🔄 <span className="hidden sm:inline">Refresh</span>
                 </>
               )}
             </button>
           </div>
-          <p className="text-xs text-slate-600 mt-1">
-            🔴 Live from Google Trends • Updated {lastUpdate || 'Just now'} • Auto-refreshes every 5 minutes
+          <p className="text-xs text-slate-600 mt-1 break-words">
+            <span className="hidden sm:inline">🔴 Live from Google Trends • </span>Updated {lastUpdate || 'Just now'}<span className="hidden sm:inline"> • Auto-refreshes every 5 minutes</span>
             {refreshing && <span className="ml-2 text-orange-600 font-medium">🔄 Updating...</span>}
           </p>
         </div>
@@ -90,23 +90,23 @@ export default function SimpleTrendingKeywords() {
           No trending keywords available at the moment.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
           {keywords.map((item, idx) => (
             <div
               key={idx}
-              className="group bg-white/80 hover:bg-white border border-orange-200 rounded-xl p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-1"
+              className="group bg-white/80 hover:bg-white border border-orange-200 rounded-xl p-3 sm:p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-1"
             >
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-slate-900 text-sm sm:text-base truncate group-hover:text-orange-700 transition-colors">
+                  <div className="font-semibold text-slate-900 text-sm sm:text-base break-words group-hover:text-orange-700 transition-colors">
                     {item.keyword}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-xs text-slate-600 font-medium">
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                    <span className="text-xs text-slate-600 font-medium truncate">
                       {item.traffic}
                     </span>
                   </div>
