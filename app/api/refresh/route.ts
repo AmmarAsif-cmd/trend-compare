@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshComparison, refreshOldComparisons, refreshTrendingComparisons, clearComparisonCache } from "@/lib/refresh-comparisons";
-import { revalidateTag } from "next/cache";
 import { canStartRefresh, registerRefresh, isRefreshInProgress, waitForRefresh, getRefreshStatus } from "@/lib/refresh-manager";
 
 /**
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
       const timeframe = searchParams.get("timeframe") || "12m";
       const geo = searchParams.get("geo") || "";
       const success = await clearComparisonCache(clear, timeframe, geo);
-      revalidateTag("trending");
+      // Note: Cache will expire naturally based on revalidate time in unstable_cache
       return NextResponse.json({
         success,
         message: success ? `Cache cleared for ${clear}` : `Failed to clear cache for ${clear}`,
@@ -74,7 +73,7 @@ export async function GET(request: NextRequest) {
       const refreshPromise = (async () => {
         try {
           const result = await refreshComparison(slug, timeframe, geo);
-          revalidateTag("trending");
+          // Note: Cache will expire naturally based on revalidate time in unstable_cache
           return result;
         } catch (error) {
           throw error;
@@ -120,7 +119,7 @@ export async function GET(request: NextRequest) {
       const refreshPromise = (async () => {
         try {
           const result = await refreshOldComparisons(days, limit);
-          revalidateTag("trending");
+          // Note: Cache will expire naturally based on revalidate time in unstable_cache
           return {
             success: true,
             ...result,
@@ -170,7 +169,7 @@ export async function GET(request: NextRequest) {
       const refreshPromise = (async () => {
         try {
           const result = await refreshTrendingComparisons(limit);
-          revalidateTag("trending");
+          // Note: Cache will expire naturally based on revalidate time in unstable_cache
           return {
             success: true,
             ...result,
