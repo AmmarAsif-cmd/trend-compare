@@ -43,22 +43,42 @@ export default function AIPeakExplanations({
       <div className="space-y-3">
         {peakExplanations.termA && (
           <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-rose-200">
-            <p className="font-semibold text-xs sm:text-sm text-rose-700 mb-1.5">
-              📈 {prettyTerm(termA)} Peak
-            </p>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-              {peakExplanations.termA}
-            </p>
+            <div className="flex items-start gap-2 mb-2">
+              <span className="text-lg">📈</span>
+              <div className="flex-1">
+                <p className="font-semibold text-xs sm:text-sm text-rose-700 mb-0.5">
+                  {prettyTerm(termA)} Peak
+                </p>
+                <p className="text-xs text-rose-600/70">
+                  What caused this spike?
+                </p>
+              </div>
+            </div>
+            <div className="pl-7">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                {peakExplanations.termA}
+              </p>
+            </div>
           </div>
         )}
         {peakExplanations.termB && (
           <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-rose-200">
-            <p className="font-semibold text-xs sm:text-sm text-rose-700 mb-1.5">
-              📈 {prettyTerm(termB)} Peak
-            </p>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-              {peakExplanations.termB}
-            </p>
+            <div className="flex items-start gap-2 mb-2">
+              <span className="text-lg">📈</span>
+              <div className="flex-1">
+                <p className="font-semibold text-xs sm:text-sm text-rose-700 mb-0.5">
+                  {prettyTerm(termB)} Peak
+                </p>
+                <p className="text-xs text-rose-600/70">
+                  What caused this spike?
+                </p>
+              </div>
+            </div>
+            <div className="pl-7">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                {peakExplanations.termB}
+              </p>
+            </div>
           </div>
         )}
       </div>

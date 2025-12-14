@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ADMIN_ROUTES } from "@/lib/admin-config";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/login", {
+      const res = await fetch(ADMIN_ROUTES.api.login, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -24,13 +25,25 @@ export default function AdminLogin() {
       const data = await res.json();
 
       if (data.success) {
-        router.push("/admin/blog");
+        router.push(ADMIN_ROUTES.blog);
         router.refresh();
       } else {
+        // Show specific error message from server
         setError(data.error || "Invalid password");
+        
+        // If rate limited, show remaining time
+        if (data.locked && data.remainingMinutes) {
+          setError(`Too many failed attempts. Please try again in ${data.remainingMinutes} minutes.`);
+        }
       }
-    } catch (err) {
-      setError("Failed to login. Please try again.");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      // More specific error messages
+      if (err.message?.includes("fetch")) {
+        setError("Cannot connect to server. Make sure the server is running.");
+      } else {
+        setError(err.message || "Failed to login. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

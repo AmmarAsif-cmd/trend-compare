@@ -40,6 +40,14 @@ type ComparisonInsightData = {
   };
   crossoverCount: number;
   trendDirection: string;
+  intelligentComparison?: {
+    scores: {
+      termA: { overall: number; breakdown: { searchInterest: number; socialBuzz: number; authority: number; momentum: number } };
+      termB: { overall: number; breakdown: { searchInterest: number; socialBuzz: number; authority: number; momentum: number } };
+    };
+    verdict: { winner: string; margin: number; confidence: number };
+    performance: { sourcesQueried: string[] };
+  };
 };
 
 type AIInsightResult = {
@@ -188,7 +196,15 @@ export async function canGenerateInsight(): Promise<boolean> {
 export function prepareInsightData(
   termA: string,
   termB: string,
-  series: Array<{ date: string; [key: string]: any }>
+  series: Array<{ date: string; [key: string]: any }>,
+  intelligentComparison?: {
+    scores: {
+      termA: { overall: number; breakdown: { searchInterest: number; socialBuzz: number; authority: number; momentum: number } };
+      termB: { overall: number; breakdown: { searchInterest: number; socialBuzz: number; authority: number; momentum: number } };
+    };
+    verdict: { winner: string; margin: number; confidence: number };
+    performance: { sourcesQueried: string[] };
+  } | null
 ): ComparisonInsightData {
   // Current week averages
   const recentPoints = series.slice(-Math.min(7, series.length));
@@ -197,16 +213,30 @@ export function prepareInsightData(
   const currentWeekAvgB =
     recentPoints.reduce((sum, p) => sum + (Number(p[termB]) || 0), 0) / recentPoints.length;
 
-  const currentLeader = currentWeekAvgA > currentWeekAvgB ? termA : termB;
-  const advantage =
-    currentWeekAvgB > 0
-      ? Math.round(
-          ((Math.max(currentWeekAvgA, currentWeekAvgB) -
-            Math.min(currentWeekAvgA, currentWeekAvgB)) /
-            Math.min(currentWeekAvgA, currentWeekAvgB)) *
-            100
-        )
-      : 0;
+  // Use multi-source comparison data if available (more accurate)
+  // Otherwise fall back to Google Trends data
+  let currentLeader: string;
+  let advantage: number;
+  
+  if (intelligentComparison) {
+    // Use multi-source winner (more accurate)
+    currentLeader = intelligentComparison.verdict.winner;
+    advantage = intelligentComparison.verdict.margin;
+    console.log(`[AI Insights] ✅ Using multi-source data: ${currentLeader} wins with ${advantage}% margin`);
+  } else {
+    // Fall back to Google Trends only
+    currentLeader = currentWeekAvgA > currentWeekAvgB ? termA : termB;
+    advantage =
+      currentWeekAvgB > 0
+        ? Math.round(
+            ((Math.max(currentWeekAvgA, currentWeekAvgB) -
+              Math.min(currentWeekAvgA, currentWeekAvgB)) /
+              Math.min(currentWeekAvgA, currentWeekAvgB)) *
+              100
+          )
+        : 0;
+    console.log(`[AI Insights] ⚠️ Using Google Trends only: ${currentLeader} leads by ${advantage}%`);
+  }
 
   // Find peaks
   let peakA = { value: 0, date: "" };
@@ -295,6 +325,7 @@ export function prepareInsightData(
     recentSpike,
     crossoverCount,
     trendDirection,
+    intelligentComparison: intelligentComparison || undefined,
   };
 }
 
@@ -365,14 +396,30 @@ Examples of good audience targeting:
 STEP 3: ANALYZE THE DATA
 COMPARISON: ${prettyTermA} vs ${prettyTermB}
 
-CURRENT WEEK DATA:
+${data.intelligentComparison ? `MULTI-SOURCE ANALYSIS (MOST ACCURATE):
+- TrendArc Score: ${prettyTermA} = ${data.intelligentComparison.scores.termA.overall}/100, ${prettyTermB} = ${data.intelligentComparison.scores.termB.overall}/100
+- Winner: ${data.currentLeader.replace(/-/g, " ")} (margin: ${data.advantage}%)
+- Confidence: ${data.intelligentComparison.verdict.confidence}%
+- Data Sources: ${data.intelligentComparison.performance.sourcesQueried.join(', ')}
+- Search Interest: ${prettyTermA} = ${data.intelligentComparison.scores.termA.breakdown.searchInterest}, ${prettyTermB} = ${data.intelligentComparison.scores.termB.breakdown.searchInterest}
+- Social Buzz: ${prettyTermA} = ${data.intelligentComparison.scores.termA.breakdown.socialBuzz}, ${prettyTermB} = ${data.intelligentComparison.scores.termB.breakdown.socialBuzz}
+- Authority: ${prettyTermA} = ${data.intelligentComparison.scores.termA.breakdown.authority}, ${prettyTermB} = ${data.intelligentComparison.scores.termB.breakdown.authority}
+- Momentum: ${prettyTermA} = ${data.intelligentComparison.scores.termA.breakdown.momentum}, ${prettyTermB} = ${data.intelligentComparison.scores.termB.breakdown.momentum}
+
+IMPORTANT: The winner (${data.currentLeader.replace(/-/g, " ")}) is determined by the multi-source TrendArc Score, NOT just Google Trends. Use this winner in all insights.` : `GOOGLE TRENDS DATA ONLY:
 - ${prettyTermA}: ${data.currentWeekAvgA} avg searches
 - ${prettyTermB}: ${data.currentWeekAvgB} avg searches
-- Current Leader: ${data.currentLeader.replace(/-/g, " ")} by ${data.advantage}%
+- Current Leader: ${data.currentLeader.replace(/-/g, " ")} by ${data.advantage}%`}
 
-HISTORICAL PEAKS:
-- ${prettyTermA} peaked on ${new Date(data.peakADate).toLocaleDateString()} at ${data.peakAValue}
-- ${prettyTermB} peaked on ${new Date(data.peakBDate).toLocaleDateString()} at ${data.peakBValue}
+HISTORICAL PEAKS (CRITICAL FOR PEAK EXPLANATIONS):
+- ${prettyTermA} peaked on ${new Date(data.peakADate).toLocaleDateString()} reaching ${data.peakAValue}/100 (this is a ${data.peakAValue >= 80 ? 'very high' : data.peakAValue >= 60 ? 'high' : data.peakAValue >= 40 ? 'moderate' : 'low'} peak)
+- ${prettyTermB} peaked on ${new Date(data.peakBDate).toLocaleDateString()} reaching ${data.peakBValue}/100 (this is a ${data.peakBValue >= 80 ? 'very high' : data.peakBValue >= 60 ? 'high' : data.peakBValue >= 40 ? 'moderate' : 'low'} peak)
+
+IMPORTANT FOR PEAK EXPLANATIONS:
+- Research what happened on or within 3-7 days BEFORE each peak date
+- Common peak causes: product launches, major announcements, news events, controversies, viral social media moments, seasonal events, competitor actions, price changes, feature releases
+- The peak value (${data.peakAValue} vs ${data.peakBValue}) indicates the relative magnitude - higher values suggest more significant events
+- Be specific about dates, events, and why they would drive search interest
 
 VOLATILITY:
 - ${prettyTermA}: ${data.volatilityA}/10 (${data.volatilityA > 5 ? "high" : data.volatilityA > 3 ? "moderate" : "low"})
@@ -397,8 +444,8 @@ Provide insights in this EXACT JSON format:
   "keyDifferences": "Highlight the most important differences between the two trends using specific data points",
   "volatilityAnalysis": "Explain what the volatility numbers mean practically - is one more predictable? More seasonal? More event-driven?",
   "peakExplanations": {
-    "termA": "Based on the peak date (${new Date(data.peakADate).toLocaleDateString()}), explain WHY ${prettyTermA} peaked at that time. What real-world event, announcement, or trend caused this? Be specific.",
-    "termB": "Based on the peak date (${new Date(data.peakBDate).toLocaleDateString()}), explain WHY ${prettyTermB} peaked at that time. What real-world event, announcement, or trend caused this? Be specific."
+    "termA": "For ${prettyTermA}'s peak on ${new Date(data.peakADate).toLocaleDateString()} (reached ${data.peakAValue}/100): Clearly explain the SPECIFIC reason this peak occurred. Research what happened around this date - was it a product launch, news event, announcement, controversy, viral moment, or seasonal trend? Be concrete and specific. Format: 'This peak occurred because [specific reason]. [What happened] on or around ${new Date(data.peakADate).toLocaleDateString()} that drove search interest to ${data.peakAValue}/100. [Additional context if relevant].'",
+    "termB": "For ${prettyTermB}'s peak on ${new Date(data.peakBDate).toLocaleDateString()} (reached ${data.peakBValue}/100): Clearly explain the SPECIFIC reason this peak occurred. Research what happened around this date - was it a product launch, news event, announcement, controversy, viral moment, or seasonal trend? Be concrete and specific. Format: 'This peak occurred because [specific reason]. [What happened] on or around ${new Date(data.peakBDate).toLocaleDateString()} that drove search interest to ${data.peakBValue}/100. [Additional context if relevant].'"
   },
   "practicalImplications": {
     "AudienceName1": "Specific, actionable advice for this audience based on the trend data",
@@ -413,7 +460,16 @@ CRITICAL REQUIREMENTS:
 3. In practicalImplications, use camelCase audience names (e.g., "webDevelopers", "healthConsciousConsumers", "parents")
 4. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
 5. DO NOT use generic audiences like "content creators" unless the terms are about content creation
-6. In peakExplanations, research and explain WHY each term peaked on its specific date - mention real events, product launches, news, etc.
+6. In peakExplanations, you MUST provide CLEAR, SPECIFIC explanations for why each peak occurred. Each explanation should:
+   - Start with "This peak occurred because..." followed by the specific reason
+   - Mention the exact event, announcement, news, or trend that happened on or around the peak date
+   - Include the peak value (e.g., "reached 88/100") to show the magnitude
+   - Be concrete and factual - avoid vague statements like "increased interest" or "gained attention"
+   - If you cannot determine a specific reason, state "The exact cause is unclear, but possible reasons include..." and list 2-3 likely scenarios
+   - Examples of good explanations:
+     * "This peak occurred because Apple announced the iPhone 17 on September 10, 2023. The official launch event generated massive media coverage and consumer anticipation, driving search interest to 92/100."
+     * "This peak occurred because Google Pixel 10 leaks surfaced on October 20, 2023. Tech blogs and social media shared leaked specifications and design images, creating significant buzz that reached 75/100."
+     * "This peak occurred because a major software update was released on this date, addressing critical security issues that had been widely reported in tech news."
 7. Every insight must include specific numbers, dates, or percentages from the data
 8. Be concise but insightful - quality over quantity
 9. Return ONLY the JSON, no markdown formatting or additional text`;
@@ -554,9 +610,38 @@ export async function getOrGenerateAIInsights(
       });
       console.log(`[AI Cache] ✅ Saved insights to database for future use`);
 
-      // Note: We DON'T cache individual keyword categories because keywords
-      // can be ambiguous (e.g., "tery ishq mein" = movie OR song).
-      // Category is cached at the comparison level (above) which preserves context.
+      // Cache individual keywords for future comparisons
+      // This enables keyword-level caching (TIER 2) for cost optimization
+      try {
+        const { cacheComparisonKeywords } = await import('./category-cache');
+        const categoryMap: Record<string, string> = {
+          'Technology': 'tech',
+          'Movies': 'movies',
+          'Music': 'music',
+          'Gaming': 'games',
+          'Products': 'products',
+          'People': 'people',
+          'Brands': 'brands',
+          'Places': 'places',
+          'Entertainment': 'movies', // Map Entertainment to movies as fallback
+          'Business': 'brands', // Map Business to brands as fallback
+        };
+
+        const normalizedCategory = categoryMap[insights.category] || 'general';
+
+        await cacheComparisonKeywords(
+          data.termA,
+          data.termB,
+          normalizedCategory as any,
+          90, // High confidence since it's from AI insights
+          'ai',
+          `From AI insights: ${insights.category}`
+        );
+        console.log(`[AI Cache] 💾 Cached keywords: "${data.termA}", "${data.termB}" as ${normalizedCategory}`);
+      } catch (cacheError) {
+        console.warn('[AI Cache] ⚠️ Failed to cache keywords:', cacheError);
+        // Non-critical error - continue
+      }
     } catch (saveError) {
       console.error('[AI Cache] ⚠️ Failed to save insights to database:', saveError);
       // Return insights anyway even if save failed

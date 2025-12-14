@@ -26,18 +26,17 @@ export type SpotifySearchResult = {
 export class SpotifyAdapter implements DataSourceAdapter {
   name: 'spotify' = 'spotify' as const;
   config: SourceConfig;
-  private clientId: string | null;
-  private clientSecret: string | null;
+  private clientId: string | null = null;
+  private clientSecret: string | null = null;
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
   private requestCount = 0;
   private resetTime: Date | null = null;
 
   constructor(config: Partial<SourceConfig> = {}) {
-    this.clientId = process.env.SPOTIFY_CLIENT_ID || null;
-    this.clientSecret = process.env.SPOTIFY_CLIENT_SECRET || null;
+    // Read env vars lazily - they might not be loaded at module import time
     this.config = {
-      enabled: !!(this.clientId && this.clientSecret),
+      enabled: true, // Will be checked in methods
       priority: 3,
       timeout: 10000,
       retries: 2,
@@ -46,8 +45,18 @@ export class SpotifyAdapter implements DataSourceAdapter {
     };
   }
 
+  private getCredentials() {
+    if (!this.clientId || !this.clientSecret) {
+      // Read from env vars lazily
+      this.clientId = process.env.SPOTIFY_CLIENT_ID || null;
+      this.clientSecret = process.env.SPOTIFY_CLIENT_SECRET || null;
+    }
+    return { clientId: this.clientId, clientSecret: this.clientSecret };
+  }
+
   async healthCheck(): Promise<boolean> {
-    if (!this.clientId || !this.clientSecret) return false;
+    const { clientId, clientSecret } = this.getCredentials();
+    if (!clientId || !clientSecret) return false;
 
     try {
       await this.getAccessToken();
@@ -63,11 +72,12 @@ export class SpotifyAdapter implements DataSourceAdapter {
       return this.accessToken;
     }
 
-    if (!this.clientId || !this.clientSecret) {
+    const { clientId, clientSecret } = this.getCredentials();
+    if (!clientId || !clientSecret) {
       throw new Error('Spotify credentials not configured');
     }
 
-    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
     const response = await fetch(`${SPOTIFY_ACCOUNTS_BASE}/token`, {
       method: 'POST',
@@ -143,6 +153,11 @@ export class SpotifyAdapter implements DataSourceAdapter {
   }
 
   async searchArtist(query: string): Promise<SpotifyArtist | null> {
+    const { clientId, clientSecret } = this.getCredentials();
+    if (!clientId || !clientSecret) {
+      return null; // Gracefully return null if credentials not configured
+    }
+    
     const token = await this.getAccessToken();
 
     const searchUrl = new URL(`${SPOTIFY_API_BASE}/search`);

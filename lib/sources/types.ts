@@ -3,7 +3,7 @@
  * Unified interface for different data sources
  */
 
-export type DataSourceType = 'google-trends' | 'reddit' | 'hackernews' | 'github' | 'youtube' | 'tmdb' | 'omdb' | 'bestbuy' | 'spotify' | 'steam';
+export type DataSourceType = 'google-trends' | 'youtube' | 'tmdb' | 'omdb' | 'bestbuy' | 'spotify' | 'steam';
 
 export type SourceStatus = 'active' | 'degraded' | 'failed' | 'rate-limited';
 
@@ -82,28 +82,6 @@ export interface DataSourceAdapter {
 }
 
 /**
- * Reddit-specific types
- */
-export type RedditPost = {
-  id: string;
-  title: string;
-  subreddit: string;
-  score: number;
-  numComments: number;
-  createdUtc: number;
-  url: string;
-};
-
-export type RedditMetrics = {
-  date: string;
-  postCount: number;
-  totalScore: number;
-  totalComments: number;
-  avgScore: number;
-  topSubreddits: string[];
-};
-
-/**
  * Wikipedia-specific types
  */
 export type WikipediaPageview = {
@@ -112,54 +90,6 @@ export type WikipediaPageview = {
   granularity: string;
   timestamp: string;
   views: number;
-};
-
-/**
- * Hacker News-specific types
- */
-export type HNItem = {
-  id: number;
-  type: string;
-  by: string;
-  time: number;
-  text?: string;
-  url?: string;
-  score: number;
-  title?: string;
-  descendants?: number;
-};
-
-export type HNMetrics = {
-  date: string;
-  mentionCount: number;
-  totalScore: number;
-  avgScore: number;
-  topStories: string[];
-};
-
-/**
- * GitHub-specific types
- */
-export type GitHubRepo = {
-  name: string;
-  fullName: string;
-  description: string;
-  stars: number;
-  forks: number;
-  watchers: number;
-  language: string;
-  createdAt: string;
-  updatedAt: string;
-  url: string;
-};
-
-export type GitHubMetrics = {
-  date: string;
-  repoCount: number;
-  totalStars: number;
-  totalForks: number;
-  newRepos: number;
-  activeRepos: number;
 };
 
 /**

@@ -1,134 +1,107 @@
-// app/sitemap.ts
-import type { MetadataRoute } from "next";
-import { prisma } from "@/lib/db";
+import { MetadataRoute } from 'next';
+import { PrismaClient } from '@prisma/client';
 
-export const runtime = "nodejs";       // Prisma needs node runtime
-// export const revalidate = 60 * 60;     // Regenerate sitemap hourly
-export const dynamic = "force-dynamic";
+const prisma = new PrismaClient();
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://trendarc.net";
+  const baseUrl = 'https://trendarc.net';
 
-  // 1️⃣ Static pages
+  // Get all published comparisons (limit to recent ones for performance)
+  // Note: terms is a JSON field, so we can't filter it directly in Prisma
+  // We'll fetch all and filter in memory (or just get recent ones)
+  const comparisons = await prisma.comparison.findMany({
+    select: {
+      slug: true,
+      updatedAt: true,
+      terms: true, // Include terms to filter
+    },
+    take: 1000, // Limit to most recent 1000
+    orderBy: {
+      updatedAt: 'desc',
+    },
+  });
+
+  // Filter out comparisons with empty or invalid terms
+  const validComparisons = comparisons.filter((comp) => {
+    if (!comp.terms || typeof comp.terms !== 'object') return false;
+    const terms = comp.terms as any;
+    return Array.isArray(terms) && terms.length >= 2 && terms.every((t: any) => typeof t === 'string' && t.trim() !== '');
+  });
+
+  // Static pages
   const staticPages: MetadataRoute.Sitemap = [
-    { url: `${base}/`, changeFrequency: "weekly", priority: 1, lastModified: new Date() },
-    { url: `${base}/about`, changeFrequency: "weekly", priority: 0.8, lastModified: new Date() },
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/trending`,
+      lastModified: new Date(),
+      changeFrequency: 'hourly',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
   ];
 
-  // 2️⃣ SEO seed comparisons – grouped by category
-  const seeds = [
-    // 🔹 AI & Tech
-    "chatgpt-vs-gemini",
-    "chatgpt-vs-copilot",
-    "chatgpt-vs-claude",
-    "openai-vs-anthropic",
-    "gpt-4-vs-gpt-3-5",
-    "midjourney-vs-dalle",
-    "google-bard-vs-gemini",
-    "perplexity-vs-chatgpt",
-    "notion-ai-vs-chatgpt",
-    "sora-vs-runway",
-    "github-copilot-vs-tabnine",
-    "microsoft-edge-vs-google-chrome",
-    "windows-11-vs-macos",
-    "android-vs-ios",
-
-    // 🔹 Smartphones & Gadgets
-    "iphone-16-vs-iphone-17",
-    "iphone-vs-samsung",
-    "samsung-s24-vs-iphone-15",
-    "macbook-air-vs-macbook-pro",
-    "ipad-vs-surface-pro",
-    "apple-watch-vs-fitbit",
-    "ps5-vs-xbox-series-x",
-    "nintendo-switch-vs-ps5",
-    "airpods-pro-vs-bose-qc",
-    "google-pixel-8-vs-iphone-15",
-
-    // 🔹 Business & Software
-    "microsoft-teams-vs-slack",
-    "zoom-vs-google-meet",
-    "notion-vs-evernote",
-    "asana-vs-clickup",
-    "dropbox-vs-google-drive",
-    "figma-vs-adobe-xd",
-    "spotify-vs-apple-music",
-    "chatgpt-plus-vs-free-plan",
-    "google-one-vs-icloud",
-    "obsidian-vs-notion",
-
-    // 🔹 Crypto & Finance
-    "bitcoin-vs-ethereum",
-    "solana-vs-cardano",
-    "dogecoin-vs-shiba-inu",
-    "paypal-vs-wise",
-    "revolut-vs-monzo",
-    "visa-vs-mastercard",
-    "stock-market-vs-crypto",
-    "gold-vs-bitcoin",
-    "coinbase-vs-binance",
-
-    // 🔹 Entertainment
-    "netflix-vs-disney-plus",
-    "netflix-vs-amazon-prime",
-    "spotify-vs-youtube-music",
-    "taylor-swift-vs-beyonce",
-    "kanye-west-vs-drake",
-    "barbie-vs-oppenheimer",
-    "marvel-vs-dc",
-    "ronaldo-vs-messi",
-    "elon-musk-vs-mark-zuckerberg",
-
-    // 🔹 Sports
-    "premier-league-vs-la-liga",
-    "cristiano-ronaldo-vs-lionel-messi",
-    "england-vs-india-cricket",
-    "nba-vs-nfl",
-    "f1-vs-nascar",
-    "lebron-james-vs-stephen-curry",
-    "serena-williams-vs-venus-williams",
-    "cricket-vs-football",
-    "uefa-champions-league-vs-world-cup",
-
-    // 🔹 Lifestyle & General
-    "coffee-vs-tea",
-    "vegan-vs-keto",
-    "gym-vs-yoga",
-    "airbnb-vs-booking-com",
-    "tesla-vs-toyota",
-    "electric-vs-hybrid",
-    "uber-vs-lyft",
-    "apple-vs-samsung",
-    "ai-vs-human-creativity",
-  ];
-
-  const seedPages: MetadataRoute.Sitemap = seeds.map((slug) => ({
-    url: `${base}/compare/${slug}`,
-    changeFrequency: "weekly",
-    priority: 0.6,
-    lastModified: new Date(),
+  // Dynamic comparison pages
+  const comparisonPages: MetadataRoute.Sitemap = validComparisons.map((comparison) => ({
+    url: `${baseUrl}/compare/${comparison.slug}`,
+    lastModified: comparison.updatedAt,
+    changeFrequency: 'weekly' as const,
+    priority: 0.8,
   }));
 
-  // 3️⃣ Dynamic pages from your DB (latest 5k)
-  let dynamicPages: MetadataRoute.Sitemap = [];
+  // Get blog posts if they exist
+  let blogPages: MetadataRoute.Sitemap = [];
   try {
-    const rows = await prisma.comparison.findMany({
-      select: { slug: true, updatedAt: true },
-      orderBy: { updatedAt: "desc" },
-      take: 5000,
+    const blogPosts = await prisma.blogPost.findMany({
+      where: {
+        status: 'published',
+      },
+      select: {
+        slug: true,
+        updatedAt: true,
+      },
+      take: 500,
     });
 
-    const seen = new Set<string>(seeds);
-    dynamicPages = rows
-      .filter((r: { slug: string | null; updatedAt: Date | null }) => r.slug && !seen.has(r.slug))
-      .map((r: { slug: string | null; updatedAt: Date | null }) => ({
-        url: `${base}/compare/${r.slug}`,
-        changeFrequency: "weekly" as const,
-        priority: 0.6,
-        lastModified: r.updatedAt ?? new Date(),
-      }));
-  } catch (err) {
-    console.warn("[sitemap] Skipping DB entries:", err);
+    blogPages = blogPosts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post.updatedAt,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    }));
+  } catch (error) {
+    // Blog table might not exist, ignore
+    console.warn('Blog posts not available for sitemap');
   }
 
-  return [...staticPages, ...seedPages, ...dynamicPages];
+  await prisma.$disconnect();
+
+  return [...staticPages, ...comparisonPages, ...blogPages];
 }

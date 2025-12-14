@@ -199,7 +199,7 @@ export default function HomeCompareForm() {
             aria-expanded={active === "a" && open}
             aria-controls="suggest-list-a"
             disabled={isSubmitting}
-            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3.5 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-200/50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           {/* Quick examples for Field A - only show when not active and no suggestions */}
@@ -274,7 +274,7 @@ export default function HomeCompareForm() {
             aria-expanded={active === "b" && open}
             aria-controls="suggest-list-b"
             disabled={isSubmitting}
-            className="w-full rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3.5 text-base sm:text-lg text-slate-700 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-200/50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           {/* Quick examples for Field B - only show when not active and no suggestions */}
@@ -326,7 +326,7 @@ export default function HomeCompareForm() {
         <button
           type="submit"
           disabled={!a.trim() || !b.trim() || isSubmitting}
-          className="w-full sm:w-auto rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 whitespace-nowrap"
+          className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 px-8 py-3.5 text-base font-semibold text-white shadow-lg hover:shadow-2xl hover:scale-105 active:scale-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 whitespace-nowrap"
           aria-label="Compare keywords"
         >
           {isSubmitting ? (

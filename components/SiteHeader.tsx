@@ -21,8 +21,8 @@ export default function SiteHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200">
-      <nav className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
           <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
@@ -44,9 +44,9 @@ export default function SiteHeader() {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className={`text-sm ${
+                className={`text-sm font-medium transition-colors relative ${
                   isActive(pathname, item.href)
-                    ? "text-slate-900 font-medium"
+                    ? "text-slate-900"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >

@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
+import AdSense from "@/components/AdSense";
 
 const prisma = new PrismaClient();
 
@@ -71,29 +72,29 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   return (
     <div className="min-h-screen bg-white">
       {/* Article Header */}
-      <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
+      <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Breadcrumb */}
-        <nav className="mb-8">
-          <Link href="/blog" className="text-blue-600 hover:text-blue-900">
-            ← Back to Blog
+        <nav className="mb-4 sm:mb-8">
+          <Link href="/blog" className="text-sm sm:text-base text-blue-600 hover:text-blue-900 flex items-center gap-1">
+            <span>←</span> <span>Back to Blog</span>
           </Link>
         </nav>
 
         {/* Category */}
-        <div className="mb-4">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+        <div className="mb-3 sm:mb-4">
+          <span className="inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
             {post.category}
           </span>
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">{post.title}</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight">{post.title}</h1>
 
         {/* Excerpt */}
-        <p className="text-xl text-gray-600 mb-6">{post.excerpt}</p>
+        <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-4 sm:mb-6 leading-relaxed">{post.excerpt}</p>
 
         {/* Meta */}
-        <div className="flex items-center gap-6 text-sm text-gray-500 mb-8 pb-8 border-b border-gray-200">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-500 mb-6 sm:mb-8 pb-6 sm:pb-8 border-b border-gray-200">
           <span>
             {new Date(post.publishedAt!).toLocaleDateString("en-US", {
               month: "long",
@@ -102,7 +103,17 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             })}
           </span>
           <span>{post.readTimeMinutes} min read</span>
-          <span>{post.viewCount} views</span>
+          {post.viewCount > 0 && <span>{post.viewCount} views</span>}
+        </div>
+
+        {/* AdSense - Top of Content */}
+        <div className="mb-8 flex justify-center">
+          <AdSense
+            adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_1}
+            adFormat="auto"
+            fullWidthResponsive
+            className="min-h-[100px]"
+          />
         </div>
 
         {/* Content */}
@@ -201,6 +212,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             </div>
           </div>
         )}
+
+        {/* AdSense - Bottom of Content */}
+        <div className="mt-12 mb-8 flex justify-center">
+          <AdSense
+            adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_2}
+            adFormat="auto"
+            fullWidthResponsive
+            className="min-h-[100px]"
+          />
+        </div>
 
         {/* Related Comparison */}
         {post.comparisonSlug && (

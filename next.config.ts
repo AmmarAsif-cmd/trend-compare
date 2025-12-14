@@ -63,6 +63,8 @@ const securityHeaders: { key: string; value: string }[] = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   turbopack: { root: __dirname },
+  // Disable production source maps (not needed, reduces build size)
+  productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [
       {
@@ -74,6 +76,24 @@ const nextConfig: NextConfig = {
         hostname: 'images-na.ssl-images-amazon.com',
       },
     ],
+  },
+  async rewrites() {
+    // Map secure admin path to actual admin folder
+    // This allows us to use a hard-to-guess URL while keeping the folder structure
+    const adminPath = process.env.ADMIN_PATH || 'cp-9a4eef7';
+    return [
+      {
+        source: `/${adminPath}/:path*`,
+        destination: '/admin/:path*',
+      },
+      // Note: API routes are kept at /api/admin/ for reliability
+      // The secure path is mainly for the UI pages
+      // If you want API routes to also use secure path, uncomment below:
+      // {
+      //   source: `/api/${adminPath}/:path*`,
+      //   destination: '/api/admin/:path*',
+      // },
+    ];
   },
   async headers() {
     return [
