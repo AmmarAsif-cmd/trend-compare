@@ -22,44 +22,44 @@ export default function PeakEventCitations({ peaks, termA, termB }: PeakEventCit
 
   return (
     <section className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-blue-200 shadow-lg p-6 sm:p-8">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-          <Calendar className="w-6 h-6 text-white" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4 sm:mb-6">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+          <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Peak Events & Citations</h2>
-          <p className="text-sm text-slate-600">Real-world events that caused search spikes</p>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Peak Events & Citations</h2>
+          <p className="text-xs sm:text-sm text-slate-600">Real-world events that caused search spikes</p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Term A Peaks */}
         {topPeaksA.length > 0 && (
           <div>
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              {termA} Peaks
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-3 sm:mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+              <span className="truncate">{termA} Peaks</span>
             </h3>
             <div className="space-y-4">
               {topPeaksA.map((peak, idx) => (
-                <div key={idx} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                <div key={idx} className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
+                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded whitespace-nowrap">
                           {new Date(peak.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </span>
-                        <span className="text-xs text-slate-500">Peak: {Math.round(peak.value)}</span>
+                        <span className="text-xs text-slate-500 whitespace-nowrap">Peak: {Math.round(peak.value)}</span>
                       </div>
                       {peak.event ? (
-                        <p className="text-sm font-semibold text-slate-900 mb-2">{peak.event.title}</p>
+                        <p className="text-xs sm:text-sm font-semibold text-slate-900 mb-2 break-words">{peak.event.title}</p>
                       ) : (
-                        <p className="text-sm text-slate-500 italic">No event detected for this peak</p>
+                        <p className="text-xs sm:text-sm text-slate-500 italic">No event detected for this peak</p>
                       )}
                     </div>
                     {peak.event?.verified && (
-                      <div title="Verified by multiple sources">
-                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <div title="Verified by multiple sources" className="flex-shrink-0">
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
                       </div>
                     )}
                   </div>
@@ -93,30 +93,30 @@ export default function PeakEventCitations({ peaks, termA, termB }: PeakEventCit
         {/* Term B Peaks */}
         {topPeaksB.length > 0 && (
           <div>
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              {termB} Peaks
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-3 sm:mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0"></span>
+              <span className="truncate">{termB} Peaks</span>
             </h3>
             <div className="space-y-4">
               {topPeaksB.map((peak, idx) => (
-                <div key={idx} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                <div key={idx} className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
+                        <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded whitespace-nowrap">
                           {new Date(peak.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </span>
-                        <span className="text-xs text-slate-500">Peak: {Math.round(peak.value)}</span>
+                        <span className="text-xs text-slate-500 whitespace-nowrap">Peak: {Math.round(peak.value)}</span>
                       </div>
                       {peak.event ? (
-                        <p className="text-sm font-semibold text-slate-900 mb-2">{peak.event.title}</p>
+                        <p className="text-xs sm:text-sm font-semibold text-slate-900 mb-2 break-words">{peak.event.title}</p>
                       ) : (
-                        <p className="text-sm text-slate-500 italic">No event detected for this peak</p>
+                        <p className="text-xs sm:text-sm text-slate-500 italic">No event detected for this peak</p>
                       )}
                     </div>
                     {peak.event?.verified && (
-                      <div title="Verified by multiple sources">
-                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <div title="Verified by multiple sources" className="flex-shrink-0">
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
                       </div>
                     )}
                   </div>

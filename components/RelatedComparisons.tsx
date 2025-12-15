@@ -41,7 +41,7 @@ export default async function RelatedComparisons({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {related.map((row, idx) => (
           <Link
             key={row.slug}
@@ -61,15 +61,15 @@ export default async function RelatedComparisons({
 
             {/* Content */}
             <div className="relative z-10 space-y-2">
-              <div className="font-bold text-sm text-slate-900 group-hover:text-purple-600 transition-colors leading-tight">
+              <div className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-purple-600 transition-colors leading-tight break-words">
                 {prettyTerm(row.terms[0])}
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-0.5 flex-1 bg-gradient-to-r from-purple-300 to-blue-300 rounded-full"></div>
-                <span className="text-xs text-slate-400 font-bold">VS</span>
+                <span className="text-xs text-slate-400 font-bold flex-shrink-0">VS</span>
                 <div className="h-0.5 flex-1 bg-gradient-to-r from-blue-300 to-purple-300 rounded-full"></div>
               </div>
-              <div className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
+              <div className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-blue-600 transition-colors leading-tight break-words">
                 {prettyTerm(row.terms[1])}
               </div>
             </div>

@@ -473,27 +473,27 @@ export default async function ComparePage({
 
           {/* Fallback when AI is unavailable */}
           {!aiInsights && (
-            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 shadow-lg p-6 print:hidden">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-200 shadow-lg p-4 sm:p-6 print:hidden">
+              <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">
                     AI-Powered Insights Unavailable
                   </h3>
-                  <p className="text-slate-600 text-sm mb-3">
+                  <p className="text-slate-600 text-xs sm:text-sm mb-3">
                     {aiInsightsError === 'API key not configured'
                       ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable AI-powered analysis.'
                       : aiInsightsError
                       ? `Generation failed: ${aiInsightsError}`
                       : 'Daily or monthly budget limit reached. AI insights will be available again soon.'}
                   </p>
-                  <div className="bg-white/60 rounded-lg p-3 text-xs text-slate-600">
+                  <div className="bg-white/60 rounded-lg p-2.5 sm:p-3 text-xs text-slate-600">
                     <p className="font-semibold mb-1">What you're missing:</p>
-                    <ul className="list-disc list-inside space-y-1">
+                    <ul className="list-disc list-inside space-y-0.5 sm:space-y-1">
                       <li>Data-specific analysis with exact numbers and dates</li>
                       <li>Volatility insights and trend predictions</li>
                       <li>Practical implications for your use case</li>
@@ -597,28 +597,28 @@ export default async function ComparePage({
 
           {/* Reasoning - Why This Matters & Key Differences */}
           {aiInsights && (aiInsights.whyThisMatters || aiInsights.keyDifferences || aiInsights.volatilityAnalysis) && (
-            <section className="bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-lg p-5 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-6 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full" />
-                Why This Comparison Matters
+            <section className="bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-lg p-4 sm:p-5 lg:p-6">
+              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full flex-shrink-0" />
+                <span>Why This Comparison Matters</span>
               </h2>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {aiInsights.whyThisMatters && (
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
-                    <h3 className="font-semibold text-emerald-800 mb-2 text-sm uppercase tracking-wide">Context</h3>
-                    <p className="text-slate-700 leading-relaxed">{aiInsights.whyThisMatters}</p>
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-emerald-200">
+                    <h3 className="font-semibold text-emerald-800 mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">Context</h3>
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">{aiInsights.whyThisMatters}</p>
                   </div>
                 )}
                 {aiInsights.keyDifferences && (
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
-                    <h3 className="font-semibold text-blue-800 mb-2 text-sm uppercase tracking-wide">Key Differences</h3>
-                    <p className="text-slate-700 leading-relaxed">{aiInsights.keyDifferences}</p>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">Key Differences</h3>
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">{aiInsights.keyDifferences}</p>
                   </div>
                 )}
                 {aiInsights.volatilityAnalysis && (
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
-                    <h3 className="font-semibold text-amber-800 mb-2 text-sm uppercase tracking-wide">Trend Behavior</h3>
-                    <p className="text-slate-700 leading-relaxed">{aiInsights.volatilityAnalysis}</p>
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-amber-200">
+                    <h3 className="font-semibold text-amber-800 mb-1.5 sm:mb-2 text-xs sm:text-sm uppercase tracking-wide">Trend Behavior</h3>
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">{aiInsights.volatilityAnalysis}</p>
                   </div>
                 )}
               </div>

@@ -117,30 +117,30 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
 
       <div className="relative z-10 p-6 sm:p-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg">
-              <Sparkles className="w-6 h-6 text-white" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl sm:rounded-2xl shadow-lg flex-shrink-0">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black !text-white mb-1">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black !text-white mb-1 truncate">
                 TrendArc Verdict
               </h2>
-              <p className="text-sm text-purple-100 flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                Multi-source analysis
+              <p className="text-xs sm:text-sm text-purple-100 flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
+                <span className="truncate">Multi-source analysis</span>
               </p>
             </div>
           </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-sm ${getConfidenceColor()}`}>
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-bold">{verdict.confidence}% Confidence</span>
+          <div className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border backdrop-blur-sm flex-shrink-0 ${getConfidenceColor()}`}>
+            <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="text-xs sm:text-sm font-bold whitespace-nowrap">{verdict.confidence}% Confidence</span>
           </div>
         </div>
 
         {/* Main Score Comparison */}
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6 sm:p-8 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-4 sm:p-6 lg:p-8 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-center">
             {/* Term A */}
             <div className={`relative ${displayIsTermAWinner ? 'order-1 sm:order-1' : 'order-2 sm:order-3'}`}>
               <div className={`text-center transition-all duration-300 ${displayIsTermAWinner ? 'scale-105' : 'scale-95 opacity-70'}`}>
@@ -149,7 +149,7 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
                     {formatTerm(termA)}
                   </div>
                   <div className="relative inline-block">
-                    <div className={`text-5xl sm:text-6xl font-black ${displayIsTermAWinner ? 'text-white' : 'text-slate-300'} mb-2`}>
+                    <div className={`text-4xl sm:text-5xl lg:text-6xl font-black ${displayIsTermAWinner ? 'text-white' : 'text-slate-300'} mb-2`}>
                       {termAScore}
                     </div>
                     {displayIsTermAWinner && (
@@ -181,10 +181,10 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
             </div>
 
             {/* VS Divider */}
-            <div className="order-1 sm:order-2 flex justify-center">
+            <div className="order-2 sm:order-2 flex justify-center my-3 sm:my-0">
               <div className="relative">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border-2 border-purple-400/30 flex items-center justify-center backdrop-blur-sm">
-                  <span className="text-white font-black text-lg sm:text-xl">VS</span>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border-2 border-purple-400/30 flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-white font-black text-sm sm:text-base md:text-lg lg:text-xl">VS</span>
                 </div>
                 <div className="absolute inset-0 rounded-full bg-purple-400/20 animate-ping" />
               </div>
@@ -198,7 +198,7 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
                     {formatTerm(termB)}
                   </div>
                   <div className="relative inline-block">
-                    <div className={`text-5xl sm:text-6xl font-black ${!displayIsTermAWinner ? 'text-white' : 'text-slate-300'} mb-2`}>
+                    <div className={`text-4xl sm:text-5xl lg:text-6xl font-black ${!displayIsTermAWinner ? 'text-white' : 'text-slate-300'} mb-2`}>
                       {termBScore}
                     </div>
                     {!displayIsTermAWinner && (

@@ -249,13 +249,13 @@ export default function HistoricalTimeline({
   if (milestones.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-6">
-      <div className="mb-6">
-        <h3 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-          <Calendar className="w-6 h-6 text-blue-600" />
-          Historical Timeline
+    <div className="bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-lg p-4 sm:p-6">
+      <div className="mb-4 sm:mb-6">
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0" />
+          <span>Historical Timeline</span>
         </h3>
-        <p className="text-slate-600 text-sm">
+        <p className="text-xs sm:text-sm text-slate-600">
           Key moments in the {prettyTerm(termA)} vs {prettyTerm(termB)} comparison
         </p>
       </div>
@@ -282,34 +282,34 @@ export default function HistoricalTimeline({
             </div>
 
             {/* Content */}
-            <div className="ml-4">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <h4 className="font-bold text-slate-900 text-base leading-tight">
+            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 mb-2">
+                <h4 className="font-bold text-slate-900 text-sm sm:text-base leading-tight flex-1 min-w-0">
                   {milestone.event}
                 </h4>
                 {milestone.significance === "high" && (
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0 self-start sm:self-auto">
                     Major Event
                   </span>
                 )}
               </div>
 
-              <p className="text-sm text-slate-500 mb-2">{formatDate(milestone.date)}</p>
+              <p className="text-xs sm:text-sm text-slate-500 mb-2">{formatDate(milestone.date)}</p>
 
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="font-medium text-slate-700 truncate">
                     {prettyTerm(termA)}:
                   </span>
-                  <span className="font-bold text-blue-600">
+                  <span className="font-bold text-blue-600 whitespace-nowrap">
                     {milestone.relativeInterest[termA]}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-700">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="font-medium text-slate-700 truncate">
                     {prettyTerm(termB)}:
                   </span>
-                  <span className="font-bold text-purple-600">
+                  <span className="font-bold text-purple-600 whitespace-nowrap">
                     {milestone.relativeInterest[termB]}
                   </span>
                 </div>
