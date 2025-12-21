@@ -71,6 +71,9 @@ export default function AdminKeywordsPage() {
   const [qualityResult, setQualityResult] = useState<QualityResult | null>(null);
   const [checkingQuality, setCheckingQuality] = useState(false);
 
+  // Import state
+  const [importing, setImporting] = useState(false);
+
   // Stats
   const [stats, setStats] = useState({
     total: 0,
@@ -239,6 +242,40 @@ export default function AdminKeywordsPage() {
     return "Very Poor";
   };
 
+  // Import seed keywords
+  const handleImportSeed = async () => {
+    if (!confirm("Import keywords from seed-keywords.json? This will add 340+ curated keyword pairs.")) {
+      return;
+    }
+
+    try {
+      setImporting(true);
+      setError("");
+      setSuccess("");
+
+      const response = await fetch("/api/admin/keywords/import-seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ minQuality: 50 }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to import keywords");
+      }
+
+      setSuccess(
+        `✅ Import complete! ${data.stats.imported} keywords imported, ${data.stats.skipped} duplicates skipped, ${data.stats.lowQuality} low quality filtered.`
+      );
+      fetchKeywords();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import keywords");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -248,17 +285,26 @@ export default function AdminKeywordsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Keyword Management</h1>
             <p className="text-gray-600 mt-1">Manage comparison keyword pairs for seeding</p>
           </div>
-          <button
-            onClick={() => {
-              setShowModal(true);
-              setEditingId(null);
-              setFormData({ termA: "", termB: "", category: "tech", notes: "", tags: "" });
-              setQualityResult(null);
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            + Add Keyword Pair
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleImportSeed}
+              disabled={importing}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {importing ? "Importing..." : "📥 Import Seed Keywords"}
+            </button>
+            <button
+              onClick={() => {
+                setShowModal(true);
+                setEditingId(null);
+                setFormData({ termA: "", termB: "", category: "tech", notes: "", tags: "" });
+                setQualityResult(null);
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              + Add Keyword Pair
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
