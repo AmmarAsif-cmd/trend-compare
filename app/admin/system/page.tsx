@@ -1199,6 +1199,7 @@ export default function EnhancedSystemDashboard() {
                 <li>DELETE /api/admin/keywords</li>
                 <li>POST /api/admin/keywords/check-quality</li>
                 <li>POST /api/admin/keywords/import-seed</li>
+                <li>POST /api/admin/keywords/seed</li>
               </ul>
             </div>
             <div>

@@ -74,6 +74,9 @@ export default function AdminKeywordsPage() {
   // Import state
   const [importing, setImporting] = useState(false);
 
+  // Seeding state
+  const [seeding, setSeeding] = useState(false);
+
   // Stats
   const [stats, setStats] = useState({
     total: 0,
@@ -276,6 +279,61 @@ export default function AdminKeywordsPage() {
     }
   };
 
+  // Seed comparisons from keywords
+  const handleSeedComparisons = async () => {
+    const limit = prompt("How many keywords to process? (default: 10)", "10");
+    if (!limit) return;
+
+    const count = parseInt(limit);
+    if (isNaN(count) || count <= 0) {
+      setError("Please enter a valid number");
+      return;
+    }
+
+    if (!confirm(
+      `Process ${count} approved keywords into comparisons?\n\n` +
+      `This will create actual comparison pages in your database.\n` +
+      `Takes ~0.5s per keyword (${Math.round(count * 0.5 / 60)}min for ${count} keywords)`
+    )) {
+      return;
+    }
+
+    try {
+      setSeeding(true);
+      setError("");
+      setSuccess("");
+
+      const response = await fetch("/api/admin/keywords/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          limit: count,
+          status: "approved",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to seed comparisons");
+      }
+
+      let message = `✅ Seeding complete!\n\n`;
+      message += `• Created: ${data.stats.created} new comparisons\n`;
+      message += `• Already exists: ${data.stats.exists}\n`;
+      if (data.stats.errors > 0) {
+        message += `• Errors: ${data.stats.errors}\n`;
+      }
+
+      setSuccess(message);
+      fetchKeywords(); // Refresh to show updated timesUsed
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to seed comparisons");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -291,7 +349,15 @@ export default function AdminKeywordsPage() {
               disabled={importing}
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {importing ? "Importing..." : "📥 Import Seed Keywords"}
+              {importing ? "Importing..." : "📥 Import Keywords"}
+            </button>
+            <button
+              onClick={handleSeedComparisons}
+              disabled={seeding || stats.approved === 0}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              title={stats.approved === 0 ? "No approved keywords to seed" : "Create comparisons from approved keywords"}
+            >
+              {seeding ? "Seeding..." : "🌱 Seed Comparisons"}
             </button>
             <button
               onClick={() => {
