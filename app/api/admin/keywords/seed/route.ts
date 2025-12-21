@@ -63,8 +63,15 @@ export async function POST(request: NextRequest) {
           .replace(/^-|-$/g, '');
 
         // Check if comparison already exists
+        // Comparison table uses compound unique constraint: slug + timeframe + geo
         const existing = await prisma.comparison.findUnique({
-          where: { slug },
+          where: {
+            slug_timeframe_geo: {
+              slug: slug,
+              timeframe: '7d',
+              geo: '',
+            },
+          },
         });
 
         if (existing) {
