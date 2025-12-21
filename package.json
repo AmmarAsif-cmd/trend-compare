@@ -15,7 +15,16 @@
     "blog:generate": "tsx scripts/generate-blog-posts.ts",
     "screenshots": "tsx scripts/capture-screenshots.ts",
     "refresh:all": "tsx scripts/refresh-all-comparisons.ts",
-    "refresh:trending": "tsx -e \"import { refreshTrendingComparisons } from './lib/refresh-comparisons'; refreshTrendingComparisons(20).then(r => console.log('Refreshed:', r));\""
+    "refresh:trending": "tsx -e \"import { refreshTrendingComparisons } from './lib/refresh-comparisons'; refreshTrendingComparisons(20).then(r => console.log('Refreshed:', r));\"",
+    "seed": "tsx scripts/seed-comparisons.ts",
+    "seed:music": "tsx scripts/seed-comparisons.ts --category music --limit 50",
+    "seed:movies": "tsx scripts/seed-comparisons.ts --category movies --limit 50",
+    "seed:games": "tsx scripts/seed-comparisons.ts --category games --limit 50",
+    "seed:tech": "tsx scripts/seed-comparisons.ts --category tech --limit 50",
+    "seed:products": "tsx scripts/seed-comparisons.ts --category products --limit 50",
+    "seed:bulk": "tsx scripts/seed-bulk.ts",
+    "seed:scheduler": "tsx scripts/seed-scheduler.ts",
+    "seed:all": "tsx scripts/seed-comparisons.ts --all --delay 5000 --skip-existing"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
