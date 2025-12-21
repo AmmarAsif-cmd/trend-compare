@@ -5,7 +5,7 @@
  * Scores range from 0-100, with higher being better quality.
  */
 
-import { isTermAllowed } from './validateTermsServer';
+import { validateTopic } from './validateTermsServer';
 
 export type QualityScore = {
   overall: number;           // 0-100 overall quality score
@@ -73,14 +73,16 @@ export function scoreKeywordPair(termA: string, termB: string): QualityScore {
 
   // 1. VALIDITY SCORE (0-25 points)
   // Check if both terms pass validation
-  const aValid = isTermAllowed(normalizedA);
-  const bValid = isTermAllowed(normalizedB);
+  const resultA = validateTopic(normalizedA);
+  const resultB = validateTopic(normalizedB);
+  const aValid = resultA.ok;
+  const bValid = resultB.ok;
 
   if (!aValid) {
-    issues.push(`Term A "${normalizedA}" failed validation (blocked pattern or invalid format)`);
+    issues.push(`Term A "${normalizedA}" failed validation: ${!resultA.ok ? resultA.reason : 'unknown'}`);
   }
   if (!bValid) {
-    issues.push(`Term B "${normalizedB}" failed validation (blocked pattern or invalid format)`);
+    issues.push(`Term B "${normalizedB}" failed validation: ${!resultB.ok ? resultB.reason : 'unknown'}`);
   }
 
   if (aValid && bValid) {

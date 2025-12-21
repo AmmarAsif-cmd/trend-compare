@@ -10,7 +10,7 @@ import { isAdminAuthenticated } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   // Check auth
-  if (!isAdminAuthenticated(request)) {
+  if (!(await isAdminAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

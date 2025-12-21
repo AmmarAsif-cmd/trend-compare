@@ -12,7 +12,7 @@ import { scoreKeywordPair } from "@/lib/keyword-quality";
 // GET /api/admin/keywords - List all keyword pairs
 export async function GET(request: NextRequest) {
   // Check auth
-  if (!isAdminAuthenticated(request)) {
+  if (!(await isAdminAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/keywords - Create new keyword pair
 export async function POST(request: NextRequest) {
   // Check auth
-  if (!isAdminAuthenticated(request)) {
+  if (!(await isAdminAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/admin/keywords - Update keyword pair
 export async function PUT(request: NextRequest) {
   // Check auth
-  if (!isAdminAuthenticated(request)) {
+  if (!(await isAdminAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -202,7 +202,7 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/keywords - Delete keyword pair
 export async function DELETE(request: NextRequest) {
   // Check auth
-  if (!isAdminAuthenticated(request)) {
+  if (!(await isAdminAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
