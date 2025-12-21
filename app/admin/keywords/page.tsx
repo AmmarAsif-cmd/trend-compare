@@ -335,29 +335,29 @@ export default function AdminKeywordsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Keyword Management</h1>
-            <p className="text-gray-600 mt-1">Manage comparison keyword pairs for seeding</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Keyword Management</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Manage comparison keyword pairs for seeding</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={handleImportSeed}
               disabled={importing}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base"
             >
-              {importing ? "Importing..." : "📥 Import Keywords"}
+              {importing ? "Importing..." : "📥 Import"}
             </button>
             <button
               onClick={handleSeedComparisons}
               disabled={seeding || stats.approved === 0}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base"
               title={stats.approved === 0 ? "No approved keywords to seed" : "Create comparisons from approved keywords"}
             >
-              {seeding ? "Seeding..." : "🌱 Seed Comparisons"}
+              {seeding ? "Seeding..." : "🌱 Seed"}
             </button>
             <button
               onClick={() => {
@@ -366,15 +366,15 @@ export default function AdminKeywordsPage() {
                 setFormData({ termA: "", termB: "", category: "tech", notes: "", tags: "" });
                 setQualityResult(null);
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="flex-1 sm:flex-none bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base"
             >
-              + Add Keyword Pair
+              + Add
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-gray-600 text-sm">Total</div>
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -394,14 +394,14 @@ export default function AdminKeywordsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex gap-4">
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm sm:text-base"
               >
                 <option value="">All Categories</option>
                 {CATEGORIES.map((cat) => (
@@ -416,7 +416,7 @@ export default function AdminKeywordsPage() {
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm sm:text-base"
               >
                 <option value="">All Status</option>
                 {STATUS_OPTIONS.map((status) => (
@@ -431,12 +431,12 @@ export default function AdminKeywordsPage() {
 
         {/* Alerts */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-3 rounded-lg mb-4 text-sm sm:text-base">
             {error}
           </div>
         )}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-3 sm:px-4 py-3 rounded-lg mb-4 text-sm sm:text-base whitespace-pre-wrap">
             {success}
           </div>
         )}

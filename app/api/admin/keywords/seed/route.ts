@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Seeding complete! Created ${stats.created} new comparisons`,
       stats,
-      keywordPairs: keywordPairs.map(kp => ({
+      keywordPairs: keywordPairs.map((kp: { termA: string; termB: string; category: string }) => ({
         termA: kp.termA,
         termB: kp.termB,
         category: kp.category,
