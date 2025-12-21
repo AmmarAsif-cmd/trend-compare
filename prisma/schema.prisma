@@ -93,3 +93,41 @@ model BlogPost {
   @@index([publishedAt])
   @@index([scheduledFor])
 }
+
+model KeywordPair {
+  id          String   @id @default(cuid())
+  termA       String   // First term (e.g., "iPhone 15")
+  termB       String   // Second term (e.g., "Samsung S24")
+  category    String   // music, movies, games, products, tech, people, brands, places, general
+
+  // Quality metrics
+  qualityScore     Int      // 0-100 overall quality score
+  searchVolume     String?  @default("unknown") // high, medium, low, unknown
+
+  // Status and approval
+  status      String   @default("pending") // pending, approved, rejected, archived
+  approvedBy  String?  // Admin who approved (can be email or name)
+  approvedAt  DateTime?
+
+  // Source tracking
+  source      String   @default("manual") // manual, imported, suggested, ai_generated
+  importedFrom String? // URL or file name if imported
+
+  // Usage tracking
+  timesUsed   Int      @default(0) // How many times this pair was seeded
+  lastUsedAt  DateTime?
+
+  // Notes and tags
+  notes       String?  @db.Text // Admin notes
+  tags        String[] @default([]) // Custom tags for organization
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([termA, termB], name: "unique_pair") // Prevent duplicates
+  @@index([category])
+  @@index([status])
+  @@index([qualityScore])
+  @@index([source])
+}

@@ -24,7 +24,9 @@
     "seed:products": "tsx scripts/seed-comparisons.ts --category products --limit 50",
     "seed:bulk": "tsx scripts/seed-bulk.ts",
     "seed:scheduler": "tsx scripts/seed-scheduler.ts",
-    "seed:all": "tsx scripts/seed-comparisons.ts --all --delay 5000 --skip-existing"
+    "seed:all": "tsx scripts/seed-comparisons.ts --all --delay 5000 --skip-existing",
+    "keywords:import": "tsx scripts/import-keywords.ts",
+    "keywords:import-seed": "tsx scripts/import-seed-keywords.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
