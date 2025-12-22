@@ -4,6 +4,7 @@ import { fromSlug, toCanonicalSlug } from "@/lib/slug";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import TrendChart from "@/components/TrendChart";
+import TrendArcScoreChart from "@/components/TrendArcScoreChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import DataSourceBadge from "@/components/DataSourceBadge";
 import MultiSourceBreakdown from "@/components/MultiSourceBreakdown";
@@ -430,40 +431,48 @@ export default async function ComparePage({
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
         {/* Main content */}
-        <div className="lg:col-span-8 space-y-4 sm:space-y-6">
+        <div className="lg:col-span-8 space-y-6 sm:space-y-8">
           {/* Header + insight */}
-          <header className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-2 sm:mb-3 leading-tight">
-                  <span className="block sm:inline">{prettyTerm(actualTerms[0])}</span>{" "}
-                  <span className="text-slate-400 text-xl sm:text-2xl lg:text-3xl">vs</span>{" "}
-                  <span className="block sm:inline">{prettyTerm(actualTerms[1])}</span>
+          <header className="space-y-6 sm:space-y-8 pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-3 sm:mb-4 leading-tight">
+                  <span className="block sm:inline bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{prettyTerm(actualTerms[0])}</span>{" "}
+                  <span className="text-slate-400 text-2xl sm:text-3xl lg:text-4xl font-normal mx-1">vs</span>{" "}
+                  <span className="block sm:inline bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{prettyTerm(actualTerms[1])}</span>
                 </h1>
-                <p className="text-sm sm:text-base lg:text-lg text-slate-600 leading-relaxed">
+                <p className="text-base sm:text-lg lg:text-xl text-slate-600 leading-relaxed max-w-3xl">
                   {ai?.metaDescription ??
                     `Compare ${prettyTerm(actualTerms[0])} and ${prettyTerm(
                       actualTerms[1],
                     )} search interest trends with detailed insights and analysis.`}
                 </p>
                 {region && (
-                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                    <span className="font-medium">Region:</span> {region}
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-1.5 rounded-full transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{region}</span>
                   </p>
                 )}
                 {sparse && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-800">
-                      ⚠️ Most interest comes in short spikes. Try a shorter timeframe for a clearer picture.
+                  <div className="mt-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg shadow-sm">
+                    <p className="text-sm font-medium text-amber-900 flex items-start gap-2">
+                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Most interest comes in short spikes. Try a shorter timeframe for a clearer picture.</span>
                     </p>
                   </div>
                 )}
               </div>
-              <TimeframeSelect />
+              <div className="flex-shrink-0">
+                <TimeframeSelect />
+              </div>
             </div>
 
             {/* Social Share & View Counter */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-200">
               <SocialShareButtons
                 url={`https://trendarc.net/compare/${slug}`}
                 title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
@@ -605,20 +614,46 @@ export default async function ComparePage({
             </div>
           )}
 
-          {/* Google Trends Chart - Search interest over time */}
-          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
-            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
-              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full" />
-                Search Interest Over Time
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                <span className="font-semibold">Google Trends</span> search volume on a 0-100 scale.
-                <span className="text-slate-500 ml-1">This is the primary component (40-45% weight) of the TrendArc Score shown above.</span>
-              </p>
-              <div className="mt-3">
+          {/* TrendArc Score Chart - Primary visualization */}
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-200">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2.5 mb-2">
+                    <span className="w-2 h-6 sm:h-7 bg-gradient-to-b from-violet-500 to-purple-600 rounded-full" />
+                    TrendArc Score Over Time
+                  </h2>
+                  <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
+                    Comprehensive popularity score combining search interest, social buzz, authority, and momentum. 
+                    <span className="text-slate-600 ml-1">Higher scores indicate greater overall popularity.</span>
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
                 <DataSourceBadge sources={dataSources} />
               </div>
+            </div>
+            <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-white via-violet-50/20 to-white">
+              <TrendArcScoreChart 
+                series={series} 
+                termA={actualTerms[0]} 
+                termB={actualTerms[1]}
+                category={verdictData.category as any}
+              />
+            </div>
+          </section>
+
+          {/* Google Trends Chart - Raw data reference */}
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-50 to-white px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-1.5 h-4 sm:h-5 bg-gradient-to-b from-blue-400 to-blue-500 rounded-full" />
+                Raw Search Interest Data
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 mt-1.5">
+                <span className="font-medium">Google Trends</span> search volume (0-100 scale). 
+                <span className="text-slate-500 ml-1">This raw data is a key component of the TrendArc Score above.</span>
+              </p>
             </div>
             <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
               <TrendChart series={series} />
