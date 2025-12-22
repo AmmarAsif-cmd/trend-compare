@@ -753,11 +753,12 @@ export default async function ComparePage({
             termB={actualTerms[1]}
           />
 
-          {/* Historical Timeline */}
+          {/* Historical Timeline with AI Peak Explanations */}
           <HistoricalTimeline
             termA={actualTerms[0]}
             termB={actualTerms[1]}
             series={series as any[]}
+            peakExplanations={aiInsights?.peakExplanations}
           />
 
           {/* What This Means For You - Practical Implications */}
