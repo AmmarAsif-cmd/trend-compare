@@ -250,6 +250,42 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 /**
+ * Check if admin is authenticated from NextRequest
+ * (For API routes that receive NextRequest)
+ */
+export async function isAdminAuthenticated(request: NextRequest): Promise<boolean> {
+  try {
+    const session = request.cookies.get(SESSION_COOKIE);
+
+    if (!session?.value) {
+      return false;
+    }
+
+    // Extract timestamp from token
+    const parts = session.value.split('.');
+    if (parts.length !== 2) {
+      return false;
+    }
+
+    const timestamp = parseInt(parts[1], 10);
+    if (isNaN(timestamp)) {
+      return false;
+    }
+
+    // Check if session is expired (8 hours)
+    const expiresAt = timestamp + (60 * 60 * 8 * 1000);
+    if (Date.now() > expiresAt) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[Auth] Error checking authentication:', error);
+    return false;
+  }
+}
+
+/**
  * Logout - clear session
  */
 export async function logout() {

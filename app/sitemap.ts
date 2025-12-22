@@ -22,7 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   // Filter out comparisons with empty or invalid terms
-  const validComparisons = comparisons.filter((comp) => {
+  const validComparisons = comparisons.filter((comp: { slug: string; updatedAt: Date; terms: unknown }) => {
     if (!comp.terms || typeof comp.terms !== 'object') return false;
     const terms = comp.terms as any;
     return Array.isArray(terms) && terms.length >= 2 && terms.every((t: any) => typeof t === 'string' && t.trim() !== '');
@@ -69,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // Dynamic comparison pages
-  const comparisonPages: MetadataRoute.Sitemap = validComparisons.map((comparison) => ({
+  const comparisonPages: MetadataRoute.Sitemap = validComparisons.map((comparison: { slug: string; updatedAt: Date; terms: unknown }) => ({
     url: `${baseUrl}/compare/${comparison.slug}`,
     lastModified: comparison.updatedAt,
     changeFrequency: 'weekly' as const,
@@ -90,7 +90,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       take: 500,
     });
 
-    blogPages = blogPosts.map((post) => ({
+    blogPages = blogPosts.map((post: { slug: string; updatedAt: Date }) => ({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: post.updatedAt,
       changeFrequency: 'monthly' as const,

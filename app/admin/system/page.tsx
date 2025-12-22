@@ -849,7 +849,13 @@ export default function EnhancedSystemDashboard() {
               onClick={() => router.push(ADMIN_ROUTES.blog)}
               className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              ← Back to Blog Admin
+              📝 Blog Admin
+            </button>
+            <button
+              onClick={() => router.push("/admin/keywords")}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              🔑 Keywords
             </button>
           </div>
           
@@ -1187,6 +1193,13 @@ export default function EnhancedSystemDashboard() {
                 <li>DELETE /api/admin/blog/posts/[id]</li>
                 <li>POST /api/admin/blog/posts/create</li>
                 <li>POST /api/admin/blog/generate</li>
+                <li>GET /api/admin/keywords</li>
+                <li>POST /api/admin/keywords</li>
+                <li>PUT /api/admin/keywords</li>
+                <li>DELETE /api/admin/keywords</li>
+                <li>POST /api/admin/keywords/check-quality</li>
+                <li>POST /api/admin/keywords/import-seed</li>
+                <li>POST /api/admin/keywords/seed</li>
               </ul>
             </div>
             <div>
@@ -1219,6 +1232,7 @@ export default function EnhancedSystemDashboard() {
                 <li>GET /privacy</li>
                 <li>GET /admin/login</li>
                 <li>GET /admin/blog</li>
+                <li>GET /admin/keywords</li>
                 <li>GET /admin/system</li>
               </ul>
             </div>
