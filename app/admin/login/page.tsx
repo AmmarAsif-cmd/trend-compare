@@ -25,7 +25,7 @@ export default function AdminLogin() {
       const data = await res.json();
 
       if (data.success) {
-        router.push(ADMIN_ROUTES.blog);
+        router.push(ADMIN_ROUTES.dashboard);
         router.refresh();
       } else {
         // Show specific error message from server

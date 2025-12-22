@@ -34,7 +34,15 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, posts });
+    // Calculate stats
+    const stats = {
+      total: await prisma.blogPost.count(),
+      published: await prisma.blogPost.count({ where: { status: "published" } }),
+      pending: await prisma.blogPost.count({ where: { status: "pending_review" } }),
+      draft: await prisma.blogPost.count({ where: { status: "draft" } }),
+    };
+
+    return NextResponse.json({ success: true, posts, stats });
   } catch (error) {
     console.error("[API] Failed to fetch posts:", error);
     return NextResponse.json(
