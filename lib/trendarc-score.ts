@@ -77,7 +77,7 @@ export type ComparisonVerdict = {
 // Category-specific weights for each metric
 // Google Trends (searchInterest) is always the primary factor to ensure consistency
 // with chart and AI insights which are based on search trends
-const CATEGORY_WEIGHTS: Record<ComparisonCategory, {
+export const CATEGORY_WEIGHTS: Record<ComparisonCategory, {
   searchInterest: number;
   socialBuzz: number;
   authority: number;
