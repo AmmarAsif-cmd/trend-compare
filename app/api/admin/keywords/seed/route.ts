@@ -21,6 +21,11 @@ export async function POST(request: NextRequest) {
     const category = body.category || null;
     const status = body.status || "approved"; // Only seed approved keywords by default
 
+    // Get base URL from request headers (works on Vercel)
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     const stats: SeedStats = {
       processed: 0,
       created: 0,
@@ -81,7 +86,7 @@ export async function POST(request: NextRequest) {
 
         // Create comparison by calling the compare API
         const compareResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/compare`,
+          `${baseUrl}/api/compare`,
           {
             method: 'POST',
             headers: {

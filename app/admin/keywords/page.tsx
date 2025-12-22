@@ -322,7 +322,16 @@ export default function AdminKeywordsPage() {
       message += `• Created: ${data.stats.created} new comparisons\n`;
       message += `• Already exists: ${data.stats.exists}\n`;
       if (data.stats.errors > 0) {
-        message += `• Errors: ${data.stats.errors}\n`;
+        message += `• Errors: ${data.stats.errors}\n\n`;
+        if (data.stats.errorDetails && data.stats.errorDetails.length > 0) {
+          message += `Error Details:\n`;
+          data.stats.errorDetails.slice(0, 5).forEach((err: any) => {
+            message += `- ${err.pair}: ${err.error}\n`;
+          });
+          if (data.stats.errorDetails.length > 5) {
+            message += `... and ${data.stats.errorDetails.length - 5} more errors\n`;
+          }
+        }
       }
 
       setSuccess(message);
