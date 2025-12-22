@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getOrBuildComparison } from "@/lib/getOrBuild";
+import { toCanonicalSlug } from "@/lib/slug";
 
 interface SeedStats {
   processed: number;
@@ -20,11 +22,6 @@ export async function POST(request: NextRequest) {
     const limit = body.limit || 10; // Process 10 keywords at a time by default
     const category = body.category || null;
     const status = body.status || "approved"; // Only seed approved keywords by default
-
-    // Get base URL from request headers (works on Vercel)
-    const host = request.headers.get('host');
-    const protocol = request.headers.get('x-forwarded-proto') || 'https';
-    const baseUrl = `${protocol}://${host}`;
 
     const stats: SeedStats = {
       processed: 0,
@@ -84,29 +81,19 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Create comparison by calling the compare API
-        const compareResponse = await fetch(
-          `${baseUrl}/api/compare`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              a: pair.termA,
-              b: pair.termB,
-              tf: '7d',
-              geo: '',
-            }),
-          }
-        );
+        // Create comparison directly (more efficient than HTTP call)
+        const comparison = await getOrBuildComparison({
+          slug: slug,
+          terms: [pair.termA, pair.termB],
+          timeframe: '7d',
+          geo: '',
+        });
 
-        if (!compareResponse.ok) {
-          const errorText = await compareResponse.text();
+        if (!comparison) {
           stats.errors++;
           stats.errorDetails.push({
             pair: `${pair.termA} vs ${pair.termB}`,
-            error: `API error: ${compareResponse.status} - ${errorText.substring(0, 100)}`,
+            error: 'Failed to generate comparison data',
           });
           continue;
         }
