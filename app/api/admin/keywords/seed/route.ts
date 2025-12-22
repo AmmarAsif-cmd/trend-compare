@@ -3,7 +3,7 @@ import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { toCanonicalSlug } from "@/lib/slug";
-import { generateAIInsights } from "@/lib/aiInsightsGenerator";
+import { prepareInsightData, getOrGenerateAIInsights } from "@/lib/aiInsightsGenerator";
 
 interface SeedStats {
   processed: number;
@@ -107,10 +107,16 @@ export async function POST(request: NextRequest) {
         // Generate rich AI insights if requested
         if (generateAI) {
           try {
-            await generateAIInsights(
+            // Prepare insight data from comparison
+            const series = comparison.series as Array<{ date: string; [key: string]: any }>;
+            const insightData = prepareInsightData(pair.termA, pair.termB, series);
+
+            // Generate and save AI insights
+            await getOrGenerateAIInsights(
               slug,
               '7d',
               '',
+              insightData,
               true // force regeneration even if cached
             );
             stats.aiGenerated++;
