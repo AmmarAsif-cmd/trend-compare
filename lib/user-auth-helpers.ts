@@ -52,22 +52,29 @@ export async function getUserWithSubscription(userId: string) {
 /**
  * Check if user can access premium features
  * Returns true if user is premium or in trial
+ * 
+ * TEMPORARY: Always returns true for testing purposes
+ * TODO: Remove this bypass before production
  */
 export async function canAccessPremium(): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-
-  const userId = (user as any).id;
-  const fullUser = await getUserWithSubscription(userId);
-
-  if (!fullUser) return false;
-
-  // Check if user is premium tier
-  if (fullUser.subscriptionTier === "premium") return true;
-
-  // Check if user has active subscription in trial
-  const activeSub = fullUser.subscriptions[0];
-  if (activeSub && activeSub.status === "trialing") return true;
-
-  return false;
+  // TEMPORARY: Always return true for testing
+  return true;
+  
+  // Original code (commented out for testing):
+  // const user = await getCurrentUser();
+  // if (!user) return false;
+  //
+  // const userId = (user as any).id;
+  // const fullUser = await getUserWithSubscription(userId);
+  //
+  // if (!fullUser) return false;
+  //
+  // // Check if user is premium tier
+  // if (fullUser.subscriptionTier === "premium") return true;
+  //
+  // // Check if user has active subscription in trial
+  // const activeSub = fullUser.subscriptions[0];
+  // if (activeSub && activeSub.status === "trialing") return true;
+  //
+  // return false;
 }
