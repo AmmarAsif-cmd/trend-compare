@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
           where: {
             slug_timeframe_geo: {
               slug: slug,
-              timeframe: '7d',
+              timeframe: '12m',
               geo: '',
             },
           },
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         const comparison = await getOrBuildComparison({
           slug: slug,
           terms: [pair.termA, pair.termB],
-          timeframe: '7d',
+          timeframe: '12m',
           geo: '',
         });
 
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
             // Generate and save AI insights
             await getOrGenerateAIInsights(
               slug,
-              '7d',
+              '12m',
               '',
               insightData,
               true // force regeneration even if cached
