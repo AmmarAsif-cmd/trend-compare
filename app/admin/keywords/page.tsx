@@ -290,13 +290,13 @@ export default function AdminKeywordsPage() {
       return;
     }
 
-    if (!confirm(
+    const generateAI = confirm(
       `Process ${count} approved keywords into comparisons?\n\n` +
-      `This will create actual comparison pages in your database.\n` +
-      `Takes ~0.5s per keyword (${Math.round(count * 0.5 / 60)}min for ${count} keywords)`
-    )) {
-      return;
-    }
+      `⚡ Generate rich AI insights immediately?\n\n` +
+      `YES = Rich AI insights (costs ~$${(count * 0.0014).toFixed(2)} from Claude API)\n` +
+      `NO = Basic template AI (free, can upgrade later)\n\n` +
+      `Click OK for rich AI insights, Cancel for basic AI only.`
+    );
 
     try {
       setSeeding(true);
@@ -309,6 +309,7 @@ export default function AdminKeywordsPage() {
         body: JSON.stringify({
           limit: count,
           status: "approved",
+          generateAI: generateAI,
         }),
       });
 
@@ -320,6 +321,9 @@ export default function AdminKeywordsPage() {
 
       let message = `✅ Seeding complete!\n\n`;
       message += `• Created: ${data.stats.created} new comparisons\n`;
+      if (data.stats.aiGenerated > 0) {
+        message += `• Rich AI insights generated: ${data.stats.aiGenerated}\n`;
+      }
       message += `• Already exists: ${data.stats.exists}\n`;
       if (data.stats.errors > 0) {
         message += `• Errors: ${data.stats.errors}\n\n`;

@@ -3,12 +3,14 @@ import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { toCanonicalSlug } from "@/lib/slug";
+import { generateAIInsights } from "@/lib/aiInsightsGenerator";
 
 interface SeedStats {
   processed: number;
   created: number;
   exists: number;
   errors: number;
+  aiGenerated: number;
   errorDetails: Array<{ pair: string; error: string }>;
 }
 
@@ -22,12 +24,14 @@ export async function POST(request: NextRequest) {
     const limit = body.limit || 10; // Process 10 keywords at a time by default
     const category = body.category || null;
     const status = body.status || "approved"; // Only seed approved keywords by default
+    const generateAI = body.generateAI || false; // Generate rich AI insights
 
     const stats: SeedStats = {
       processed: 0,
       created: 0,
       exists: 0,
       errors: 0,
+      aiGenerated: 0,
       errorDetails: [],
     };
 
@@ -98,6 +102,24 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        stats.created++;
+
+        // Generate rich AI insights if requested
+        if (generateAI) {
+          try {
+            await generateAIInsights(
+              slug,
+              '7d',
+              '',
+              true // force regeneration even if cached
+            );
+            stats.aiGenerated++;
+          } catch (aiError) {
+            console.error(`[Seed] Failed to generate AI for ${pair.termA} vs ${pair.termB}:`, aiError);
+            // Don't fail the whole seeding, just log it
+          }
+        }
+
         // Update keyword pair usage stats
         await prisma.keywordPair.update({
           where: { id: pair.id },
@@ -106,8 +128,6 @@ export async function POST(request: NextRequest) {
             lastUsedAt: new Date(),
           },
         });
-
-        stats.created++;
 
         // Small delay to avoid overwhelming the API
         await new Promise(resolve => setTimeout(resolve, 500));
