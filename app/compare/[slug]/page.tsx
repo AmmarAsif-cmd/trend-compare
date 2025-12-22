@@ -643,22 +643,6 @@ export default async function ComparePage({
             </div>
           </section>
 
-          {/* Google Trends Chart - Raw data reference */}
-          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-white px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200">
-              <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1.5 h-4 sm:h-5 bg-gradient-to-b from-blue-400 to-blue-500 rounded-full" />
-                Raw Search Interest Data
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1.5">
-                <span className="font-medium">Google Trends</span> search volume (0-100 scale). 
-                <span className="text-slate-500 ml-1">This raw data is a key component of the TrendArc Score above.</span>
-              </p>
-            </div>
-            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
-              <TrendChart series={series} />
-            </div>
-          </section>
 
           {/* Multi-Source Score Breakdown */}
           {verdictData && intelligentComparison && (
