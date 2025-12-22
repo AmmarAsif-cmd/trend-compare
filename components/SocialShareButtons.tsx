@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Share2, Check, Link2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Share2, Check, Link2, X, Eye, Copy } from "lucide-react";
 
 type SocialShareButtonsProps = {
   url: string;
@@ -9,6 +9,9 @@ type SocialShareButtonsProps = {
   description?: string;
   termA: string;
   termB: string;
+  winner?: string;
+  winnerScore?: number;
+  loserScore?: number;
 };
 
 export default function SocialShareButtons({
@@ -17,22 +20,50 @@ export default function SocialShareButtons({
   description,
   termA,
   termB,
+  winner,
+  winnerScore,
+  loserScore,
 }: SocialShareButtonsProps) {
   const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [customMessage, setCustomMessage] = useState("");
+  const previewRef = useRef<HTMLDivElement>(null);
 
+  // Close preview when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (previewRef.current && !previewRef.current.contains(event.target as Node)) {
+        setShowPreview(false);
+      }
+    };
+
+    if (showPreview) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showPreview]);
+
+  const prettyTerm = (term: string) => term.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const defaultMessage = winner
+    ? `${prettyTerm(winner)} is more popular than ${prettyTerm(winner === termA ? termB : termA)}! See the full comparison:`
+    : `Compare ${prettyTerm(termA)} vs ${prettyTerm(termB)} search trends:`;
+
+  const shareMessage = customMessage || defaultMessage;
   const encodedUrl = encodeURIComponent(url);
   const encodedTitle = encodeURIComponent(title);
+  const encodedMessage = encodeURIComponent(shareMessage);
 
   const shareLinks = {
-    twitter: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`,
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareMessage} ${url}`)}`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-    reddit: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedMessage}`,
+    reddit: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedMessage}`,
   };
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = async (text?: string) => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(text || url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -40,12 +71,17 @@ export default function SocialShareButtons({
     }
   };
 
+  const copyShareText = async () => {
+    const text = `${shareMessage}\n\n${url}`;
+    await copyToClipboard(text);
+  };
+
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
           title: title,
-          text: description || `Compare ${termA.replace(/-/g, " ")} vs ${termB.replace(/-/g, " ")} search trends`,
+          text: shareMessage,
           url: url,
         });
       } catch (error) {
@@ -59,14 +95,25 @@ export default function SocialShareButtons({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="relative flex flex-wrap items-center gap-2">
       <span className="text-xs sm:text-sm text-slate-500 font-medium mr-1">Share:</span>
       
+      {/* Preview Button */}
+      <button
+        onClick={() => setShowPreview(!showPreview)}
+        className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
+        aria-label="Preview share"
+      >
+        <Eye className="w-4 h-4" />
+        <span className="hidden sm:inline text-xs">Preview</span>
+      </button>
+
+      {/* Share Buttons */}
       <a
         href={shareLinks.twitter}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#1DA1F2] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105"
+        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#1DA1F2] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="Share on Twitter"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -78,7 +125,7 @@ export default function SocialShareButtons({
         href={shareLinks.linkedin}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#0A66C2] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105"
+        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#0A66C2] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="Share on LinkedIn"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -90,7 +137,7 @@ export default function SocialShareButtons({
         href={shareLinks.facebook}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#1877F2] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105"
+        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#1877F2] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="Share on Facebook"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -102,7 +149,7 @@ export default function SocialShareButtons({
         href={shareLinks.reddit}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#FF4500] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105"
+        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-[#FF4500] text-slate-600 hover:text-white transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="Share on Reddit"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -112,7 +159,7 @@ export default function SocialShareButtons({
 
       <button
         onClick={copyToClipboard}
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all duration-200 hover:scale-105"
+        className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="Copy link"
       >
         {copied ? (
@@ -131,6 +178,116 @@ export default function SocialShareButtons({
         <span className="hidden sm:inline">More</span>
         <span className="sm:hidden">Share</span>
       </button>
+
+      {/* Share Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 sm:p-8" onClick={() => setShowPreview(false)}>
+          <div
+            ref={previewRef}
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex items-center justify-between rounded-t-xl">
+              <h3 className="text-lg font-semibold text-slate-900">Share Preview</h3>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Close preview"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Custom Message Input */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Customize your message (optional)
+                </label>
+                <textarea
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  placeholder={defaultMessage}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                  rows={3}
+                  maxLength={280}
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  {customMessage.length}/280 characters
+                </p>
+              </div>
+
+              {/* Preview Card */}
+              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <p className="text-sm font-semibold text-slate-900 mb-2">Preview:</p>
+                <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+                  {/* Social Media Preview */}
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-sm">TA</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm text-slate-900">TrendArc</span>
+                          <span className="text-xs text-slate-500">@trendarc</span>
+                          <span className="text-xs text-slate-400">·</span>
+                          <span className="text-xs text-slate-500">Now</span>
+                        </div>
+                        <p className="text-sm text-slate-800 mb-2 whitespace-pre-wrap break-words">
+                          {shareMessage}
+                        </p>
+                        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                          <div className="p-3 bg-gradient-to-br from-violet-50 to-purple-50">
+                            <h4 className="font-semibold text-sm text-slate-900 mb-1">{title}</h4>
+                            <p className="text-xs text-slate-600 mb-2">
+                              {description || `Compare ${prettyTerm(termA)} vs ${prettyTerm(termB)}`}
+                            </p>
+                            {winner && winnerScore && loserScore && (
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="font-medium text-slate-700">
+                                  Winner: {prettyTerm(winner)}
+                                </span>
+                                <span className="text-slate-400">·</span>
+                                <span className="text-slate-600">
+                                  {winnerScore}% vs {loserScore}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="px-3 py-2 bg-slate-50 border-t border-slate-200">
+                            <p className="text-xs text-slate-500 truncate">{url}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <button
+                  onClick={copyShareText}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors min-h-[44px]"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy Text
+                </button>
+                <button
+                  onClick={copyToClipboard}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium text-sm transition-colors min-h-[44px]"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Copy Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

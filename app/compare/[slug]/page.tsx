@@ -467,8 +467,12 @@ export default async function ComparePage({
               <SocialShareButtons
                 url={`https://trendarc.net/compare/${slug}`}
                 title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+                description={`See which is trending more: ${prettyTerm(actualTerms[0])} or ${prettyTerm(actualTerms[1])}? Compare search trends, social buzz, and more.`}
                 termA={actualTerms[0]}
                 termB={actualTerms[1]}
+                winner={verdictData.winner}
+                winnerScore={verdictData.winnerScore}
+                loserScore={verdictData.loserScore}
               />
               <ViewCounter slug={canonical} initialCount={(row as any).viewCount || 0} />
             </div>
