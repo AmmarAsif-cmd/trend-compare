@@ -24,6 +24,7 @@ import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
+import { canAccessPremium } from "@/lib/user-auth-helpers";
 import ComparisonVerdict from "@/components/ComparisonVerdict";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
@@ -362,6 +363,9 @@ export default async function ComparePage({
     };
   }
 
+  // Check if user has premium access for rich AI insights
+  const hasPremiumAccess = await canAccessPremium();
+
   // Run all async operations in parallel for faster loading ⚡
   const [geographicData, aiInsights, aiInsightsError, peakEvents] = await Promise.all([
     // Get geographic breakdown (FREE - no API costs)
@@ -369,11 +373,16 @@ export default async function ComparePage({
 
     // Get or generate AI insights with smart caching (cost-optimized)
     // NOW INCLUDES MULTI-SOURCE DATA!
+    // PREMIUM ONLY: Rich AI insights
     (async () => {
+      if (!hasPremiumAccess) {
+        return null; // Free users don't get rich AI insights
+      }
+
       try {
         const insightData = prepareInsightData(
-          actualTerms[0], 
-          actualTerms[1], 
+          actualTerms[0],
+          actualTerms[1],
           series as any[],
           intelligentComparison // Pass full multi-source comparison data
         );
@@ -393,6 +402,9 @@ export default async function ComparePage({
 
     // Error tracking for AI insights
     (async () => {
+      if (!hasPremiumAccess) {
+        return 'Premium subscription required';
+      }
       if (!process.env.ANTHROPIC_API_KEY) {
         return 'API key not configured';
       }
@@ -472,7 +484,83 @@ export default async function ComparePage({
           )}
 
           {/* Fallback when AI is unavailable */}
-          {!aiInsights && (
+          {!aiInsights && aiInsightsError === 'Premium subscription required' && (
+            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-300 shadow-xl p-4 sm:p-6 print:hidden">
+              <div className="flex flex-col items-start gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 w-full">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+                      Unlock Rich AI Insights
+                      <span className="text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded-full">PREMIUM</span>
+                    </h3>
+                    <p className="text-slate-700 text-sm sm:text-base mb-4">
+                      Get advanced AI-powered analysis with category detection, trend predictions, and actionable insights for just <strong>$4.99/month</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3 w-full">
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Category Analysis
+                    </h4>
+                    <p className="text-xs text-slate-600">Automatic categorization and domain-specific insights</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Trend Predictions
+                    </h4>
+                    <p className="text-xs text-slate-600">AI-powered forecasts based on historical patterns</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Practical Implications
+                    </h4>
+                    <p className="text-xs text-slate-600">Actionable insights for your specific use case</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Peak Explanations
+                    </h4>
+                    <p className="text-xs text-slate-600">Understand why trends spike at specific times</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+                  <a
+                    href="/pricing"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl text-center"
+                  >
+                    Upgrade to Premium
+                  </a>
+                  <a
+                    href="/signup"
+                    className="px-6 py-3 bg-white text-purple-700 font-semibold rounded-lg hover:bg-purple-50 transition-colors border-2 border-purple-300 text-center"
+                  >
+                    Sign Up Free
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+          {!aiInsights && aiInsightsError !== 'Premium subscription required' && aiInsightsError && (
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-200 shadow-lg p-4 sm:p-6 print:hidden">
               <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
@@ -487,19 +575,8 @@ export default async function ComparePage({
                   <p className="text-slate-600 text-xs sm:text-sm mb-3">
                     {aiInsightsError === 'API key not configured'
                       ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable AI-powered analysis.'
-                      : aiInsightsError
-                      ? `Generation failed: ${aiInsightsError}`
-                      : 'Daily or monthly budget limit reached. AI insights will be available again soon.'}
+                      : `Generation failed: ${aiInsightsError}`}
                   </p>
-                  <div className="bg-white/60 rounded-lg p-2.5 sm:p-3 text-xs text-slate-600">
-                    <p className="font-semibold mb-1">What you're missing:</p>
-                    <ul className="list-disc list-inside space-y-0.5 sm:space-y-1">
-                      <li>Data-specific analysis with exact numbers and dates</li>
-                      <li>Volatility insights and trend predictions</li>
-                      <li>Practical implications for your use case</li>
-                      <li>AI-powered pattern detection</li>
-                    </ul>
-                  </div>
                 </div>
               </div>
             </div>

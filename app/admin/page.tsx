@@ -9,6 +9,15 @@ type Stats = {
   comparisons: { total: number; today: number };
   keywords: { total: number; approved: number; pending: number };
   blogPosts: { total: number; published: number; pending: number };
+  subscribers: {
+    total: number;
+    free: number;
+    premium: number;
+    activeSubscriptions: number;
+    newToday: number;
+    newSubscriptionsThisMonth: number;
+    mrr: number;
+  };
 };
 
 export default function AdminDashboard() {
@@ -52,10 +61,23 @@ export default function AdminDashboard() {
       const blogRes = await fetch("/api/admin/blog/posts?limit=1");
       const blogData = await blogRes.json();
 
+      // Fetch subscriber stats
+      const subscribersRes = await fetch("/api/admin/stats/subscribers");
+      const subscribersData = await subscribersRes.json();
+
       setStats({
         comparisons: comparisonsData.stats || { total: 0, today: 0 },
         keywords: keywordsData.stats || { total: 0, approved: 0, pending: 0 },
         blogPosts: blogData.stats || { total: 0, published: 0, pending: 0 },
+        subscribers: subscribersData.stats || {
+          total: 0,
+          free: 0,
+          premium: 0,
+          activeSubscriptions: 0,
+          newToday: 0,
+          newSubscriptionsThisMonth: 0,
+          mrr: 0,
+        },
       });
     } catch (error) {
       console.error("Failed to fetch stats:", error);
@@ -64,6 +86,15 @@ export default function AdminDashboard() {
         comparisons: { total: 0, today: 0 },
         keywords: { total: 0, approved: 0, pending: 0 },
         blogPosts: { total: 0, published: 0, pending: 0 },
+        subscribers: {
+          total: 0,
+          free: 0,
+          premium: 0,
+          activeSubscriptions: 0,
+          newToday: 0,
+          newSubscriptionsThisMonth: 0,
+          mrr: 0,
+        },
       });
     } finally {
       setLoading(false);
@@ -110,13 +141,65 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Revenue Stats - Featured */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-xl p-6 mb-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm font-medium mb-1">Monthly Recurring Revenue</p>
+              <p className="text-4xl font-bold">${stats?.subscribers.mrr || 0}</p>
+              <p className="text-purple-100 text-sm mt-2">
+                {stats?.subscribers.premium || 0} premium subscribers × $4.99/mo
+              </p>
+            </div>
+            <div className="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center">
+              <span className="text-4xl">💰</span>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Users Stats */}
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Users</p>
+                <p className="text-3xl font-bold text-indigo-600 mt-2">
+                  {stats?.subscribers.total || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  +{stats?.subscribers.newToday || 0} today
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                <span className="text-2xl">👥</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Premium Users Stats */}
+          <div className="bg-white rounded-lg shadow-md p-6 border border-purple-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Premium Users</p>
+                <p className="text-3xl font-bold text-purple-600 mt-2">
+                  {stats?.subscribers.premium || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {stats?.subscribers.free || 0} on free plan
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-2xl">⭐</span>
+              </div>
+            </div>
+          </div>
+
           {/* Comparisons Stats */}
           <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Comparisons</p>
+                <p className="text-sm font-medium text-gray-600">Comparisons</p>
                 <p className="text-3xl font-bold text-blue-600 mt-2">
                   {stats?.comparisons.total || 0}
                 </p>
@@ -139,29 +222,11 @@ export default function AdminDashboard() {
                   {stats?.keywords.total || 0}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {stats?.keywords.approved || 0} approved, {stats?.keywords.pending || 0} pending
+                  {stats?.keywords.approved || 0} approved
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
                 <span className="text-2xl">🔑</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Blog Posts Stats */}
-          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Blog Posts</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">
-                  {stats?.blogPosts.total || 0}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats?.blogPosts.published || 0} published, {stats?.blogPosts.pending || 0} pending
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">📝</span>
               </div>
             </div>
           </div>

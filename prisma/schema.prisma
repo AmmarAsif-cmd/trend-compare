@@ -131,3 +131,54 @@ model KeywordPair {
   @@index([qualityScore])
   @@index([source])
 }
+
+model User {
+  id                String        @id @default(cuid())
+  email             String        @unique
+  name              String?
+  password          String        // Hashed with bcrypt
+  emailVerified     DateTime?
+  subscriptionTier  String        @default("free") // "free" | "premium"
+  stripeCustomerId  String?       @unique
+
+  // Relations
+  subscriptions     Subscription[]
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([email])
+  @@index([subscriptionTier])
+  @@index([stripeCustomerId])
+}
+
+model Subscription {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tier                  String    // "free" | "premium"
+  status                String    // "active" | "canceled" | "past_due" | "paused" | "trialing"
+
+  // Stripe fields
+  stripeSubscriptionId  String?   @unique
+  stripePriceId         String?
+  stripeProductId       String?
+
+  // Billing period
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  canceledAt            DateTime?
+
+  // Trial
+  trialStart            DateTime?
+  trialEnd              DateTime?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+}
