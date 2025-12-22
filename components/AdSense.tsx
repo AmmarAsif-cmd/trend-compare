@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Script from "next/script";
 
 interface AdSenseProps {
@@ -21,6 +21,9 @@ interface AdSenseProps {
  * 1. Go to https://www.google.com/adsense
  * 2. Create an ad unit
  * 3. Copy the ad slot ID
+ * 
+ * Note: For UK/EEA compliance, ensure CMP (Consent Management Platform) is configured
+ * before displaying ads to users in these regions.
  */
 export default function AdSense({
   adSlot,
@@ -30,18 +33,26 @@ export default function AdSense({
   className = "",
 }: AdSenseProps) {
   const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+  const adInitialized = useRef(false);
 
   useEffect(() => {
-    try {
-      // @ts-ignore - Google AdSense script
-      if (window.adsbygoogle && window.adsbygoogle.loaded) {
-        // Already loaded
-        return;
+    // Initialize AdSense ads after component mounts
+    if (adClient && adSlot && !adInitialized.current) {
+      try {
+        // @ts-ignore - Google AdSense script
+        if (window.adsbygoogle && !window.adsbygoogle.loaded) {
+          window.adsbygoogle.loaded = true;
+        }
+        
+        // Push ad configuration
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        adInitialized.current = true;
+      } catch (e) {
+        console.warn('AdSense initialization error:', e);
       }
-    } catch (e) {
-      // Ignore
     }
-  }, []);
+  }, [adClient, adSlot]);
 
   if (!adClient) {
     // Don't render if AdSense client ID is not configured
@@ -55,12 +66,25 @@ export default function AdSense({
 
   return (
     <>
-      {/* AdSense Script */}
+      {/* AdSense Script - Load once globally */}
       <Script
+        id="adsbygoogle-init"
         async
         src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`}
         crossOrigin="anonymous"
         strategy="afterInteractive"
+        onLoad={() => {
+          // Mark as loaded
+          try {
+            // @ts-ignore
+            if (window.adsbygoogle) {
+              // @ts-ignore
+              window.adsbygoogle.loaded = true;
+            }
+          } catch (e) {
+            // Ignore
+          }
+        }}
       />
 
       {/* Ad Container */}
@@ -82,7 +106,10 @@ export default function AdSense({
 // Extend Window interface for TypeScript
 declare global {
   interface Window {
-    adsbygoogle?: any;
+    adsbygoogle?: {
+      loaded?: boolean;
+      push?: (config: any) => void;
+    } | any[];
   }
 }
 

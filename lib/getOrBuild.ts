@@ -21,6 +21,7 @@ type Comparison = {
   timeframe: string;
   geo: string;
   dataHash: string;
+  viewCount?: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -36,6 +37,7 @@ export type ComparisonPayload = {
   ai: AICopy | null;
   category: string | null;
   dataHash: string;
+  viewCount?: number; // Page view count for social proof
   createdAt: Date;
   updatedAt: Date;
   error?: string; // Error code if comparison failed
@@ -121,6 +123,7 @@ function normalizeRow(row: Comparison): ComparisonPayload | null {
     ai,
     category: row.category,
     dataHash: row.dataHash,
+    viewCount: row.viewCount ?? 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   } satisfies ComparisonPayload;
@@ -206,6 +209,7 @@ export async function getOrBuildComparison({
         ai,
         category: null,
         dataHash,
+        viewCount: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

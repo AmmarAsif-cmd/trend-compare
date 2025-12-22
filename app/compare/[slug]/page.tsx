@@ -29,6 +29,9 @@ import ComparisonVerdict from "@/components/ComparisonVerdict";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
 import PeakEventCitations from "@/components/PeakEventCitations";
+import QuickSummaryCard from "@/components/QuickSummaryCard";
+import ViewCounter from "@/components/ViewCounter";
+import ScoreBreakdownTooltip from "@/components/ScoreBreakdownTooltip";
 import { runIntelligentComparison } from "@/lib/intelligent-comparison";
 import { InsufficientDataError, getUserFriendlyMessage } from "@/lib/utils/errors";
 import { detectPeaksWithEvents } from "@/lib/peak-event-detector";
@@ -459,21 +462,37 @@ export default async function ComparePage({
               <TimeframeSelect />
             </div>
 
-            {/* Social Share */}
-            <SocialShareButtons
-              url={`https://trendarc.net/compare/${slug}`}
-              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-            />
-
-            {/* TrendArc Verdict - The main comparison result */}
-            <ComparisonVerdict
-              verdict={verdictData}
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-            />
+            {/* Social Share & View Counter */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <SocialShareButtons
+                url={`https://trendarc.net/compare/${slug}`}
+                title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+              />
+              <ViewCounter slug={canonical} initialCount={(row as any).viewCount || 0} />
+            </div>
           </header>
+
+          {/* Quick Summary Card - At the top for immediate insight */}
+          <QuickSummaryCard
+            winner={verdictData.winner}
+            loser={verdictData.loser}
+            winnerScore={verdictData.winnerScore}
+            loserScore={verdictData.loserScore}
+            margin={verdictData.margin}
+            confidence={verdictData.confidence}
+            category={verdictData.category || 'general'}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
+
+          {/* TrendArc Verdict - The main comparison result */}
+          <ComparisonVerdict
+            verdict={verdictData}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
 
           {/* AI Key Insights - Compact Top Section */}
           {aiInsights && (
@@ -646,6 +665,8 @@ export default async function ComparePage({
                 },
               ]}
               category={intelligentComparison.category.category}
+              breakdownA={intelligentComparison.scores.termA.breakdown}
+              breakdownB={intelligentComparison.scores.termB.breakdown}
             />
           )}
 
