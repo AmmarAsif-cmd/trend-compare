@@ -39,13 +39,13 @@ export default function AdSense({
     // Initialize AdSense ads after component mounts
     if (adClient && adSlot && !adInitialized.current) {
       try {
-        // @ts-ignore - Google AdSense script
-        if (window.adsbygoogle && !window.adsbygoogle.loaded) {
-          window.adsbygoogle.loaded = true;
+        // Check if adsbygoogle exists and is an object (not an array)
+        const adsbygoogle = window.adsbygoogle;
+        if (adsbygoogle && !Array.isArray(adsbygoogle) && !adsbygoogle.loaded) {
+          adsbygoogle.loaded = true;
         }
         
         // Push ad configuration
-        // @ts-ignore
         (window.adsbygoogle = window.adsbygoogle || []).push({});
         adInitialized.current = true;
       } catch (e) {
@@ -76,10 +76,9 @@ export default function AdSense({
         onLoad={() => {
           // Mark as loaded
           try {
-            // @ts-ignore
-            if (window.adsbygoogle) {
-              // @ts-ignore
-              window.adsbygoogle.loaded = true;
+            const adsbygoogle = window.adsbygoogle;
+            if (adsbygoogle && !Array.isArray(adsbygoogle)) {
+              adsbygoogle.loaded = true;
             }
           } catch (e) {
             // Ignore
