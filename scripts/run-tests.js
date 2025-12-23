@@ -219,11 +219,12 @@ function suggestCategory(termA, termB) {
   const lowerA = termA.toLowerCase();
   const lowerB = termB.toLowerCase();
 
-  const techTerms = ['iphone', 'android', 'windows', 'mac', 'linux', 'ios', 'app', 'software', 'code', 'programming'];
-  if (techTerms.some(t => lowerA.includes(t) || lowerB.includes(t))) return 'technology';
-
+  // Check food first (more specific) before tech to avoid "app" in "apple" matching tech
   const foodTerms = ['pizza', 'burger', 'coffee', 'tea', 'chocolate', 'fruit', 'vegetable', 'orange', 'apple'];
   if (foodTerms.some(t => lowerA.includes(t) || lowerB.includes(t))) return 'food';
+
+  const techTerms = ['iphone', 'android', 'windows', 'mac', 'linux', 'ios', 'app', 'software', 'code', 'programming'];
+  if (techTerms.some(t => lowerA.includes(t) || lowerB.includes(t))) return 'technology';
 
   const entertainmentTerms = ['movie', 'film', 'show', 'series', 'actor', 'netflix', 'disney'];
   if (entertainmentTerms.some(t => lowerA.includes(t) || lowerB.includes(t))) return 'entertainment';
