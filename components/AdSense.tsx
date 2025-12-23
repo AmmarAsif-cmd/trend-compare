@@ -45,8 +45,13 @@ export default function AdSense({
           adsbygoogle.loaded = true;
         }
         
-        // Push ad configuration
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        // Push ad configuration - ensure adsbygoogle is initialized as array
+        if (!window.adsbygoogle) {
+          window.adsbygoogle = [];
+        }
+        if (Array.isArray(window.adsbygoogle)) {
+          window.adsbygoogle.push({});
+        }
         adInitialized.current = true;
       } catch (e) {
         console.warn('AdSense initialization error:', e);

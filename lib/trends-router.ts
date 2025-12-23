@@ -95,17 +95,52 @@ export async function getMultiSourceData(
 
 /**
  * Get data sources used for a comparison (for display purposes)
+ * Can optionally accept sources from intelligent comparison
  */
 export async function getDataSources(
   terms: string[],
-  options?: TrendsOptions
+  options?: TrendsOptions,
+  intelligentComparisonSources?: string[]
 ): Promise<string[]> {
   const mode = process.env.TRENDS_MODE?.toLowerCase() ?? "mock";
 
+  // If sources from intelligent comparison are provided, use those
+  if (intelligentComparisonSources && intelligentComparisonSources.length > 0) {
+    // Always include Google Trends as it's the primary source for charts
+    const sources = new Set<string>(["Google Trends"]);
+    intelligentComparisonSources.forEach(source => sources.add(source));
+    return Array.from(sources);
+  }
+
+  // Try to get sources from multi-source data
   if (mode === "google") {
-    // For the main chart, we always use Google Trends data
-    // Multi-source data is used for TrendArc Score, not the chart
-    return ["Google Trends"];
+    try {
+      const multiSource = await getMultiSourceData(terms, options);
+      const sources = new Set<string>(["Google Trends"]);
+      
+      if (multiSource.termA?.metadata.sourcesUsed) {
+        multiSource.termA.metadata.sourcesUsed.forEach(s => {
+          // Convert adapter names to display names
+          const displayName = s
+            .replace(/google-trends/i, "Google Trends")
+            .replace(/youtube/i, "YouTube")
+            .replace(/spotify/i, "Spotify")
+            .replace(/tmdb/i, "TMDB")
+            .replace(/bestbuy/i, "Best Buy")
+            .replace(/steam/i, "Steam")
+            .replace(/wikipedia/i, "Wikipedia")
+            .split('-')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+          sources.add(displayName);
+        });
+      }
+      
+      return Array.from(sources);
+    } catch (error) {
+      console.warn("[getDataSources] Failed to fetch multi-source data:", error);
+      return ["Google Trends"];
+    }
   }
 
   return ["Mock Data"];

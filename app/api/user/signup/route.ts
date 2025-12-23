@@ -58,10 +58,37 @@ export async function POST(request: NextRequest) {
       message: "Account created successfully",
       user,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Signup] Error:", error);
+    
+    // Provide more detailed error messages
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: "User with this email already exists" },
+        { status: 400 }
+      );
+    }
+    
+    if (error?.message?.includes('Unique constraint')) {
+      return NextResponse.json(
+        { error: "User with this email already exists" },
+        { status: 400 }
+      );
+    }
+    
+    // Check if it's a database connection error
+    if (error?.message?.includes('PrismaClient') || error?.message?.includes('connect')) {
+      return NextResponse.json(
+        { error: "Database connection error. Please ensure the database is running and migrations are complete." },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to create account" },
+      { 
+        error: error?.message || "Failed to create account. Please check server logs for details.",
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     );
   }

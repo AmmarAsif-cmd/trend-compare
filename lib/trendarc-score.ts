@@ -136,9 +136,10 @@ export function calculateTrendArcScore(
   if (metrics.googleTrends && typeof metrics.googleTrends.avgInterest === 'number') {
     searchInterest = metrics.googleTrends.avgInterest;
     sources.push('Google Trends');
+    console.log('[TrendArcScore] Google Trends searchInterest:', searchInterest);
   } else {
     // If googleTrends is missing, this is a critical error
-    console.error('[TrendArcScore] Missing googleTrends in metrics:', metrics);
+    console.error('[TrendArcScore] ❌ Missing googleTrends in metrics:', JSON.stringify(metrics, null, 2));
     // Use default 50, but log the error
   }
 
@@ -237,22 +238,34 @@ export function calculateTrendArcScore(
   // Authority (TMDB ratings, Best Buy reviews, Steam reviews, expert sources)
   const authorityScores: number[] = [];
 
-  if (metrics.tmdb) {
+  if (metrics.tmdb && metrics.tmdb.rating > 0) {
     authorityScores.push(metrics.tmdb.rating * 10);
     sources.push('TMDB');
   }
 
-  if (metrics.bestbuy) {
+  if (metrics.bestbuy && metrics.bestbuy.rating > 0) {
     // Convert 0-5 rating to 0-100 scale
     const bestbuyScore = (metrics.bestbuy.rating / 5) * 100;
     authorityScores.push(bestbuyScore);
     sources.push('Best Buy');
   }
 
-  if (metrics.steam) {
+  if (metrics.steam && metrics.steam.reviewScore > 0) {
     // Steam review score is already 0-100 (percentage positive)
+    // Only add if we have meaningful data (reviewScore > 0)
     authorityScores.push(metrics.steam.reviewScore);
     sources.push('Steam');
+    console.log('[TrendArcScore] Steam authority contribution:', {
+      reviewScore: metrics.steam.reviewScore,
+      totalReviews: metrics.steam.totalReviews,
+      currentPlayers: metrics.steam.currentPlayers,
+    });
+  } else if (metrics.steam) {
+    // Steam data exists but reviewScore is 0 - log warning
+    console.warn('[TrendArcScore] ⚠️ Steam data exists but reviewScore is 0:', {
+      totalReviews: metrics.steam.totalReviews,
+      currentPlayers: metrics.steam.currentPlayers,
+    });
   }
   
   if (metrics.omdb) {
@@ -261,12 +274,21 @@ export function calculateTrendArcScore(
       (metrics.omdb.rottenTomatoes || 0) +
       (metrics.omdb.metascore || 0)
     ) / 3;
-    authorityScores.push(avgRating);
-    sources.push('OMDb');
+    if (avgRating > 0) {
+      authorityScores.push(avgRating);
+      sources.push('OMDb');
+    }
   }
 
   if (authorityScores.length > 0) {
     authority = authorityScores.reduce((a, b) => a + b, 0) / authorityScores.length;
+    console.log('[TrendArcScore] Authority calculated:', {
+      scores: authorityScores.map(s => Math.round(s)),
+      average: Math.round(authority),
+      sources: sources.filter(s => ['TMDB', 'Steam', 'Best Buy', 'OMDb'].includes(s)),
+    });
+  } else {
+    console.warn('[TrendArcScore] ⚠️ No valid authority sources available, authority defaults to 50');
   }
 
   // Momentum (trend direction)
@@ -281,6 +303,26 @@ export function calculateTrendArcScore(
     authority * weights.authority +
     momentum * weights.momentum
   );
+  
+  // Log calculation for debugging
+  console.log('[TrendArcScore] 📊 Score calculation:', {
+    category: validCategory,
+    components: {
+      searchInterest: Math.round(searchInterest),
+      socialBuzz: Math.round(socialBuzz),
+      authority: Math.round(authority),
+      momentum: Math.round(momentum),
+    },
+    weights: {
+      searchInterest: weights.searchInterest,
+      socialBuzz: weights.socialBuzz,
+      authority: weights.authority,
+      momentum: weights.momentum,
+    },
+    weightedSum: searchInterest * weights.searchInterest + socialBuzz * weights.socialBuzz + authority * weights.authority + momentum * weights.momentum,
+    overall: Math.max(0, Math.min(100, overall)),
+    sources: sources.length,
+  });
 
   // Calculate confidence based on number of sources
   const confidence = Math.min(95, 40 + sources.length * 15);

@@ -341,7 +341,8 @@ function calculateVolatility(values: number[]): number {
  * Generate AI insights using Claude Haiku (cost-optimized)
  */
 export async function generateAIInsights(
-  data: ComparisonInsightData
+  data: ComparisonInsightData,
+  category?: string
 ): Promise<AIInsightResult | null> {
   console.log(`[AI Insights] 🚀 Starting generation for: ${data.termA} vs ${data.termB}`);
 
@@ -368,6 +369,45 @@ export async function generateAIInsights(
 
     const prettyTermA = data.termA.replace(/-/g, " ");
     const prettyTermB = data.termB.replace(/-/g, " ");
+
+    // STEP 0: Get real peak explanations using Peak Explanation Engine
+    console.log("[AI Insights] 🔍 Fetching real peak explanations...");
+    const { explainPeak } = await import('./peak-explanation-engine');
+    
+    const [peakExplanationA, peakExplanationB] = await Promise.all([
+      explainPeak({
+        keywords: [data.termA, prettyTermA],
+        peakDate: data.peakADate,
+        peakValue: data.peakAValue,
+        category: category || 'general',
+        windowDays: 7,
+        minRelevance: 25,
+      }).catch(err => {
+        console.warn('[AI Insights] Peak explanation A failed:', err);
+        return null;
+      }),
+      explainPeak({
+        keywords: [data.termB, prettyTermB],
+        peakDate: data.peakBDate,
+        peakValue: data.peakBValue,
+        category: category || 'general',
+        windowDays: 7,
+        minRelevance: 25,
+      }).catch(err => {
+        console.warn('[AI Insights] Peak explanation B failed:', err);
+        return null;
+      }),
+    ]);
+
+    const peakDataA = peakExplanationA 
+      ? `REAL EVENT DATA FOR ${prettyTermA}: ${peakExplanationA.explanation} | Confidence: ${peakExplanationA.confidence}% | Sources: ${peakExplanationA.sources.join(', ')} | Citations: ${peakExplanationA.citations.length} | Verified: ${peakExplanationA.verified}`
+      : `NO REAL EVENT DATA FOUND for ${prettyTermA} - use fallback explanation`;
+    
+    const peakDataB = peakExplanationB
+      ? `REAL EVENT DATA FOR ${prettyTermB}: ${peakExplanationB.explanation} | Confidence: ${peakExplanationB.confidence}% | Sources: ${peakExplanationB.sources.join(', ')} | Citations: ${peakExplanationB.citations.length} | Verified: ${peakExplanationB.verified}`
+      : `NO REAL EVENT DATA FOUND for ${prettyTermB} - use fallback explanation`;
+
+    console.log(`[AI Insights] ✅ Peak explanations fetched: A=${peakExplanationA ? '✓' : '✗'}, B=${peakExplanationB ? '✓' : '✗'}`);
 
     // Construct intelligent, data-specific prompt
     const prompt = `You are analyzing a trend comparison between "${prettyTermA}" vs "${prettyTermB}".
@@ -444,8 +484,8 @@ Provide insights in this EXACT JSON format:
   "keyDifferences": "Highlight the most important differences between the two trends using specific data points",
   "volatilityAnalysis": "Explain what the volatility numbers mean practically - is one more predictable? More seasonal? More event-driven?",
   "peakExplanations": {
-    "termA": "For ${prettyTermA}'s peak on ${new Date(data.peakADate).toLocaleDateString()} (reached ${data.peakAValue}/100): Clearly explain the SPECIFIC reason this peak occurred. Research what happened around this date - was it a product launch, news event, announcement, controversy, viral moment, or seasonal trend? Be concrete and specific. Format: 'This peak occurred because [specific reason]. [What happened] on or around ${new Date(data.peakADate).toLocaleDateString()} that drove search interest to ${data.peakAValue}/100. [Additional context if relevant].'",
-    "termB": "For ${prettyTermB}'s peak on ${new Date(data.peakBDate).toLocaleDateString()} (reached ${data.peakBValue}/100): Clearly explain the SPECIFIC reason this peak occurred. Research what happened around this date - was it a product launch, news event, announcement, controversy, viral moment, or seasonal trend? Be concrete and specific. Format: 'This peak occurred because [specific reason]. [What happened] on or around ${new Date(data.peakBDate).toLocaleDateString()} that drove search interest to ${data.peakBValue}/100. [Additional context if relevant].'"
+    "termA": "IMPORTANT: Use the Peak Explanation Engine data provided below. If real event data is available, use it. Format: 'This peak occurred because [specific event from Peak Explanation Engine]. [Event details]. This event was confirmed by [sources] and reached ${data.peakAValue}/100 search interest.' If no real event data is available, state: 'The exact cause is unclear, but possible reasons include [2-3 specific scenarios based on category].'",
+    "termB": "IMPORTANT: Use the Peak Explanation Engine data provided below. If real event data is available, use it. Format: 'This peak occurred because [specific event from Peak Explanation Engine]. [Event details]. This event was confirmed by [sources] and reached ${data.peakBValue}/100 search interest.' If no real event data is available, state: 'The exact cause is unclear, but possible reasons include [2-3 specific scenarios based on category].'"
   },
   "practicalImplications": {
     "AudienceName1": "Specific, actionable advice for this audience based on the trend data",
@@ -461,15 +501,21 @@ CRITICAL REQUIREMENTS:
 4. Choose 1-3 audiences that are ACTUALLY relevant to these specific keywords
 5. DO NOT use generic audiences like "content creators" unless the terms are about content creation
 6. In peakExplanations, you MUST provide CLEAR, SPECIFIC explanations for why each peak occurred. Each explanation should:
-   - Start with "This peak occurred because..." followed by the specific reason
-   - Mention the exact event, announcement, news, or trend that happened on or around the peak date
+   - Start with "This peak occurred because..." followed by the SPECIFIC, CONCRETE reason
+   - Mention the EXACT event, announcement, news article, product launch, or trend that happened on or around the peak date
    - Include the peak value (e.g., "reached 88/100") to show the magnitude
-   - Be concrete and factual - avoid vague statements like "increased interest" or "gained attention"
-   - If you cannot determine a specific reason, state "The exact cause is unclear, but possible reasons include..." and list 2-3 likely scenarios
-   - Examples of good explanations:
+   - Be concrete and factual - avoid vague statements like "increased interest", "gained attention", "some event", "related event", or "notable occurrence"
+   - NEVER use vague phrases like "a [category]-related event" or "some notable occurrence" - these are NOT helpful
+   - If you cannot determine a SPECIFIC reason, you MUST state: "The exact cause is unclear, but possible reasons include..." and list 2-3 SPECIFIC likely scenarios (e.g., "a product announcement", "a news controversy", "a viral social media moment")
+   - If the peak value is very low (<20/100), acknowledge this by stating "This was a minor peak ([X]/100), suggesting limited impact. Possible causes include..." where [X] is the actual peak value
+   - Examples of GOOD explanations:
      * "This peak occurred because Apple announced the iPhone 17 on September 10, 2023. The official launch event generated massive media coverage and consumer anticipation, driving search interest to 92/100."
      * "This peak occurred because Google Pixel 10 leaks surfaced on October 20, 2023. Tech blogs and social media shared leaked specifications and design images, creating significant buzz that reached 75/100."
      * "This peak occurred because a major software update was released on this date, addressing critical security issues that had been widely reported in tech news."
+   - Examples of BAD explanations (DO NOT DO THIS):
+     * "This peak occurred because a Star Trek-related event took place" (too vague - what event?)
+     * "This peak occurred because some notable occurrence in the franchise's ecosystem" (meaningless - be specific!)
+     * "This peak occurred because increased interest" (not an explanation - what caused the interest?)
 7. Every insight must include specific numbers, dates, or percentages from the data
 8. Be concise but insightful - quality over quantity
 9. Return ONLY the JSON, no markdown formatting or additional text`;
@@ -558,7 +604,8 @@ export async function getOrGenerateAIInsights(
   timeframe: string,
   geo: string,
   data: ComparisonInsightData,
-  forceRefresh: boolean = false
+  forceRefresh: boolean = false,
+  category?: string
 ): Promise<AIInsightResult | null> {
   const CACHE_DAYS = 7; // Refresh insights after 7 days
 
@@ -591,7 +638,7 @@ export async function getOrGenerateAIInsights(
 
     // 2. Generate new insights
     console.log(`[AI Cache] 🚀 Generating fresh insights for: ${slug}`);
-    const insights = await generateAIInsights(data);
+    const insights = await generateAIInsights(data, category);
 
     if (!insights) {
       console.log('[AI Cache] ⚠️ Generation failed or budget limit reached');

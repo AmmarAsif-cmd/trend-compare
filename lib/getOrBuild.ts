@@ -135,7 +135,36 @@ export async function getOrBuildComparison({
   timeframe,
   geo,
 }: Args): Promise<ComparisonPayload | null> {
-  // 1) Try cache
+  // 0) Normalize terms using AI for optimal search results
+  let normalizedTerms = terms;
+  try {
+    const { normalizeTermsWithAI } = await import('./ai-term-normalizer');
+    const normalization = await normalizeTermsWithAI(terms[0], terms[1]);
+    
+    // Validate normalization result structure
+    if (normalization && 
+        normalization.termA && 
+        normalization.termB &&
+        typeof normalization.termA.normalized === 'string' &&
+        typeof normalization.termB.normalized === 'string' &&
+        normalization.success && 
+        normalization.termA.confidence >= 70 && 
+        normalization.termB.confidence >= 70) {
+      normalizedTerms = [normalization.termA.normalized, normalization.termB.normalized];
+      console.log('[getOrBuildComparison] ✅ Terms normalized:', {
+        original: terms,
+        normalized: normalizedTerms,
+        confidence: [normalization.termA.confidence, normalization.termB.confidence],
+      });
+    } else {
+      console.log('[getOrBuildComparison] ⚠️ Using original terms (normalization confidence too low or failed)');
+    }
+  } catch (error) {
+    console.warn('[getOrBuildComparison] Term normalization failed, using original terms:', error);
+    // Continue with original terms - this is safe fallback
+  }
+
+  // 1) Try cache (using original slug - normalization doesn't change slug for caching)
   let existing = null;
   try {
     existing = await prisma.comparison.findUnique({
@@ -150,14 +179,20 @@ export async function getOrBuildComparison({
     }
   }
   const normalizedExisting = existing ? normalizeRow(existing) : null;
-  if (normalizedExisting) return normalizedExisting;
+  if (normalizedExisting) {
+    // Update terms in cached result to use normalized versions if available
+    if (normalizedTerms !== terms) {
+      normalizedExisting.terms = normalizedTerms;
+    }
+    return normalizedExisting;
+  }
 
-  // 2) Build fresh with timeout and retry
+  // 2) Build fresh with normalized terms for better search results
   let series: SeriesPoint[];
   try {
     series = await retryWithBackoff(
       () => withTimeout(
-        fetchSeriesUnified(terms, { timeframe, geo }),
+        fetchSeriesUnified(normalizedTerms, { timeframe, geo }),
         15000, // 15 second timeout for Google Trends
         'Google Trends request timed out'
       ),
@@ -175,24 +210,25 @@ export async function getOrBuildComparison({
   } catch (error) {
     console.error('[getOrBuildComparison] Failed to fetch series:', error);
     // Return error payload instead of null
-    throw new InsufficientDataError(terms, timeframe, geo);
+    throw new InsufficientDataError(normalizedTerms, timeframe, geo);
   }
 
   if (!series || series.length === 0) {
-    throw new InsufficientDataError(terms, timeframe, geo);
+    throw new InsufficientDataError(normalizedTerms, timeframe, geo);
   }
 
-  const stats = computeStats(series, terms);
-  const ai = generateCopy(terms, stats); // later you can swap to LLM output
-  const dataHash = stableHash({ terms, timeframe, geo, series });
+  const stats = computeStats(series, normalizedTerms);
+  const ai = generateCopy(normalizedTerms, stats); // later you can swap to LLM output
+  const dataHash = stableHash({ terms: normalizedTerms, timeframe, geo, series });
 
   // 3) Save and return
   let saved;
   try {
+    // Store normalized terms for better future searches
     saved = await prisma.comparison.upsert({
       where: { slug_timeframe_geo: { slug, timeframe, geo } },
-      create: { slug, timeframe, geo, terms, series, stats, ai, dataHash },
-      update: { series, stats, ai, dataHash },
+      create: { slug, timeframe, geo, terms: normalizedTerms, series, stats, ai, dataHash },
+      update: { series, stats, ai, dataHash, terms: normalizedTerms }, // Update terms to normalized version
     });
   } catch (error: any) {
     // If database doesn't have the schema set up yet, return the data without saving

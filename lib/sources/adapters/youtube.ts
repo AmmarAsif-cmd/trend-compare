@@ -210,7 +210,7 @@ export class YouTubeAdapter implements DataSourceAdapter {
     avgViews: number;
     avgLikes: number;
     topVideo: YouTubeVideo | null;
-  }> {
+  } | null> {
     try {
       const result = await this.searchVideos(term, 50);
       
@@ -248,7 +248,12 @@ export class YouTubeAdapter implements DataSourceAdapter {
       });
       
       return stats;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle quota errors gracefully - return null instead of throwing
+      if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+        console.warn(`[YouTube] ⚠️ Quota exceeded for "${term}". YouTube data will be skipped.`);
+        return null;
+      }
       console.error(`[YouTube] Error getting stats for "${term}":`, error);
       throw error;
     }

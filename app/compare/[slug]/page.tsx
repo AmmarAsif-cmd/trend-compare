@@ -17,6 +17,12 @@ import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
 import AdSense from "@/components/AdSense";
 import SocialShareButtons from "@/components/SocialShareButtons";
+import PDFDownloadButton from "@/components/PDFDownloadButton";
+import DataExportButton from "@/components/DataExportButton";
+import SaveComparisonButton from "@/components/SaveComparisonButton";
+import CreateAlertButton from "@/components/CreateAlertButton";
+import ComparisonHistoryTracker from "@/components/ComparisonHistoryTracker";
+import DailyLimitStatus from "@/components/DailyLimitStatus";
 import StructuredData from "@/components/StructuredData";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
@@ -30,6 +36,17 @@ import ComparisonVerdict from "@/components/ComparisonVerdict";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
 import PeakEventCitations from "@/components/PeakEventCitations";
+import ComparisonPoll from "@/components/ComparisonPoll";
+import KeyMetricsDashboard from "@/components/KeyMetricsDashboard";
+import ActionableInsightsPanel from "@/components/ActionableInsightsPanel";
+import TrendPrediction from "@/components/TrendPrediction";
+import SimplePrediction from "@/components/SimplePrediction";
+import PredictionAccuracyBadge from "@/components/PredictionAccuracyBadge";
+import { predictTrend } from "@/lib/prediction-engine-enhanced";
+import { getMaxHistoricalData } from "@/lib/get-max-historical-data";
+import { savePrediction, verifyPredictions } from "@/lib/prediction-tracking-enhanced";
+import VerifiedPredictionsPanel from "@/components/VerifiedPredictionsPanel";
+import { getDaysToStore, samplePredictions, getStorageStats } from "@/lib/prediction-sampling";
 import QuickSummaryCard from "@/components/QuickSummaryCard";
 import ViewCounter from "@/components/ViewCounter";
 import ScoreBreakdownTooltip from "@/components/ScoreBreakdownTooltip";
@@ -185,7 +202,19 @@ export default async function ComparePage({
     redirect(`/compare/${canonical}${q.toString() ? `?${q.toString()}` : ""}`);
   }
 
-  const timeframe = tf ?? "12m";
+  // Check premium access early to enforce timeframe restrictions
+  const hasPremiumAccess = await canAccessPremium();
+  
+  // Enforce timeframe restrictions for free users (only 12m allowed)
+  let timeframe = tf ?? "12m";
+  if (!hasPremiumAccess && timeframe !== "12m") {
+    // Free users trying to access premium timeframe - redirect to 12m
+    const q = new URLSearchParams();
+    q.set("tf", "12m");
+    if (geo) q.set("geo", geo);
+    redirect(`/compare/${canonical}?${q.toString()}`);
+  }
+  
   const region = geo ?? "";
 
   let row;
@@ -253,10 +282,50 @@ export default async function ComparePage({
   const { series: rawSeries, ai } = row;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
-  const series = smoothSeries(rawSeries as any[], smoothingWindow);
-  const sparse = nonZeroRatio(rawSeries as any[]) < 0.1;
+  
+  // Ensure rawSeries is an array
+  const rawSeriesArray = Array.isArray(rawSeries) ? rawSeries : [];
+  if (!rawSeriesArray.length) {
+    return (
+      <main className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {actualTerms.map(prettyTerm).join(" vs ")}
+            </h1>
+            <p className="text-slate-600">
+              No data available. Please try different terms or check back later.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+  
+  const series = smoothSeries(rawSeriesArray, smoothingWindow);
+  
+  // Ensure series is an array after smoothing
+  if (!Array.isArray(series)) {
+    console.error('[ComparePage] smoothSeries did not return an array:', { series, type: typeof series });
+    return (
+      <main className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {actualTerms.map(prettyTerm).join(" vs ")}
+            </h1>
+            <p className="text-slate-600">
+              Invalid data format. Please try again or contact support.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+  
+  const sparse = nonZeroRatio(rawSeriesArray) < 0.1;
 
-  if (!series?.length || series.length < 8) {
+  if (!series.length || series.length < 8) {
     return (
       <main className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
@@ -273,9 +342,6 @@ export default async function ComparePage({
       </main>
     );
   }
-
-  // Get data sources for transparency badge
-  const dataSources = await getDataSources(actualTerms, { timeframe, geo });
 
   // compute totals and shares for stats (needed for fallback)
   const keyA = actualTerms[0];
@@ -346,6 +412,7 @@ export default async function ComparePage({
         termB: { overall: Math.round(Math.min(aShare, bShare) * 100), breakdown: { searchInterest: Math.round(Math.min(aShare, bShare) * 100), socialBuzz: 50, authority: 50, momentum: 50 } },
       },
       verdict: { margin, confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80, headline: '', recommendation: '', evidence: [] },
+      performance: { sourcesQueried: ['Google Trends'] },
       category: { category: 'general' as const },
       performance: { sourcesQueried: ['Google Trends'] },
     };
@@ -366,11 +433,16 @@ export default async function ComparePage({
       sources: ['Google Trends'],
     };
   }
-
-  // Check if user has premium access for rich AI insights
-  const hasPremiumAccess = await canAccessPremium();
+  
+  // Get data sources for transparency badge (after intelligent comparison)
+  const dataSources = await getDataSources(
+    actualTerms, 
+    { timeframe, geo },
+    intelligentComparison?.performance?.sourcesQueried
+  );
 
   // Run all async operations in parallel for faster loading ⚡
+  // Note: hasPremiumAccess is already checked earlier for timeframe enforcement
   const [geographicData, aiInsights, aiInsightsError, peakEvents] = await Promise.all([
     // Get geographic breakdown (FREE - no API costs)
     getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
@@ -395,7 +467,8 @@ export default async function ComparePage({
           timeframe || '12m',
           geo || '',
           insightData,
-          false
+          false,
+          intelligentComparison?.category.category
         );
         return result || null;
       } catch (error) {
@@ -422,16 +495,183 @@ export default async function ComparePage({
     }),
   ]);
 
+  // Generate trend predictions - PREMIUM ONLY
+  // Free users get simple predictions
+  let predictionsA: any = null;
+  let predictionsB: any = null;
+  let simplePredictionA: any = null;
+  let simplePredictionB: any = null;
+  let maxHistoricalSeries: any[] = []; // Declare outside try block for scope
+  
+  if (hasPremiumAccess) {
+    // Premium: Full predictions with 5-year data
+    try {
+      console.log('[Predictions] 🔮 Generating premium predictions with maximum historical data...');
+      
+      // Fetch maximum historical data (5 years if available) for predictions
+      maxHistoricalSeries = await getMaxHistoricalData(actualTerms, region || '');
+      
+      if (maxHistoricalSeries.length < 7) {
+        console.warn('[Predictions] ⚠️ Insufficient historical data for predictions, using current series');
+        const fallbackSeries = series as any[];
+        [predictionsA, predictionsB] = await Promise.all([
+          predictTrend({
+            series: fallbackSeries,
+            term: actualTerms[0],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termA:', err);
+            return null;
+          }),
+          predictTrend({
+            series: fallbackSeries,
+            term: actualTerms[1],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termB:', err);
+            return null;
+          }),
+        ]);
+      } else {
+        console.log(`[Predictions] ✅ Using ${maxHistoricalSeries.length} data points (${maxHistoricalSeries.length > 200 ? '5 years' : '1 year'}) for predictions`);
+        
+        [predictionsA, predictionsB] = await Promise.all([
+          predictTrend({
+            series: maxHistoricalSeries as any[],
+            term: actualTerms[0],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termA:', err);
+            return null;
+          }),
+          predictTrend({
+            series: maxHistoricalSeries as any[],
+            term: actualTerms[1],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termB:', err);
+            return null;
+          }),
+        ]);
+        
+        // Verify old predictions (background task, don't wait)
+        if (canonical) {
+          Promise.all([
+            verifyPredictions(canonical, actualTerms[0], maxHistoricalSeries as any[]),
+            verifyPredictions(canonical, actualTerms[1], maxHistoricalSeries as any[]),
+          ]).then(([resultA, resultB]) => {
+            const totalVerified = resultA.verified + resultB.verified;
+            if (totalVerified > 0) {
+              console.log(`[PredictionTracking] ✅ Verified ${totalVerified} predictions (${resultA.verified} for ${actualTerms[0]}, ${resultB.verified} for ${actualTerms[1]})`);
+              if (resultA.newlyVerified.length > 0 || resultB.newlyVerified.length > 0) {
+                console.log(`[PredictionTracking] 📊 Newly verified predictions are now available for users to view`);
+              }
+            }
+          }).catch(err => console.warn('[PredictionTracking] Verification failed:', err));
+        }
+      }
+      
+      console.log('[Predictions] ✅ Premium predictions generated:', {
+        termA: predictionsA ? `✓ (${predictionsA.predictions?.length || 0} predictions)` : '✗',
+        termB: predictionsB ? `✓ (${predictionsB.predictions?.length || 0} predictions)` : '✗',
+        dataPoints: maxHistoricalSeries.length,
+        slug: canonical || 'MISSING',
+      });
+      
+      // Smart sampling: Store only key milestones instead of all 30 days
+      const forecastDays = predictionsA?.forecastPeriod || predictionsB?.forecastPeriod || 30;
+      const daysToStore = getDaysToStore(forecastDays, 'smart');
+      const storageStats = getStorageStats(forecastDays, 'smart');
+      
+      console.log(`[Predictions] 📊 Storage optimization: Storing ${storageStats.storedDays} key milestones instead of ${storageStats.totalDays} days (${storageStats.reduction}% reduction)`);
+      
+      const historicalDataForDate = maxHistoricalSeries.length > 0 ? maxHistoricalSeries : series;
+      const lastHistoricalDate = historicalDataForDate.length > 0 
+        ? new Date(historicalDataForDate[historicalDataForDate.length - 1].date)
+        : new Date();
+      
+      // Save only sampled predictions
+      if (predictionsA && predictionsA.predictions.length > 0 && canonical) {
+        const sampledPredictionsA = samplePredictions(
+          predictionsA.predictions,
+          daysToStore,
+          lastHistoricalDate
+        );
+        
+        console.log(`[Predictions] 💾 Saving ${sampledPredictionsA.length} key predictions (out of ${predictionsA.predictions.length} total) for ${actualTerms[0]}...`);
+        const savePromisesA = sampledPredictionsA.map((pred: any) => 
+          savePrediction({
+            slug: canonical,
+            term: actualTerms[0],
+            forecastDate: pred.date,
+            predictedValue: pred.value,
+            confidence: pred.confidence,
+            method: predictionsA.methods.join('+'),
+          })
+        );
+        const savedA = await Promise.allSettled(savePromisesA);
+        const successA = savedA.filter(r => r.status === 'fulfilled').length;
+        console.log(`[Predictions] ✅ Saved ${successA}/${sampledPredictionsA.length} key predictions for ${actualTerms[0]}`);
+      }
+      
+      if (predictionsB && predictionsB.predictions.length > 0 && canonical) {
+        const sampledPredictionsB = samplePredictions(
+          predictionsB.predictions,
+          daysToStore,
+          lastHistoricalDate
+        );
+        
+        console.log(`[Predictions] 💾 Saving ${sampledPredictionsB.length} key predictions (out of ${predictionsB.predictions.length} total) for ${actualTerms[1]}...`);
+        const savePromisesB = sampledPredictionsB.map((pred: any) => 
+          savePrediction({
+            slug: canonical,
+            term: actualTerms[1],
+            forecastDate: pred.date,
+            predictedValue: pred.value,
+            confidence: pred.confidence,
+            method: predictionsB.methods.join('+'),
+          })
+        );
+        const savedB = await Promise.allSettled(savePromisesB);
+        const successB = savedB.filter(r => r.status === 'fulfilled').length;
+        console.log(`[Predictions] ✅ Saved ${successB}/${sampledPredictionsB.length} key predictions for ${actualTerms[1]}`);
+      }
+    } catch (error) {
+      console.error('[Predictions] ❌ Error generating premium predictions:', error);
+    }
+  } else {
+    // Free: Simple predictions only
+    try {
+      const { generateSimplePrediction } = await import('@/lib/simple-prediction');
+      simplePredictionA = generateSimplePrediction(series as any[], actualTerms[0]);
+      simplePredictionB = generateSimplePrediction(series as any[], actualTerms[1]);
+      console.log('[Predictions] ✅ Simple predictions generated for free user');
+    } catch (error) {
+      console.error('[Predictions] ❌ Error generating simple predictions:', error);
+    }
+  }
+
   // Note: Category and AI insights are now saved automatically by getOrGenerateAIInsights()
   // Note: intelligentComparison and verdictData are now computed above, before AI insights
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <main className="mx-auto max-w-7xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <BackButton label="Back to Home" />
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
-        {/* Main content */}
-        <div className="lg:col-span-8 space-y-6 sm:space-y-8">
+      {/* Full-width sections - Header, Poll, Summary, Verdict, AI Insights, Chart, Metrics, Insights */}
+      <div className="space-y-6 sm:space-y-8">
           {/* Header + insight */}
           <header className="space-y-6 sm:space-y-8 pb-2">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
@@ -471,21 +711,74 @@ export default async function ComparePage({
               </div>
             </div>
 
-            {/* Social Share & View Counter */}
+            {/* Daily Limit Status (Free Users) */}
+            <DailyLimitStatus />
+
+            {/* Track comparison view in history */}
+            <ComparisonHistoryTracker
+              slug={canonical || slug}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              timeframe={timeframe || '12m'}
+              geo={geo || ''}
+            />
+
+            {/* Social Share, PDF Download & View Counter */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-200">
-              <SocialShareButtons
-                url={`https://trendarc.net/compare/${slug}`}
-                title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
-                description={`See which is trending more: ${prettyTerm(actualTerms[0])} or ${prettyTerm(actualTerms[1])}? Compare search trends, social buzz, and more.`}
-                termA={actualTerms[0]}
-                termB={actualTerms[1]}
-                winner={verdictData.winner}
-                winnerScore={verdictData.winnerScore}
-                loserScore={verdictData.loserScore}
-              />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+                <SocialShareButtons
+                  url={`https://trendarc.net/compare/${slug}`}
+                  title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+                  description={`See which is trending more: ${prettyTerm(actualTerms[0])} or ${prettyTerm(actualTerms[1])}? Compare search trends, social buzz, and more.`}
+                  termA={actualTerms[0]}
+                  termB={actualTerms[1]}
+                  winner={verdictData.winner}
+                  winnerScore={verdictData.winnerScore}
+                  loserScore={verdictData.loserScore}
+                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <SaveComparisonButton
+                    slug={canonical || slug}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    category={verdictData.category}
+                  />
+                  <CreateAlertButton
+                    slug={canonical || slug}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    isPremium={hasPremiumAccess}
+                  />
+                  <DataExportButton
+                    slug={canonical || slug}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    timeframe={timeframe || '12m'}
+                    geo={geo || ''}
+                    hasPremiumAccess={hasPremiumAccess}
+                  />
+                  <PDFDownloadButton
+                    slug={canonical || slug}
+                    timeframe={timeframe || '12m'}
+                    geo={geo || ''}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    hasPremiumAccess={hasPremiumAccess}
+                  />
+                </div>
+              </div>
               <ViewCounter slug={canonical} initialCount={(row as any).viewCount || 0} />
             </div>
           </header>
+
+          {/* Comparison Poll - Before results */}
+          <ComparisonPoll
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            actualWinner={verdictData.winner}
+            actualWinnerScore={verdictData.winnerScore}
+            actualLoserScore={verdictData.loserScore}
+          />
 
           {/* Quick Summary Card - At the top for immediate insight */}
           <QuickSummaryCard
@@ -616,7 +909,7 @@ export default async function ComparePage({
 
           {/* TrendArc Score Chart - Primary visualization */}
           <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-            <div className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-200">
+            <div className="bg-gradient-to-r from-violet-50/80 via-purple-50/80 to-indigo-50/80 px-5 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-200/60">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2.5 mb-2">
@@ -633,7 +926,7 @@ export default async function ComparePage({
                 <DataSourceBadge sources={dataSources} />
               </div>
             </div>
-            <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-white via-violet-50/20 to-white">
+            <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-white via-violet-50/10 to-white">
               <TrendArcScoreChart 
                 series={series} 
                 termA={actualTerms[0]} 
@@ -643,6 +936,72 @@ export default async function ComparePage({
             </div>
           </section>
 
+          {/* Key Metrics Dashboard */}
+          <KeyMetricsDashboard
+            series={series as any[]}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            winner={verdictData.winner}
+            winnerScore={verdictData.winnerScore}
+            loserScore={verdictData.loserScore}
+            breakdownA={intelligentComparison?.scores?.termA?.breakdown}
+            breakdownB={intelligentComparison?.scores?.termB?.breakdown}
+          />
+
+          {/* Actionable Insights Panel */}
+          <ActionableInsightsPanel
+            winner={verdictData.winner}
+            loser={verdictData.loser}
+            winnerScore={verdictData.winnerScore}
+            loserScore={verdictData.loserScore}
+            margin={verdictData.margin}
+            category={verdictData.category}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
+      </div>
+
+      {/* Grid layout starts from Verified Predictions - Sidebar appears here */}
+      <div className="grid gap-6 sm:gap-8 lg:grid-cols-12">
+        {/* Main content column */}
+        <div className="lg:col-span-8 space-y-6 sm:space-y-8">
+          {/* Verified Predictions Panel - Show verified predictions to users */}
+          {canonical && (
+            <VerifiedPredictionsPanel
+              slug={canonical}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+          )}
+
+          {/* Trend Prediction - Premium: Full predictions, Free: Simple predictions */}
+          {hasPremiumAccess && (predictionsA || predictionsB) && (
+            <>
+              <PredictionAccuracyBadge
+                slug={canonical || ''}
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+              />
+              <TrendPrediction
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+                series={series as any[]}
+                predictionsA={predictionsA}
+                predictionsB={predictionsB}
+                historicalDataPoints={(maxHistoricalSeries && maxHistoricalSeries.length > 0) ? maxHistoricalSeries.length : series.length}
+                category={verdictData.category as any}
+              />
+            </>
+          )}
+          
+          {!hasPremiumAccess && (simplePredictionA || simplePredictionB) && (
+            <SimplePrediction
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              predictionA={simplePredictionA}
+              predictionB={simplePredictionB}
+            />
+          )}
 
           {/* Multi-Source Score Breakdown */}
           {verdictData && intelligentComparison && (
@@ -767,17 +1126,41 @@ export default async function ComparePage({
               practicalImplications={aiInsights.practicalImplications}
             />
           )}
+
+          {/* Geographic Breakdown */}
+          {geographicData && geographicData.countries && geographicData.countries.length > 0 && (
+            <GeographicBreakdown
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              data={geographicData}
+            />
+          )}
+
+          {/* Related Comparisons */}
+          <RelatedComparisons
+            slug={canonical || slug}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            category={verdictData.category}
+          />
+
+          {/* FAQ Section */}
+          <FAQSection
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
         </div>
 
-        {/* Sidebar */}
-        <aside className="lg:col-span-4 space-y-4 sm:space-y-6">
-          <div className="lg:sticky lg:top-24 space-y-4 sm:space-y-6">
-            <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
+        {/* Sidebar - Trending Comparisons & Ads */}
+        <aside className="lg:col-span-4 space-y-5 sm:space-y-6">
+          <div className="lg:sticky lg:top-6 space-y-5 sm:space-y-6">
+            {/* Trending Comparisons */}
+            <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
               <TopThisWeekServer />
             </section>
             
             {/* AdSense - Sidebar */}
-            <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
               <AdSense
                 adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR}
                 adFormat="vertical"
@@ -789,13 +1172,6 @@ export default async function ComparePage({
         </aside>
       </div>
 
-      {/* Geographic Breakdown - Regional preferences */}
-      <GeographicBreakdown
-        geoData={geographicData}
-        termA={actualTerms[0]}
-        termB={actualTerms[1]}
-      />
-
       {/* AdSense - Bottom of Page */}
       <div className="my-8 flex justify-center">
         <AdSense
@@ -804,12 +1180,6 @@ export default async function ComparePage({
           fullWidthResponsive
           className="min-h-[100px]"
         />
-      </div>
-
-      {/* Related comparisons + FAQ */}
-      <div className="space-y-8">
-        <RelatedComparisons currentSlug={canonical} terms={actualTerms} />
-        <FAQSection />
       </div>
 
       {/* Structured Data for SEO */}

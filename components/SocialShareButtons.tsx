@@ -158,7 +158,7 @@ export default function SocialShareButtons({
       </a>
 
       <button
-        onClick={copyToClipboard}
+        onClick={() => copyToClipboard()}
         className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all duration-200 hover:scale-105 min-h-[44px] sm:min-h-[36px]"
         aria-label="Copy link"
       >
@@ -277,7 +277,7 @@ export default function SocialShareButtons({
                   Copy Text
                 </button>
                 <button
-                  onClick={copyToClipboard}
+                  onClick={() => copyToClipboard()}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium text-sm transition-colors min-h-[44px]"
                 >
                   <Link2 className="w-4 h-4" />

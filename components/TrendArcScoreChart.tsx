@@ -1,12 +1,13 @@
 "use client";
-import { Line } from "react-chartjs-2";
+import { Line, getElementAtEvent } from "react-chartjs-2";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler
 } from "chart.js";
 import type { SeriesPoint } from "@/lib/trends";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { calculateTrendArcScore, CATEGORY_WEIGHTS } from "@/lib/trendarc-score";
 import type { ComparisonCategory } from "@/lib/category-resolver";
+import { Download, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -41,26 +42,69 @@ function calculateScoresOverTime(
   termB: string,
   category: ComparisonCategory = 'general'
 ): { dates: string[]; scoresA: number[]; scoresB: number[] } {
+  // Validate series is an array
+  if (!series || !Array.isArray(series) || series.length === 0) {
+    console.warn('[TrendArcScoreChart] Invalid series data:', { series, type: typeof series, isArray: Array.isArray(series) });
+    return { dates: [], scoresA: [], scoresB: [] };
+  }
+
   const weights = CATEGORY_WEIGHTS[category] || CATEGORY_WEIGHTS.general;
+  
+  // Find matching keys in the series (handle normalized/slugified variations)
+  const firstPoint = series[0];
+  if (!firstPoint || typeof firstPoint !== 'object') {
+    console.warn('[TrendArcScoreChart] Invalid first point in series:', firstPoint);
+    return { dates: [], scoresA: [], scoresB: [] };
+  }
+  
+  const availableKeys = Object.keys(firstPoint).filter(k => k !== 'date');
+  
+  // Normalize keys for matching
+  const normalizeKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Find matching key for termA
+  const termAKey = availableKeys.find(k => 
+    k === termA ||
+    k.toLowerCase() === termA.toLowerCase() ||
+    normalizeKey(k) === normalizeKey(termA) ||
+    k.toLowerCase().replace(/\s+/g, '-') === termA.toLowerCase() ||
+    k.toLowerCase().replace(/-/g, ' ') === termA.toLowerCase()
+  ) || availableKeys[0];
+  
+  // Find matching key for termB
+  const termBKey = availableKeys.find(k => 
+    (k === termB ||
+    k.toLowerCase() === termB.toLowerCase() ||
+    normalizeKey(k) === normalizeKey(termB) ||
+    k.toLowerCase().replace(/\s+/g, '-') === termB.toLowerCase() ||
+    k.toLowerCase().replace(/-/g, ' ') === termB.toLowerCase()) &&
+    k !== termAKey // Make sure it's different from termA
+  ) || availableKeys[1] || availableKeys[0];
   
   return series.reduce((acc, point, index) => {
     const date = point.date;
-    const valueA = Number(point[termA] || 0);
-    const valueB = Number(point[termB] || 0);
+    const valueA = Number(point[termAKey] || 0);
+    const valueB = Number(point[termBKey] || 0);
+    
+    // Validate values are finite
+    if (!isFinite(valueA) || !isFinite(valueB)) {
+      console.warn(`[TrendArcScoreChart] Invalid values at index ${index}:`, { valueA, valueB, termAKey, termBKey });
+    }
     
     // Calculate momentum (trend direction) from recent data
     let momentumA = 50;
     let momentumB = 50;
     
     if (index > 0) {
-      const prevValueA = Number(series[index - 1][termA] || 0);
-      const prevValueB = Number(series[index - 1][termB] || 0);
+      const prevValueA = Number(series[index - 1][termAKey] || 0);
+      const prevValueB = Number(series[index - 1][termBKey] || 0);
       
       // Calculate momentum as change from previous point
-      const changeA = valueA - prevValueA;
-      const changeB = valueB - prevValueB;
+      const changeA = isFinite(valueA) && isFinite(prevValueA) ? valueA - prevValueA : 0;
+      const changeB = isFinite(valueB) && isFinite(prevValueB) ? valueB - prevValueB : 0;
       
       // Convert to 0-100 scale (momentum component)
+      // ±1 point change = ±2 momentum points (max ±50)
       momentumA = Math.max(0, Math.min(100, 50 + (changeA * 2)));
       momentumB = Math.max(0, Math.min(100, 50 + (changeB * 2)));
     }
@@ -96,6 +140,7 @@ function calculateScoresOverTime(
 
 export default function TrendArcScoreChart({ series, termA, termB, category = 'general' }: TrendArcScoreChartProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const chartRef = useRef<any>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -105,6 +150,17 @@ export default function TrendArcScoreChart({ series, termA, termB, category = 'g
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  const handleDownload = () => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const url = chart.toBase64Image('image/png', 1);
+    const link = document.createElement('a');
+    link.download = `${termA}-vs-${termB}-trendarc-score.png`;
+    link.href = url;
+    link.click();
+  };
 
   if (!series?.length) return null;
 
@@ -144,10 +200,24 @@ export default function TrendArcScoreChart({ series, termA, termB, category = 'g
   ];
 
   return (
-    <div className="relative w-full" style={{ minHeight: isMobile ? '250px' : '300px', height: isMobile ? '250px' : '400px' }}>
-      <Line
-        data={{ labels: dates, datasets }}
-        options={{
+    <div className="relative w-full">
+      {/* Chart Controls */}
+      <div className="flex items-center justify-end gap-2 mb-2">
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-colors"
+          title="Download chart as PNG"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Download</span>
+        </button>
+      </div>
+
+      <div style={{ minHeight: isMobile ? '250px' : '300px', height: isMobile ? '250px' : '400px' }}>
+        <Line
+          ref={chartRef}
+          data={{ labels: dates, datasets }}
+          options={{
           responsive: true,
           maintainAspectRatio: true,
           aspectRatio: isMobile ? 1.5 : 2,
@@ -239,9 +309,10 @@ export default function TrendArcScoreChart({ series, termA, termB, category = 'g
             duration: 1000,
             easing: "easeInOutCubic",
           },
-        }}
-        height={isMobile ? 250 : 300}
-      />
+          }}
+          height={isMobile ? 250 : 300}
+        />
+      </div>
     </div>
   );
 }

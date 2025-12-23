@@ -54,19 +54,37 @@ export default function SignupPage() {
       }
 
       // Auto-login after signup
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
+      try {
+        const result = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        });
 
-      if (result?.error) {
-        setError("Account created but login failed. Please try logging in.");
+        if (result?.error) {
+          console.error("Sign in error:", result.error);
+          setError(`Account created but login failed: ${result.error}. Please try logging in manually.`);
+          setLoading(false);
+          return;
+        }
+
+        if (!result?.ok) {
+          setError("Account created but login failed. Please try logging in manually.");
+          setLoading(false);
+          return;
+        }
+      } catch (signInError: any) {
+        console.error("Sign in exception:", signInError);
+        setError(`Account created but login failed: ${signInError?.message || 'Unknown error'}. Please try logging in manually.`);
         setLoading(false);
         return;
       }
 
       // Successful signup and login
+      // Trigger auth state change event for components to refresh
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-state-change'));
+      }
       router.push("/");
       router.refresh();
     } catch (err) {

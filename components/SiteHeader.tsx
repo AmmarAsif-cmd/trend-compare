@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { TrendingUp, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { TrendingUp, ArrowRight, User, LayoutDashboard } from "lucide-react";
 import { BRAND, TAGLINE } from "@/lib/brand";
 
 function isActive(pathname: string, href: string) {
@@ -13,6 +13,32 @@ function isActive(pathname: string, href: string) {
 export default function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check if user is logged in
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user/me');
+        setIsLoggedIn(response.ok);
+      } catch {
+        setIsLoggedIn(false);
+      }
+    }
+    checkAuth();
+
+    // Listen for auth state changes (triggered after login/logout)
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+
+    // Check auth on route changes (e.g., after login redirect)
+    window.addEventListener('auth-state-change', handleAuthChange);
+
+    return () => {
+      window.removeEventListener('auth-state-change', handleAuthChange);
+    };
+  }, [pathname]); // Re-check when pathname changes (e.g., after login redirect)
 
   const navItems = [
     { href: "/", label: "Home" },
@@ -54,6 +80,39 @@ export default function SiteHeader() {
               </Link>
             </li>
           ))}
+          {isLoggedIn && (
+            <li>
+              <Link
+                href="/dashboard"
+                className={`text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
+                  isActive(pathname, "/dashboard")
+                    ? "text-indigo-600"
+                    : "text-slate-600 hover:text-indigo-600"
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </Link>
+            </li>
+          )}
+          <li>
+            {isLoggedIn ? (
+              <Link
+                href="/account"
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1.5"
+              >
+                <User className="w-4 h-4" />
+                Account
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
+          </li>
         </ul>
 
         {/* Mobile menu button */}
@@ -88,6 +147,42 @@ export default function SiteHeader() {
                 </Link>
               </li>
             ))}
+            {isLoggedIn && (
+              <li>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className={`block rounded-lg px-3 py-2 text-sm flex items-center gap-2 ${
+                    isActive(pathname, "/dashboard")
+                      ? "bg-indigo-50 text-indigo-600 font-medium"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+              </li>
+            )}
+            <li>
+              {isLoggedIn ? (
+                <Link
+                  href="/account"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  Account
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm bg-indigo-600 text-white font-medium text-center hover:bg-indigo-700 transition-colors"
+                >
+                  Sign In
+                </Link>
+              )}
+            </li>
           </ul>
         </div>
       )}

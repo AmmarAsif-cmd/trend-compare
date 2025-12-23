@@ -1,133 +1,99 @@
-# 🔧 Database Migration Instructions
+# Migration Instructions for Saved Comparisons & History
 
-**Migration:** Add `viewCount` field to Comparison table
+## Step 1: Run Database Migration
 
----
+You need to run the SQL migration to create the new tables in your database.
 
-## ⚠️ PowerShell Execution Policy Issue
+### Option A: Using Prisma Migrate (Recommended)
 
-Your system has PowerShell execution policy restrictions that prevent running npm/npx directly.
-
----
-
-## ✅ Solution Options
-
-### **Option 1: Run Migration Manually (Recommended)**
-
-1. **Open your database client** (pgAdmin, DBeaver, or Neon dashboard)
-
-2. **Run this SQL:**
-   ```sql
-   -- Add viewCount column to Comparison table
-   ALTER TABLE "Comparison" ADD COLUMN IF NOT EXISTS "viewCount" INTEGER NOT NULL DEFAULT 0;
-
-   -- Create index for sorting by popularity
-   CREATE INDEX IF NOT EXISTS "Comparison_viewCount_idx" ON "Comparison"("viewCount");
-   ```
-
-3. **Verify it worked:**
-   ```sql
-   SELECT "viewCount" FROM "Comparison" LIMIT 1;
-   ```
-
----
-
-### **Option 2: Use Command Prompt (Not PowerShell)**
-
-1. **Open Command Prompt** (cmd.exe, not PowerShell)
-
-2. **Navigate to project:**
-   ```cmd
-   cd C:\Users\User\Desktop\Project\trned-compare-cursor\trend-compare
-   ```
-
-3. **Run migration:**
-   ```cmd
-   npx prisma migrate dev --name add_view_count
-   ```
-
----
-
-### **Option 3: Change PowerShell Execution Policy (One-Time)**
-
-1. **Open PowerShell as Administrator**
-
-2. **Run:**
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-   ```
-
-3. **Then run:**
-   ```powershell
-   npx prisma migrate dev --name add_view_count
-   ```
-
----
-
-### **Option 4: Use Prisma Studio**
-
-1. **Generate Prisma Client:**
-   ```cmd
-   node node_modules\prisma\build\index.js generate
-   ```
-
-2. **The migration will run automatically on next build** (if using `migrate-if-db-available.js`)
-
----
-
-## 📋 What the Migration Does
-
-1. **Adds `viewCount` column** to `Comparison` table
-   - Type: INTEGER
-   - Default: 0
-   - Not null
-
-2. **Creates index** on `viewCount`
-   - Enables fast sorting by popularity
-   - Improves query performance
-
----
-
-## ✅ Verification
-
-After migration, verify:
-
-1. **Check schema:**
-   ```sql
-   SELECT column_name, data_type, column_default 
-   FROM information_schema.columns 
-   WHERE table_name = 'Comparison' AND column_name = 'viewCount';
-   ```
-
-2. **Check index:**
-   ```sql
-   SELECT indexname, indexdef 
-   FROM pg_indexes 
-   WHERE tablename = 'Comparison' AND indexname LIKE '%viewCount%';
-   ```
-
----
-
-## 🚀 After Migration
-
-Once migration is complete:
-
-1. ✅ View counter will start tracking
-2. ✅ Existing comparisons will have viewCount = 0
-3. ✅ New views will increment the count
-4. ✅ You can sort by popularity using viewCount
-
----
-
-## 💡 Quick SQL (Copy & Paste)
-
-```sql
--- Add viewCount column
-ALTER TABLE "Comparison" ADD COLUMN IF NOT EXISTS "viewCount" INTEGER NOT NULL DEFAULT 0;
-
--- Create index
-CREATE INDEX IF NOT EXISTS "Comparison_viewCount_idx" ON "Comparison"("viewCount");
+```bash
+npx prisma migrate dev --name add_saved_comparisons_and_history
 ```
 
-**That's it!** Just run these two SQL commands in your database client.
+### Option B: Manual SQL (If Prisma Migrate doesn't work)
 
+Run the SQL file directly in your database:
+
+```sql
+-- File: prisma/migrations/add_saved_comparisons_and_history.sql
+-- Copy and paste the entire contents into your database client (pgAdmin, DBeaver, psql, etc.)
+```
+
+**OR** use psql from command line:
+
+```bash
+psql -h your-host -U your-user -d your-database -f prisma/migrations/add_saved_comparisons_and_history.sql
+```
+
+## Step 2: Generate Prisma Client
+
+After migration, generate the Prisma client:
+
+```bash
+npx prisma generate
+```
+
+## Step 3: Verify Schema
+
+Check that the new models are in your schema:
+
+```bash
+npx prisma validate
+```
+
+## Step 4: Test the Features
+
+1. **Start your development server:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Test Saved Comparisons:**
+   - Log in to your account
+   - Visit any comparison page (e.g., `/compare/iphone-vs-samsung`)
+   - Click the "Save" button
+   - Visit `/dashboard` to see your saved comparisons
+
+3. **Test History Tracking:**
+   - View different comparison pages
+   - Visit `/dashboard` to see your viewing history
+
+4. **Test Dashboard:**
+   - Visit `/dashboard`
+   - You should see:
+     - Stats overview (saved count, recent views, most viewed)
+     - List of saved comparisons
+     - Recent viewing history
+
+## Troubleshooting
+
+### Error: "Table does not exist"
+- Make sure you ran the migration SQL
+- Check that the table names match exactly: `SavedComparison` and `ComparisonHistory` (case-sensitive)
+
+### Error: "Foreign key constraint fails"
+- Make sure the `User` table exists
+- Verify the user ID exists in the User table
+
+### Error: "Prisma Client not generated"
+- Run `npx prisma generate`
+- Restart your development server
+
+### Build Errors
+- Run `npx prisma generate` again
+- Clear `.next` folder: `rm -rf .next` (or `rmdir /s /q .next` on Windows)
+- Restart dev server
+
+## Database Schema Changes
+
+The migration adds two new tables:
+
+1. **SavedComparison** - Stores user's saved comparisons
+   - One entry per user per comparison (unique constraint)
+   - Supports notes and tags for organization
+
+2. **ComparisonHistory** - Tracks all comparison views
+   - Multiple entries allowed (to track frequency)
+   - Used for "Most Viewed" feature
+
+Both tables have foreign key relationships to the `User` table with CASCADE delete (when a user is deleted, their saved comparisons and history are also deleted).

@@ -28,16 +28,35 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        console.error("Login error:", result.error);
+        // Provide more helpful error messages
+        if (result.error.includes("CredentialsSignin")) {
+          setError("Invalid email or password. Please check your credentials and try again.");
+        } else if (result.error.includes("Configuration")) {
+          setError("Authentication error: Please contact support if this persists.");
+        } else {
+          setError(`Login failed: ${result.error}. Please try again.`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!result?.ok) {
+        setError("Login failed. Please try again.");
         setLoading(false);
         return;
       }
 
       // Successful login
+      // Trigger auth state change event for components to refresh
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-state-change'));
+      }
       router.push(redirect);
       router.refresh();
-    } catch (err) {
-      setError("An error occurred. Please try again.");
+    } catch (err: any) {
+      console.error("Login exception:", err);
+      setError(`An error occurred: ${err?.message || "Please try again."}`);
       setLoading(false);
     }
   };
