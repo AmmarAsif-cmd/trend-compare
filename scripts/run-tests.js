@@ -4,13 +4,154 @@
  * Runs all context-aware verification tests
  */
 
-// Import test data and functions
-const testData = require('../__tests__/mock-data');
-
 // Simple test utilities
 let passCount = 0;
 let failCount = 0;
 const results = [];
+
+// Mock Data - Embedded (replaces TypeScript imports)
+const mockAIResponses = {
+  appleTech_iPhoneContext: {
+    relevance: 98,
+    interpretation: "Apple Inc. (technology company)",
+    reasoning: "iPhone 15 launch directly relates to tech comparison of 'iPhone vs Android'",
+    confidence: 99,
+    contextMatch: true
+  },
+  appleFruit_iPhoneContext: {
+    relevance: 5,
+    interpretation: "Apple (fruit)",
+    reasoning: "Fruit harvest does NOT relate to technology comparison context",
+    confidence: 98,
+    contextMatch: false
+  },
+  appleTech_fruitContext: {
+    relevance: 8,
+    interpretation: "Apple Inc. (technology company)",
+    reasoning: "Tech product launch does NOT relate to food comparison 'Oranges vs Apples'",
+    confidence: 95,
+    contextMatch: false
+  },
+  appleFruit_fruitContext: {
+    relevance: 92,
+    interpretation: "Apple (fruit)",
+    reasoning: "Apple harvest directly relates to fruit comparison context",
+    confidence: 97,
+    contextMatch: true
+  },
+  javaProgramming_programmingContext: {
+    relevance: 96,
+    interpretation: "Java (programming language)",
+    reasoning: "Java 20 release directly relates to programming comparison 'Java vs Python'",
+    confidence: 98,
+    contextMatch: true
+  },
+  javaIsland_programmingContext: {
+    relevance: 3,
+    interpretation: "Java (Indonesian island)",
+    reasoning: "Geographic earthquake does NOT relate to programming context",
+    confidence: 99,
+    contextMatch: false
+  },
+  javaCoffee_programmingContext: {
+    relevance: 12,
+    interpretation: "Java (coffee slang)",
+    reasoning: "Coffee product does NOT relate to programming comparison",
+    confidence: 95,
+    contextMatch: false
+  },
+  teslaCar_autoContext: {
+    relevance: 94,
+    interpretation: "Tesla Inc. (automotive company)",
+    reasoning: "Tesla car deliveries directly relate to electric vehicle comparison 'Model 3 vs Bolt'",
+    confidence: 97,
+    contextMatch: true
+  },
+  teslaScientist_autoContext: {
+    relevance: 15,
+    interpretation: "Nikola Tesla (scientist/inventor)",
+    reasoning: "Historical museum exhibit does NOT relate to car comparison",
+    confidence: 96,
+    contextMatch: false
+  },
+  pythonProgramming_animalContext: {
+    relevance: 8,
+    interpretation: "Python (programming language)",
+    reasoning: "Software release does NOT relate to animal comparison 'Snakes vs Lizards'",
+    confidence: 98,
+    contextMatch: false
+  },
+  pythonSnake_animalContext: {
+    relevance: 88,
+    interpretation: "Python (snake species)",
+    reasoning: "Burmese python capture directly relates to reptile/animal comparison context",
+    confidence: 95,
+    contextMatch: true
+  }
+};
+
+const testScenarios = [
+  {
+    name: "iPhone vs Android - Apple peak (tech context)",
+    peakKeyword: "Apple",
+    comparisonContext: {
+      termA: "iPhone",
+      termB: "Android",
+      category: "technology"
+    },
+    expectedInterpretation: "Apple Inc. (technology company)",
+    shouldIncludeEvents: ["iPhone 15"],
+    shouldExcludeEvents: ["apple harvest", "fruit", "Beatles"]
+  },
+  {
+    name: "Oranges vs Apples - Apple peak (food context)",
+    peakKeyword: "Apple",
+    comparisonContext: {
+      termA: "Oranges",
+      termB: "Apples",
+      category: "food"
+    },
+    expectedInterpretation: "Apple (fruit)",
+    shouldIncludeEvents: ["harvest", "fruit"],
+    shouldExcludeEvents: ["iPhone", "MacBook", "tech"]
+  },
+  {
+    name: "Java vs Python - Java peak (programming context)",
+    peakKeyword: "Java",
+    comparisonContext: {
+      termA: "Java",
+      termB: "Python",
+      category: "technology"
+    },
+    expectedInterpretation: "Java (programming language)",
+    shouldIncludeEvents: ["Java 20", "Oracle", "programming"],
+    shouldExcludeEvents: ["earthquake", "Indonesia", "coffee", "Starbucks"]
+  },
+  {
+    name: "Tesla Model 3 vs Chevy Bolt - Tesla peak (auto context)",
+    peakKeyword: "Tesla",
+    comparisonContext: {
+      termA: "Tesla Model 3",
+      termB: "Chevy Bolt",
+      category: "automotive"
+    },
+    expectedInterpretation: "Tesla Inc. (automotive company)",
+    shouldIncludeEvents: ["deliveries", "Tesla Inc", "vehicle"],
+    shouldExcludeEvents: ["Nikola Tesla", "museum", "scientist"]
+  },
+  {
+    name: "Snakes vs Lizards - Python peak (animal context)",
+    peakKeyword: "Python",
+    comparisonContext: {
+      termA: "Snakes",
+      termB: "Lizards",
+      category: "animals"
+    },
+    expectedInterpretation: "Python (snake species)",
+    shouldIncludeEvents: ["Burmese python", "Florida", "Everglades"],
+    shouldExcludeEvents: ["Python 3.12", "programming", "software"]
+  }
+];
 
 function assert(condition, message) {
   if (condition) {
@@ -134,8 +275,6 @@ console.log('');
 // Test Suite 3: Context-Based Event Filtering
 console.log('📝 Test Suite 3: Mock AI Response Validation\n');
 
-const { mockAIResponses } = require('../__tests__/mock-data');
-
 // Apple in tech context (should include)
 const appleTechResp = mockAIResponses.appleTech_iPhoneContext;
 assertGreaterThan(appleTechResp.relevance, 90, 'Apple tech event has high relevance in tech context');
@@ -206,8 +345,6 @@ console.log('');
 
 // Test Suite 6: Test Scenario Validation
 console.log('📝 Test Suite 6: Test Scenario Structure\n');
-
-const { testScenarios } = require('../__tests__/mock-data');
 
 testScenarios.forEach(scenario => {
   assert(scenario.name !== undefined, `Scenario has name: ${scenario.name}`);
