@@ -1,7 +1,7 @@
 'use client';
 
 import { ExternalLink, CheckCircle2, AlertCircle, FileText, TrendingUp, Database } from 'lucide-react';
-import type { ImprovedPeakExplanation } from '@/lib/peak-explanation-improved';
+import type { ImprovedPeakExplanation } from '@/lib/peak-explanation-improved-v2';
 
 type Props = {
   peakExplanation: ImprovedPeakExplanation;

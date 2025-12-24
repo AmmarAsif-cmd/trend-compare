@@ -378,14 +378,19 @@ function formatAllInsights(
  * Format explanation section
  */
 function formatExplanation(explanation: ImprovedPeakExplanation): string {
+  // Get top 3 events sorted by relevance
+  const topEvents = explanation.events
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, 3);
+
   return `
 📰 WHAT HAPPENED
 
 ${explanation.explanation}
 
-${explanation.topEvents.length > 0 ? `Key Events:\n${explanation.topEvents.map(e => `• ${e.title} (${e.date.toLocaleDateString()})\n  ${e.description}\n  Source: ${e.source}`).join('\n\n')}` : ''}
+${topEvents.length > 0 ? `Key Events:\n${topEvents.map(e => `• ${e.title} (${e.date.toLocaleDateString()})\n  ${e.description}\n  Source: ${e.source}`).join('\n\n')}` : ''}
 
-${explanation.interpretation ? `\nInterpretation: ${explanation.interpretation}\nContext Match: ${explanation.contextMatch ? 'Yes ✓' : 'No ✗'}` : ''}
+${explanation.interpretation ? `\nInterpretation: ${explanation.interpretation}\nContext Match: ${explanation.bestEvent?.contextMatch ? 'Yes ✓' : 'No ✗'}` : ''}
 
 Confidence: ${explanation.status} (${explanation.confidence}%)
   `.trim();

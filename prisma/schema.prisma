@@ -178,6 +178,36 @@ model PredictionStats {
   updatedAt           DateTime @updatedAt
 }
 
+model PeakExplanationCache {
+  id           String   @id @default(cuid())
+  cacheKey     String   @unique // Format: "keyword:YYYY-MM-DD"
+
+  // Peak data
+  keyword      String
+  peakDate     DateTime
+  peakValue    Int      // 0-100
+
+  // Explanation data
+  explanation  String   @db.Text
+  confidence   Int      // 0-100
+  events       String?  @db.Text // JSON array of RealEvent[]
+  bestEvent    String?  @db.Text // JSON object of RealEvent
+  citations    String   @db.Text // JSON array of citations
+  verified     Boolean  @default(false)
+  sourceCount  Int      @default(0)
+  status       String   // 'verified' | 'probable' | 'possible' | 'unknown'
+
+  // Metadata
+  createdAt    DateTime @default(now())
+  lastAccessed DateTime @default(now())
+  accessCount  Int      @default(0)
+
+  @@index([keyword])
+  @@index([peakDate])
+  @@index([lastAccessed])
+  @@index([status])
+}
+
 model SavedComparison {
   id        String   @id @default(cuid())
   userId    String

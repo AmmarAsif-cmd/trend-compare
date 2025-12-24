@@ -5,7 +5,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import type { ImprovedPeakExplanation } from './peak-explanation-improved';
+import type { ImprovedPeakExplanation } from './peak-explanation-improved-v2';
 
 const prisma = new PrismaClient();
 
@@ -157,7 +157,7 @@ export async function getCacheStats(): Promise<{
   try {
     const all = await prisma.peakExplanationCache.findMany({
       select: {
-        keyword,
+        keyword: true,
         accessCount: true,
         confidence: true,
         status: true,
