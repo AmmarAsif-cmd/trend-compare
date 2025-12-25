@@ -139,7 +139,7 @@ export async function detectAnomalies(
  * Calculate relevance score for an event to a keyword
  * Returns 0-100, higher = more relevant
  */
-function calculateEventRelevance(event: { title: string; description: string }, keyword: string): number {
+export function calculateEventRelevance(event: { title: string; description: string }, keyword: string): number {
   const kw = keyword.toLowerCase();
   const title = event.title.toLowerCase();
   const desc = event.description.toLowerCase();

@@ -68,18 +68,33 @@ export default function PrivacyPage() {
                 4. Third-Party Services
               </h2>
               <p className="leading-relaxed mb-4">
-                TrendArc uses Google Trends data to generate comparisons. When you use our service, you&rsquo;re also
-                subject to Google&rsquo;s privacy policies for the data we fetch from their API.
+                TrendArc uses several third-party services to provide our comparison features:
               </p>
+              <ul className="list-disc pl-6 space-y-2 mb-4">
+                <li><strong>Google Trends:</strong> We use Google Trends data to generate comparisons. When you use our service, you&rsquo;re also subject to Google&rsquo;s privacy policies for the data we fetch from their API.</li>
+                <li><strong>Google AdSense:</strong> We use Google AdSense to display advertisements on our website. AdSense uses cookies to serve ads based on your prior visits to our website or other websites. You can opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline">Google&rsquo;s Ad Settings</a>.</li>
+                <li><strong>Other APIs:</strong> We also use YouTube, TMDB, Spotify, Steam, Best Buy, Wikipedia, and other APIs to enrich our comparison data. Each service has its own privacy policy.</li>
+              </ul>
             </section>
 
             <section>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">
-                5. Cookies
+                5. Cookies and Tracking Technologies
               </h2>
+              <p className="leading-relaxed mb-4">
+                We use cookies and similar tracking technologies to improve your experience on our website:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 mb-4">
+                <li><strong>Essential Cookies:</strong> Required for the website to function properly (e.g., session management, security)</li>
+                <li><strong>Analytics Cookies:</strong> Help us understand how visitors interact with our website (e.g., Google Analytics)</li>
+                <li><strong>Advertising Cookies:</strong> Used by Google AdSense to serve relevant ads and measure ad performance. These cookies may track your browsing activity across websites.</li>
+                <li><strong>Preference Cookies:</strong> Remember your settings and preferences (e.g., theme, language)</li>
+              </ul>
+              <p className="leading-relaxed mb-4">
+                <strong>Managing Cookies:</strong> You can control cookies through your browser settings. However, disabling certain cookies may affect website functionality. For UK and EEA users, you can manage your cookie preferences using our cookie consent banner.
+              </p>
               <p className="leading-relaxed">
-                We use minimal cookies for basic analytics and to remember your preferences. You can disable
-                cookies in your browser settings, though this may affect some functionality.
+                <strong>Opt-Out of Personalized Ads:</strong> You can opt out of personalized advertising from Google by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline">Google&rsquo;s Ad Settings</a> or the <a href="https://www.youronlinechoices.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline">Your Online Choices</a> website.
               </p>
             </section>
 

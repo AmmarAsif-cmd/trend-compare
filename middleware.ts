@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Simple in-memory window. For multi-instance, move to Redis (Upstash).
-const WINDOW_MS = 60_000;
-const MAX_REQ = 40;
+const WINDOW_MS = 60_000; // 1 minute window
+const MAX_REQ_API = 40; // API routes: 40 requests per minute
+const MAX_REQ_COMPARE = 100; // Comparison pages: 100 requests per minute (more generous for public pages)
 const hits = new Map<string, { count: number; ts: number }>();
 
 // CORS config
@@ -43,8 +44,9 @@ export function middleware(req: NextRequest) {
   //   url.search = "";
   //   return NextResponse.redirect(url);
   // }
-  // Rate limit only compare pages and public APIs
-  if (path.startsWith("/compare/") || path.startsWith("/api/")) {
+  // Rate limit API routes and comparison pages (with different limits)
+  if (path.startsWith("/api/")) {
+    // API routes: stricter limit (40/min)
     const xff = req.headers.get("x-forwarded-for");
     const ip =
       (xff && xff.split(",")[0].trim()) ||
@@ -54,7 +56,7 @@ export function middleware(req: NextRequest) {
       "anon";
 
     const now = Date.now();
-    const rec = hits.get(ip) ?? { count: 0, ts: now };
+    const rec = hits.get(`api:${ip}`) ?? { count: 0, ts: now };
 
     if (now - rec.ts > WINDOW_MS) {
       rec.count = 0;
@@ -62,9 +64,34 @@ export function middleware(req: NextRequest) {
     }
 
     rec.count += 1;
-    hits.set(ip, rec);
+    hits.set(`api:${ip}`, rec);
 
-    if (rec.count > MAX_REQ) {
+    if (rec.count > MAX_REQ_API) {
+      return new NextResponse("Too Many Requests", { status: 429, headers: res.headers });
+    }
+  } else if (path.startsWith("/compare/")) {
+    // Comparison pages: more generous limit (100/min) since we have daily limits
+    // This allows for page loads with multiple requests (API calls, images, etc.)
+    const xff = req.headers.get("x-forwarded-for");
+    const ip =
+      (xff && xff.split(",")[0].trim()) ||
+      // NextRequest has ip in some runtimes
+      // @ts-expect-error: ip may be undefined depending on runtime
+      req.ip ||
+      "anon";
+
+    const now = Date.now();
+    const rec = hits.get(`compare:${ip}`) ?? { count: 0, ts: now };
+
+    if (now - rec.ts > WINDOW_MS) {
+      rec.count = 0;
+      rec.ts = now;
+    }
+
+    rec.count += 1;
+    hits.set(`compare:${ip}`, rec);
+
+    if (rec.count > MAX_REQ_COMPARE) {
       return new NextResponse("Too Many Requests", { status: 429, headers: res.headers });
     }
   }

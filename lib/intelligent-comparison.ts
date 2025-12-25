@@ -76,6 +76,10 @@ async function safeAPICall<T>(
         maxRetries: 2,
         initialDelay: 1000,
         shouldRetry: (error) => {
+          // Don't retry on quota errors - they won't work on retry
+          if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+            return false;
+          }
           // Retry on timeout or network errors
           return error?.name === 'TimeoutError' || 
                  error?.code === 'ECONNRESET' || 
@@ -84,7 +88,12 @@ async function safeAPICall<T>(
         }
       }
     );
-  } catch (error) {
+  } catch (error: any) {
+    // Handle quota errors gracefully - they're expected and shouldn't crash the page
+    if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+      console.warn(`[IntelligentComparison] ${apiName} quota exceeded. Skipping ${apiName} data for this comparison.`);
+      return null;
+    }
     console.warn(`[IntelligentComparison] ${apiName} fetch failed after retries:`, error);
     return null;
   }
@@ -99,23 +108,63 @@ function calculateSeriesStats(series: SeriesPoint[], termName: string, otherTerm
   leadPercentage: number;
   volatility: number;
 } {
-  if (series.length === 0) {
+  // Validate series is an array
+  if (!series || !Array.isArray(series) || series.length === 0) {
+    console.warn('[calculateSeriesStats] Invalid series data:', { series, type: typeof series, isArray: Array.isArray(series) });
     return { avgInterest: 50, momentum: 0, leadPercentage: 50, volatility: 0 };
   }
 
-  // Use actual term names instead of relying on Object.keys() order
-  const termKey = termName;
-  const otherKey = otherTermName;
+  // Find matching keys in the series (handle normalized/slugified variations)
+  // First, get all available keys from the first data point
+  const firstPoint = series[0];
+  if (!firstPoint || typeof firstPoint !== 'object') {
+    console.warn('[calculateSeriesStats] Invalid first point in series:', firstPoint);
+    return { avgInterest: 50, momentum: 0, leadPercentage: 50, volatility: 0 };
+  }
+  
+  const availableKeys = Object.keys(firstPoint).filter(k => k !== 'date');
+  
+  // Find matching key for termName (handle variations)
+  const normalizeKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const termKey = availableKeys.find(k => 
+    k === termName ||
+    k.toLowerCase() === termName.toLowerCase() ||
+    normalizeKey(k) === normalizeKey(termName) ||
+    k.toLowerCase().replace(/\s+/g, '-') === termName.toLowerCase() ||
+    k.toLowerCase().replace(/-/g, ' ') === termName.toLowerCase()
+  ) || availableKeys[0]; // Fallback to first available key
+  
+  const otherKey = availableKeys.find(k => 
+    k === otherTermName ||
+    k.toLowerCase() === otherTermName.toLowerCase() ||
+    normalizeKey(k) === normalizeKey(otherTermName) ||
+    k.toLowerCase().replace(/\s+/g, '-') === otherTermName.toLowerCase() ||
+    k.toLowerCase().replace(/-/g, ' ') === otherTermName.toLowerCase()
+  ) || availableKeys[1] || availableKeys[0]; // Fallback to second key, or first if only one exists
+
+  // Log if key matching was needed
+  if (termKey !== termName) {
+    console.log(`[calculateSeriesStats] Matched "${termName}" to series key "${termKey}"`);
+  }
+  if (otherKey !== otherTermName && otherKey) {
+    console.log(`[calculateSeriesStats] Matched "${otherTermName}" to series key "${otherKey}"`);
+  }
 
   const values = series.map(p => {
     const val = p[termKey];
-    return typeof val === 'number' ? val : 0;
+    return typeof val === 'number' && isFinite(val) ? val : 0;
   });
   
   const otherValues = series.map(p => {
     const val = p[otherKey];
-    return typeof val === 'number' ? val : 0;
+    return typeof val === 'number' && isFinite(val) ? val : 0;
   });
+  
+  // Validate that we got meaningful data
+  const nonZeroValues = values.filter(v => v > 0);
+  if (nonZeroValues.length === 0) {
+    console.warn(`[calculateSeriesStats] ⚠️ All values are 0 for term "${termName}" (key: "${termKey}"). Available keys: ${availableKeys.join(', ')}`);
+  }
   
   // Average interest
   const avgInterest = values.reduce((a, b) => a + b, 0) / values.length;

@@ -6,8 +6,9 @@ const cspReportOnly = [
   "base-uri 'self'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  // Scripts: no inline or eval; allow GA/GTM if you use them.
-  "script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com",
+  // Scripts: allow inline and eval for Next.js dev mode, Chart.js, and other libraries
+  // In production, consider using nonces or extracting inline scripts
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
   // Styles: allow inline for now; remove 'unsafe-inline' after cleanup.
   "style-src 'self' 'unsafe-inline'",
   // Images (include GA beacons), data and blobs

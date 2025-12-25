@@ -87,24 +87,50 @@ function safeParse<T = unknown>(raw: string): T | null {
 /** Single-term fetch (robust) */
 async function fetchTermSeries(term: string, opts: TrendsOptions) {
   const range = resolveRange(opts.timeframe);
+  
+  try {
+    const res = await googleTrends.interestOverTime({
+      keyword: normalizeTerm(term), // <-- phrase-aware
+      geo: opts.geo ?? DEFAULT_OPTS.geo,
+      category: 0,
+      hl: "en-GB",
+      timezone: opts.tz ?? DEFAULT_OPTS.tz,
+      granularTimeResolution: false,
+      ...(range.useAll ? {} : { startTime: range.startTime, endTime: range.endTime }),
+    });
 
-  const res = await googleTrends.interestOverTime({
-    keyword: normalizeTerm(term), // <-- phrase-aware
-    geo: opts.geo ?? DEFAULT_OPTS.geo,
-    category: 0,
-    hl: "en-GB",
-    timezone: opts.tz ?? DEFAULT_OPTS.tz,
-    granularTimeResolution: false,
-    ...(range.useAll ? {} : { startTime: range.startTime, endTime: range.endTime }),
-  });
+    // Check if response is HTML (error page) before parsing
+    if (typeof res === 'string' && (res.trim().startsWith('<') || res.includes('<!DOCTYPE') || res.includes('<html'))) {
+      console.warn(`[trends] Google Trends returned HTML for term "${term}", likely rate-limited or blocked`);
+      throw new Error('Google Trends returned HTML response (likely rate-limited)');
+    }
 
-  const data = safeParse<InterestOverTimeResponse>(res);
-  const timeline = data?.default?.timelineData ?? [];
+    const data = safeParse<InterestOverTimeResponse>(res);
+    if (!data) {
+      console.warn(`[trends] Failed to parse Google Trends response for term "${term}"`);
+      throw new Error('Failed to parse Google Trends response');
+    }
+    
+    const timeline = data?.default?.timelineData ?? [];
 
-  return timeline.map((p) => ({
-    unix: Number(p.time),
-    value: Number(p.value?.[0] ?? 0),
-  }));
+    return timeline.map((p) => ({
+      unix: Number(p.time),
+      value: Number(p.value?.[0] ?? 0),
+    }));
+  } catch (e) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    const isSyntaxError = e instanceof SyntaxError || errorMsg.includes('JSON') || errorMsg.includes('Unexpected token');
+    
+    // If it's a SyntaxError (HTML response parsed as JSON), log it specifically
+    if (isSyntaxError) {
+      console.warn(`[trends] ⚠️ Google Trends returned HTML for term "${term}" (likely rate-limited). Error:`, errorMsg);
+    } else {
+      console.error(`[trends] Failed to fetch term "${term}":`, errorMsg);
+    }
+    
+    // Return empty array on error (caller will handle it)
+    return [];
+  }
 }
 
 /** Combined fetch (shared 0–100) with fallback to sequential */
@@ -129,7 +155,19 @@ export async function fetchSeriesGoogle(
       ...(range.useAll ? {} : { startTime: range.startTime, endTime: range.endTime }),
     });
 
+    // Check if response is HTML (error page) before parsing
+    if (typeof res === 'string' && (res.trim().startsWith('<') || res.includes('<!DOCTYPE') || res.includes('<html'))) {
+      console.warn('[trends] Google Trends returned HTML instead of JSON, likely rate-limited or blocked');
+      throw new Error('Google Trends returned HTML response (likely rate-limited)');
+    }
+
     const data = safeParse<InterestOverTimeResponse>(res);
+    if (!data) {
+      console.warn('[trends] Failed to parse Google Trends response, response preview:', 
+        typeof res === 'string' ? res.substring(0, 200) : String(res).substring(0, 200));
+      throw new Error('Failed to parse Google Trends response');
+    }
+    
     const timeline = data?.default?.timelineData ?? [];
 
     if (timeline?.length && timeline[0]?.value?.length === terms.length) {
@@ -143,7 +181,21 @@ export async function fetchSeriesGoogle(
       if (series.length) return series;
     }
   } catch (e) {
-    console.error("[trends] combined call failed, falling back to sequential:", e);
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    const isSyntaxError = e instanceof SyntaxError || errorMsg.includes('JSON') || errorMsg.includes('Unexpected token');
+    
+    // If it's a SyntaxError (HTML response parsed as JSON), log it specifically
+    if (isSyntaxError) {
+      console.warn("[trends] ⚠️ Google Trends returned HTML instead of JSON (likely rate-limited or blocked). Error:", errorMsg);
+      console.warn("[trends] ⚠️ Falling back to sequential per-term calls...");
+    } else {
+      console.error("[trends] combined call failed, falling back to sequential:", errorMsg);
+    }
+    
+    // If it's a rate limit or HTML response error, log it specifically
+    if (errorMsg.includes('HTML') || errorMsg.includes('rate-limit') || isSyntaxError) {
+      console.warn("[trends] ⚠️ Google Trends may be rate-limiting requests. Consider adding delays between requests.");
+    }
   }
 
   // 2) Fallback: sequential per-term calls (more resilient)

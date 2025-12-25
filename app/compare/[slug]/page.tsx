@@ -4,6 +4,7 @@ import { fromSlug, toCanonicalSlug } from "@/lib/slug";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import TrendChart from "@/components/TrendChart";
+import TrendArcScoreChart from "@/components/TrendArcScoreChart";
 import TimeframeSelect from "@/components/TimeframeSelect";
 import DataSourceBadge from "@/components/DataSourceBadge";
 import MultiSourceBreakdown from "@/components/MultiSourceBreakdown";
@@ -16,6 +17,12 @@ import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
 import AdSense from "@/components/AdSense";
 import SocialShareButtons from "@/components/SocialShareButtons";
+import PDFDownloadButton from "@/components/PDFDownloadButton";
+import DataExportButton from "@/components/DataExportButton";
+import SaveComparisonButton from "@/components/SaveComparisonButton";
+import CreateAlertButton from "@/components/CreateAlertButton";
+import ComparisonHistoryTracker from "@/components/ComparisonHistoryTracker";
+import DailyLimitBanner from "@/components/DailyLimitBanner";
 import StructuredData from "@/components/StructuredData";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
@@ -24,10 +31,25 @@ import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
+import { canAccessPremium } from "@/lib/user-auth-helpers";
 import ComparisonVerdict from "@/components/ComparisonVerdict";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
 import PeakEventCitations from "@/components/PeakEventCitations";
+import ComparisonPoll from "@/components/ComparisonPoll";
+import KeyMetricsDashboard from "@/components/KeyMetricsDashboard";
+import ActionableInsightsPanel from "@/components/ActionableInsightsPanel";
+import TrendPrediction from "@/components/TrendPrediction";
+import SimplePrediction from "@/components/SimplePrediction";
+import PredictionAccuracyBadge from "@/components/PredictionAccuracyBadge";
+import { predictTrend } from "@/lib/prediction-engine-enhanced";
+import { getMaxHistoricalData } from "@/lib/get-max-historical-data";
+import { savePrediction, verifyPredictions } from "@/lib/prediction-tracking-enhanced";
+import VerifiedPredictionsPanel from "@/components/VerifiedPredictionsPanel";
+import { getDaysToStore, samplePredictions, getStorageStats } from "@/lib/prediction-sampling";
+import QuickSummaryCard from "@/components/QuickSummaryCard";
+import ViewCounter from "@/components/ViewCounter";
+import ScoreBreakdownTooltip from "@/components/ScoreBreakdownTooltip";
 import { runIntelligentComparison } from "@/lib/intelligent-comparison";
 import { InsufficientDataError, getUserFriendlyMessage } from "@/lib/utils/errors";
 import { detectPeaksWithEvents } from "@/lib/peak-event-detector";
@@ -180,7 +202,19 @@ export default async function ComparePage({
     redirect(`/compare/${canonical}${q.toString() ? `?${q.toString()}` : ""}`);
   }
 
-  const timeframe = tf ?? "12m";
+  // Check premium access early to enforce timeframe restrictions
+  const hasPremiumAccess = await canAccessPremium();
+  
+  // Enforce timeframe restrictions for free users (only 12m allowed)
+  let timeframe = tf ?? "12m";
+  if (!hasPremiumAccess && timeframe !== "12m") {
+    // Free users trying to access premium timeframe - redirect to 12m
+    const q = new URLSearchParams();
+    q.set("tf", "12m");
+    if (geo) q.set("geo", geo);
+    redirect(`/compare/${canonical}?${q.toString()}`);
+  }
+  
   const region = geo ?? "";
 
   let row;
@@ -248,10 +282,50 @@ export default async function ComparePage({
   const { series: rawSeries, ai } = row;
 
   const smoothingWindow = smooth === "0" ? 1 : 4;
-  const series = smoothSeries(rawSeries as any[], smoothingWindow);
-  const sparse = nonZeroRatio(rawSeries as any[]) < 0.1;
+  
+  // Ensure rawSeries is an array
+  const rawSeriesArray = Array.isArray(rawSeries) ? rawSeries : [];
+  if (!rawSeriesArray.length) {
+    return (
+      <main className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {actualTerms.map(prettyTerm).join(" vs ")}
+            </h1>
+            <p className="text-slate-600">
+              No data available. Please try different terms or check back later.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+  
+  const series = smoothSeries(rawSeriesArray, smoothingWindow);
+  
+  // Ensure series is an array after smoothing
+  if (!Array.isArray(series)) {
+    console.error('[ComparePage] smoothSeries did not return an array:', { series, type: typeof series });
+    return (
+      <main className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {actualTerms.map(prettyTerm).join(" vs ")}
+            </h1>
+            <p className="text-slate-600">
+              Invalid data format. Please try again or contact support.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+  
+  const sparse = nonZeroRatio(rawSeriesArray) < 0.1;
 
-  if (!series?.length || series.length < 8) {
+  if (!series.length || series.length < 8) {
     return (
       <main className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
@@ -268,9 +342,6 @@ export default async function ComparePage({
       </main>
     );
   }
-
-  // Get data sources for transparency badge
-  const dataSources = await getDataSources(actualTerms, { timeframe, geo });
 
   // compute totals and shares for stats (needed for fallback)
   const keyA = actualTerms[0];
@@ -341,6 +412,7 @@ export default async function ComparePage({
         termB: { overall: Math.round(Math.min(aShare, bShare) * 100), breakdown: { searchInterest: Math.round(Math.min(aShare, bShare) * 100), socialBuzz: 50, authority: 50, momentum: 50 } },
       },
       verdict: { margin, confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80, headline: '', recommendation: '', evidence: [] },
+      performance: { sourcesQueried: ['Google Trends'] },
       category: { category: 'general' as const },
       performance: { sourcesQueried: ['Google Trends'] },
     };
@@ -361,19 +433,32 @@ export default async function ComparePage({
       sources: ['Google Trends'],
     };
   }
+  
+  // Get data sources for transparency badge (after intelligent comparison)
+  const dataSources = await getDataSources(
+    actualTerms, 
+    { timeframe, geo },
+    intelligentComparison?.performance?.sourcesQueried
+  );
 
   // Run all async operations in parallel for faster loading ⚡
+  // Note: hasPremiumAccess is already checked earlier for timeframe enforcement
   const [geographicData, aiInsights, aiInsightsError, peakEvents] = await Promise.all([
     // Get geographic breakdown (FREE - no API costs)
     getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
 
     // Get or generate AI insights with smart caching (cost-optimized)
     // NOW INCLUDES MULTI-SOURCE DATA!
+    // PREMIUM ONLY: Rich AI insights
     (async () => {
+      if (!hasPremiumAccess) {
+        return null; // Free users don't get rich AI insights
+      }
+
       try {
         const insightData = prepareInsightData(
-          actualTerms[0], 
-          actualTerms[1], 
+          actualTerms[0],
+          actualTerms[1],
           series as any[],
           intelligentComparison // Pass full multi-source comparison data
         );
@@ -382,7 +467,8 @@ export default async function ComparePage({
           timeframe || '12m',
           geo || '',
           insightData,
-          false
+          false,
+          intelligentComparison?.category.category
         );
         return result || null;
       } catch (error) {
@@ -393,6 +479,9 @@ export default async function ComparePage({
 
     // Error tracking for AI insights
     (async () => {
+      if (!hasPremiumAccess) {
+        return 'Premium subscription required';
+      }
       if (!process.env.ANTHROPIC_API_KEY) {
         return 'API key not configured';
       }
@@ -406,62 +495,310 @@ export default async function ComparePage({
     }),
   ]);
 
+  // Generate trend predictions - PREMIUM ONLY
+  // Free users get simple predictions
+  let predictionsA: any = null;
+  let predictionsB: any = null;
+  let simplePredictionA: any = null;
+  let simplePredictionB: any = null;
+  let maxHistoricalSeries: any[] = []; // Declare outside try block for scope
+  
+  if (hasPremiumAccess) {
+    // Premium: Full predictions with 5-year data
+    try {
+      console.log('[Predictions] 🔮 Generating premium predictions with maximum historical data...');
+      
+      // Fetch maximum historical data (5 years if available) for predictions
+      maxHistoricalSeries = await getMaxHistoricalData(actualTerms, region || '');
+      
+      if (maxHistoricalSeries.length < 7) {
+        console.warn('[Predictions] ⚠️ Insufficient historical data for predictions, using current series');
+        const fallbackSeries = series as any[];
+        [predictionsA, predictionsB] = await Promise.all([
+          predictTrend({
+            series: fallbackSeries,
+            term: actualTerms[0],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termA:', err);
+            return null;
+          }),
+          predictTrend({
+            series: fallbackSeries,
+            term: actualTerms[1],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termB:', err);
+            return null;
+          }),
+        ]);
+      } else {
+        console.log(`[Predictions] ✅ Using ${maxHistoricalSeries.length} data points (${maxHistoricalSeries.length > 200 ? '5 years' : '1 year'}) for predictions`);
+        
+        [predictionsA, predictionsB] = await Promise.all([
+          predictTrend({
+            series: maxHistoricalSeries as any[],
+            term: actualTerms[0],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termA:', err);
+            return null;
+          }),
+          predictTrend({
+            series: maxHistoricalSeries as any[],
+            term: actualTerms[1],
+            forecastDays: 30,
+            methods: ['all'],
+            category: intelligentComparison?.category?.category || 'general',
+            useTrendArcScore: true, // Use TrendArc Score for better accuracy
+          }).catch(err => {
+            console.warn('[Predictions] Error predicting termB:', err);
+            return null;
+          }),
+        ]);
+        
+        // Verify old predictions (background task, don't wait)
+        if (canonical) {
+          Promise.all([
+            verifyPredictions(canonical, actualTerms[0], maxHistoricalSeries as any[]),
+            verifyPredictions(canonical, actualTerms[1], maxHistoricalSeries as any[]),
+          ]).then(([resultA, resultB]) => {
+            const totalVerified = resultA.verified + resultB.verified;
+            if (totalVerified > 0) {
+              console.log(`[PredictionTracking] ✅ Verified ${totalVerified} predictions (${resultA.verified} for ${actualTerms[0]}, ${resultB.verified} for ${actualTerms[1]})`);
+              if (resultA.newlyVerified.length > 0 || resultB.newlyVerified.length > 0) {
+                console.log(`[PredictionTracking] 📊 Newly verified predictions are now available for users to view`);
+              }
+            }
+          }).catch(err => console.warn('[PredictionTracking] Verification failed:', err));
+        }
+      }
+      
+      console.log('[Predictions] ✅ Premium predictions generated:', {
+        termA: predictionsA ? `✓ (${predictionsA.predictions?.length || 0} predictions)` : '✗',
+        termB: predictionsB ? `✓ (${predictionsB.predictions?.length || 0} predictions)` : '✗',
+        dataPoints: maxHistoricalSeries.length,
+        slug: canonical || 'MISSING',
+      });
+      
+      // Smart sampling: Store only key milestones instead of all 30 days
+      const forecastDays = predictionsA?.forecastPeriod || predictionsB?.forecastPeriod || 30;
+      const daysToStore = getDaysToStore(forecastDays, 'smart');
+      const storageStats = getStorageStats(forecastDays, 'smart');
+      
+      console.log(`[Predictions] 📊 Storage optimization: Storing ${storageStats.storedDays} key milestones instead of ${storageStats.totalDays} days (${storageStats.reduction}% reduction)`);
+      
+      const historicalDataForDate = maxHistoricalSeries.length > 0 ? maxHistoricalSeries : series;
+      const lastHistoricalDate = historicalDataForDate.length > 0 
+        ? new Date(historicalDataForDate[historicalDataForDate.length - 1].date)
+        : new Date();
+      
+      // Save only sampled predictions
+      if (predictionsA && predictionsA.predictions.length > 0 && canonical) {
+        const sampledPredictionsA = samplePredictions(
+          predictionsA.predictions,
+          daysToStore,
+          lastHistoricalDate
+        );
+        
+        console.log(`[Predictions] 💾 Saving ${sampledPredictionsA.length} key predictions (out of ${predictionsA.predictions.length} total) for ${actualTerms[0]}...`);
+        const savePromisesA = sampledPredictionsA.map((pred: any) => 
+          savePrediction({
+            slug: canonical,
+            term: actualTerms[0],
+            forecastDate: pred.date,
+            predictedValue: pred.value,
+            confidence: pred.confidence,
+            method: predictionsA.methods.join('+'),
+          })
+        );
+        const savedA = await Promise.allSettled(savePromisesA);
+        const successA = savedA.filter(r => r.status === 'fulfilled').length;
+        console.log(`[Predictions] ✅ Saved ${successA}/${sampledPredictionsA.length} key predictions for ${actualTerms[0]}`);
+      }
+      
+      if (predictionsB && predictionsB.predictions.length > 0 && canonical) {
+        const sampledPredictionsB = samplePredictions(
+          predictionsB.predictions,
+          daysToStore,
+          lastHistoricalDate
+        );
+        
+        console.log(`[Predictions] 💾 Saving ${sampledPredictionsB.length} key predictions (out of ${predictionsB.predictions.length} total) for ${actualTerms[1]}...`);
+        const savePromisesB = sampledPredictionsB.map((pred: any) => 
+          savePrediction({
+            slug: canonical,
+            term: actualTerms[1],
+            forecastDate: pred.date,
+            predictedValue: pred.value,
+            confidence: pred.confidence,
+            method: predictionsB.methods.join('+'),
+          })
+        );
+        const savedB = await Promise.allSettled(savePromisesB);
+        const successB = savedB.filter(r => r.status === 'fulfilled').length;
+        console.log(`[Predictions] ✅ Saved ${successB}/${sampledPredictionsB.length} key predictions for ${actualTerms[1]}`);
+      }
+    } catch (error) {
+      console.error('[Predictions] ❌ Error generating premium predictions:', error);
+    }
+  } else {
+    // Free: Simple predictions only
+    try {
+      const { generateSimplePrediction } = await import('@/lib/simple-prediction');
+      simplePredictionA = generateSimplePrediction(series as any[], actualTerms[0]);
+      simplePredictionB = generateSimplePrediction(series as any[], actualTerms[1]);
+      console.log('[Predictions] ✅ Simple predictions generated for free user');
+    } catch (error) {
+      console.error('[Predictions] ❌ Error generating simple predictions:', error);
+    }
+  }
+
   // Note: Category and AI insights are now saved automatically by getOrGenerateAIInsights()
   // Note: intelligentComparison and verdictData are now computed above, before AI insights
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <main className="mx-auto max-w-7xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <BackButton label="Back to Home" />
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
-        {/* Main content */}
-        <div className="lg:col-span-8 space-y-4 sm:space-y-6">
+      {/* Full-width sections - Header, Poll, Summary, Verdict, AI Insights, Chart, Metrics, Insights */}
+      <div className="space-y-6 sm:space-y-8">
           {/* Header + insight */}
-          <header className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-2 sm:mb-3 leading-tight">
-                  <span className="block sm:inline">{prettyTerm(actualTerms[0])}</span>{" "}
-                  <span className="text-slate-400 text-xl sm:text-2xl lg:text-3xl">vs</span>{" "}
-                  <span className="block sm:inline">{prettyTerm(actualTerms[1])}</span>
+          <header className="space-y-6 sm:space-y-8 pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-3 sm:mb-4 leading-tight">
+                  <span className="block sm:inline bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{prettyTerm(actualTerms[0])}</span>{" "}
+                  <span className="text-slate-400 text-2xl sm:text-3xl lg:text-4xl font-normal mx-1">vs</span>{" "}
+                  <span className="block sm:inline bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{prettyTerm(actualTerms[1])}</span>
                 </h1>
-                <p className="text-sm sm:text-base lg:text-lg text-slate-600 leading-relaxed">
+                <p className="text-base sm:text-lg lg:text-xl text-slate-600 leading-relaxed max-w-3xl">
                   {ai?.metaDescription ??
                     `Compare ${prettyTerm(actualTerms[0])} and ${prettyTerm(
                       actualTerms[1],
                     )} search interest trends with detailed insights and analysis.`}
                 </p>
                 {region && (
-                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                    <span className="font-medium">Region:</span> {region}
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-1.5 rounded-full transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{region}</span>
                   </p>
                 )}
                 {sparse && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-800">
-                      ⚠️ Most interest comes in short spikes. Try a shorter timeframe for a clearer picture.
+                  <div className="mt-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg shadow-sm">
+                    <p className="text-sm font-medium text-amber-900 flex items-start gap-2">
+                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Most interest comes in short spikes. Try a shorter timeframe for a clearer picture.</span>
                     </p>
                   </div>
                 )}
               </div>
-              <TimeframeSelect />
+              <div className="flex-shrink-0">
+                <TimeframeSelect />
+              </div>
             </div>
 
-            {/* Social Share */}
-            <SocialShareButtons
-              url={`https://trendarc.net/compare/${slug}`}
-              title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+            {/* Daily Limit Banner (Free Users) - Progressive warnings */}
+            <DailyLimitBanner />
+
+            {/* Track comparison view in history */}
+            <ComparisonHistoryTracker
+              slug={canonical || slug}
               termA={actualTerms[0]}
               termB={actualTerms[1]}
+              timeframe={timeframe || '12m'}
+              geo={geo || ''}
             />
 
-            {/* TrendArc Verdict - The main comparison result */}
-            <ComparisonVerdict
-              verdict={verdictData}
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-            />
+            {/* Social Share, PDF Download & View Counter */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-200">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+                <SocialShareButtons
+                  url={`https://trendarc.net/compare/${slug}`}
+                  title={`${prettyTerm(actualTerms[0])} vs ${prettyTerm(actualTerms[1])} - Which is more popular?`}
+                  description={`See which is trending more: ${prettyTerm(actualTerms[0])} or ${prettyTerm(actualTerms[1])}? Compare search trends, social buzz, and more.`}
+                  termA={actualTerms[0]}
+                  termB={actualTerms[1]}
+                  winner={verdictData.winner}
+                  winnerScore={verdictData.winnerScore}
+                  loserScore={verdictData.loserScore}
+                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <SaveComparisonButton
+                    slug={canonical || slug}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    category={verdictData.category}
+                  />
+                  <CreateAlertButton
+                    slug={canonical || slug}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    isPremium={hasPremiumAccess}
+                  />
+                  <DataExportButton
+                    slug={canonical || slug}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    timeframe={timeframe || '12m'}
+                    geo={geo || ''}
+                    hasPremiumAccess={hasPremiumAccess}
+                  />
+                  <PDFDownloadButton
+                    slug={canonical || slug}
+                    timeframe={timeframe || '12m'}
+                    geo={geo || ''}
+                    termA={actualTerms[0]}
+                    termB={actualTerms[1]}
+                    hasPremiumAccess={hasPremiumAccess}
+                  />
+                </div>
+              </div>
+              <ViewCounter slug={canonical} initialCount={(row as any).viewCount || 0} />
+            </div>
           </header>
+
+          {/* Comparison Poll - Before results */}
+          <ComparisonPoll
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            actualWinner={verdictData.winner}
+            actualWinnerScore={verdictData.winnerScore}
+            actualLoserScore={verdictData.loserScore}
+          />
+
+          {/* Quick Summary Card - At the top for immediate insight */}
+          <QuickSummaryCard
+            winner={verdictData.winner}
+            loser={verdictData.loser}
+            winnerScore={verdictData.winnerScore}
+            loserScore={verdictData.loserScore}
+            margin={verdictData.margin}
+            confidence={verdictData.confidence}
+            category={verdictData.category || 'general'}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
+
+          {/* TrendArc Verdict - The main comparison result */}
+          <ComparisonVerdict
+            verdict={verdictData}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
 
           {/* AI Key Insights - Compact Top Section */}
           {aiInsights && (
@@ -472,7 +809,83 @@ export default async function ComparePage({
           )}
 
           {/* Fallback when AI is unavailable */}
-          {!aiInsights && (
+          {!aiInsights && aiInsightsError === 'Premium subscription required' && (
+            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-300 shadow-xl p-4 sm:p-6 print:hidden">
+              <div className="flex flex-col items-start gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 w-full">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+                      Unlock Rich AI Insights
+                      <span className="text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded-full">PREMIUM</span>
+                    </h3>
+                    <p className="text-slate-700 text-sm sm:text-base mb-4">
+                      Get advanced AI-powered analysis with category detection, trend predictions, and actionable insights for just <strong>$4.99/month</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3 w-full">
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Category Analysis
+                    </h4>
+                    <p className="text-xs text-slate-600">Automatic categorization and domain-specific insights</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Trend Predictions
+                    </h4>
+                    <p className="text-xs text-slate-600">AI-powered forecasts based on historical patterns</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Practical Implications
+                    </h4>
+                    <p className="text-xs text-slate-600">Actionable insights for your specific use case</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
+                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Peak Explanations
+                    </h4>
+                    <p className="text-xs text-slate-600">Understand why trends spike at specific times</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+                  <a
+                    href="/pricing"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl text-center"
+                  >
+                    Upgrade to Premium
+                  </a>
+                  <a
+                    href="/signup"
+                    className="px-6 py-3 bg-white text-purple-700 font-semibold rounded-lg hover:bg-purple-50 transition-colors border-2 border-purple-300 text-center"
+                  >
+                    Sign Up Free
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+          {!aiInsights && aiInsightsError !== 'Premium subscription required' && aiInsightsError && (
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-200 shadow-lg p-4 sm:p-6 print:hidden">
               <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
@@ -487,43 +900,108 @@ export default async function ComparePage({
                   <p className="text-slate-600 text-xs sm:text-sm mb-3">
                     {aiInsightsError === 'API key not configured'
                       ? 'AI insights are not configured. Add your ANTHROPIC_API_KEY environment variable to enable AI-powered analysis.'
-                      : aiInsightsError
-                      ? `Generation failed: ${aiInsightsError}`
-                      : 'Daily or monthly budget limit reached. AI insights will be available again soon.'}
+                      : `Generation failed: ${aiInsightsError}`}
                   </p>
-                  <div className="bg-white/60 rounded-lg p-2.5 sm:p-3 text-xs text-slate-600">
-                    <p className="font-semibold mb-1">What you're missing:</p>
-                    <ul className="list-disc list-inside space-y-0.5 sm:space-y-1">
-                      <li>Data-specific analysis with exact numbers and dates</li>
-                      <li>Volatility insights and trend predictions</li>
-                      <li>Practical implications for your use case</li>
-                      <li>AI-powered pattern detection</li>
-                    </ul>
-                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Google Trends Chart - Search interest over time */}
-          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
-            <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 px-4 sm:px-5 lg:px-6 py-3 sm:py-4 border-b border-slate-200 group-hover:border-slate-300 transition-colors">
-              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full" />
-                Search Interest Over Time
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                <span className="font-semibold">Google Trends</span> search volume on a 0-100 scale.
-                <span className="text-slate-500 ml-1">This is the primary component (40-45% weight) of the TrendArc Score shown above.</span>
-              </p>
-              <div className="mt-3">
+          {/* TrendArc Score Chart - Primary visualization */}
+          <section className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="bg-gradient-to-r from-violet-50/80 via-purple-50/80 to-indigo-50/80 px-5 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-200/60">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2.5 mb-2">
+                    <span className="w-2 h-6 sm:h-7 bg-gradient-to-b from-violet-500 to-purple-600 rounded-full" />
+                    TrendArc Score Over Time
+                  </h2>
+                  <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
+                    Comprehensive popularity score combining search interest, social buzz, authority, and momentum. 
+                    <span className="text-slate-600 ml-1">Higher scores indicate greater overall popularity.</span>
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
                 <DataSourceBadge sources={dataSources} />
               </div>
             </div>
-            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-slate-50/30 to-white">
-              <TrendChart series={series} />
+            <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-white via-violet-50/10 to-white">
+              <TrendArcScoreChart 
+                series={series} 
+                termA={actualTerms[0]} 
+                termB={actualTerms[1]}
+                category={verdictData.category as any}
+              />
             </div>
           </section>
+
+          {/* Key Metrics Dashboard */}
+          <KeyMetricsDashboard
+            series={series as any[]}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            winner={verdictData.winner}
+            winnerScore={verdictData.winnerScore}
+            loserScore={verdictData.loserScore}
+            breakdownA={intelligentComparison?.scores?.termA?.breakdown}
+            breakdownB={intelligentComparison?.scores?.termB?.breakdown}
+          />
+
+          {/* Actionable Insights Panel */}
+          <ActionableInsightsPanel
+            winner={verdictData.winner}
+            loser={verdictData.loser}
+            winnerScore={verdictData.winnerScore}
+            loserScore={verdictData.loserScore}
+            margin={verdictData.margin}
+            category={verdictData.category}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
+      </div>
+
+      {/* Grid layout starts from Verified Predictions - Sidebar appears here */}
+      <div className="grid gap-6 sm:gap-8 lg:grid-cols-12">
+        {/* Main content column */}
+        <div className="lg:col-span-8 space-y-6 sm:space-y-8">
+          {/* Verified Predictions Panel - Show verified predictions to users */}
+          {canonical && (
+            <VerifiedPredictionsPanel
+              slug={canonical}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+          )}
+
+          {/* Trend Prediction - Premium: Full predictions, Free: Simple predictions */}
+          {hasPremiumAccess && (predictionsA || predictionsB) && (
+            <>
+              <PredictionAccuracyBadge
+                slug={canonical || ''}
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+              />
+              <TrendPrediction
+                termA={actualTerms[0]}
+                termB={actualTerms[1]}
+                series={series as any[]}
+                predictionsA={predictionsA}
+                predictionsB={predictionsB}
+                historicalDataPoints={(maxHistoricalSeries && maxHistoricalSeries.length > 0) ? maxHistoricalSeries.length : series.length}
+                category={verdictData.category as any}
+              />
+            </>
+          )}
+          
+          {!hasPremiumAccess && (simplePredictionA || simplePredictionB) && (
+            <SimplePrediction
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              predictionA={simplePredictionA}
+              predictionB={simplePredictionB}
+            />
+          )}
 
           {/* Multi-Source Score Breakdown */}
           {verdictData && intelligentComparison && (
@@ -569,6 +1047,8 @@ export default async function ComparePage({
                 },
               ]}
               category={intelligentComparison.category.category}
+              breakdownA={intelligentComparison.scores.termA.breakdown}
+              breakdownB={intelligentComparison.scores.termB.breakdown}
             />
           )}
 
@@ -632,11 +1112,12 @@ export default async function ComparePage({
             termB={actualTerms[1]}
           />
 
-          {/* Historical Timeline */}
+          {/* Historical Timeline with AI Peak Explanations */}
           <HistoricalTimeline
             termA={actualTerms[0]}
             termB={actualTerms[1]}
             series={series as any[]}
+            peakExplanations={aiInsights?.peakExplanations}
           />
 
           {/* What This Means For You - Practical Implications */}
@@ -645,17 +1126,41 @@ export default async function ComparePage({
               practicalImplications={aiInsights.practicalImplications}
             />
           )}
+
+          {/* Geographic Breakdown */}
+          {geographicData && geographicData.countries && geographicData.countries.length > 0 && (
+            <GeographicBreakdown
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              data={geographicData}
+            />
+          )}
+
+          {/* Related Comparisons */}
+          <RelatedComparisons
+            slug={canonical || slug}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+            category={verdictData.category}
+          />
+
+          {/* FAQ Section */}
+          <FAQSection
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
         </div>
 
-        {/* Sidebar */}
-        <aside className="lg:col-span-4 space-y-4 sm:space-y-6">
-          <div className="lg:sticky lg:top-24 space-y-4 sm:space-y-6">
-            <section className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
+        {/* Sidebar - Trending Comparisons & Ads */}
+        <aside className="lg:col-span-4 space-y-5 sm:space-y-6">
+          <div className="lg:sticky lg:top-6 space-y-5 sm:space-y-6">
+            {/* Trending Comparisons */}
+            <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
               <TopThisWeekServer />
             </section>
             
             {/* AdSense - Sidebar */}
-            <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-md">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
               <AdSense
                 adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR}
                 adFormat="vertical"
@@ -667,13 +1172,6 @@ export default async function ComparePage({
         </aside>
       </div>
 
-      {/* Geographic Breakdown - Regional preferences */}
-      <GeographicBreakdown
-        geoData={geographicData}
-        termA={actualTerms[0]}
-        termB={actualTerms[1]}
-      />
-
       {/* AdSense - Bottom of Page */}
       <div className="my-8 flex justify-center">
         <AdSense
@@ -682,12 +1180,6 @@ export default async function ComparePage({
           fullWidthResponsive
           className="min-h-[100px]"
         />
-      </div>
-
-      {/* Related comparisons + FAQ */}
-      <div className="space-y-8">
-        <RelatedComparisons currentSlug={canonical} terms={actualTerms} />
-        <FAQSection />
       </div>
 
       {/* Structured Data for SEO */}

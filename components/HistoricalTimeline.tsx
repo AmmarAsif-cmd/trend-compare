@@ -21,6 +21,10 @@ type HistoricalTimelineProps = {
   termA: string;
   termB: string;
   series: Array<{ date: string; [key: string]: any }>;
+  peakExplanations?: {
+    termA?: string;
+    termB?: string;
+  };
 };
 
 /**
@@ -243,10 +247,22 @@ export default function HistoricalTimeline({
   termA,
   termB,
   series,
+  peakExplanations,
 }: HistoricalTimelineProps) {
   const milestones = detectMilestones(termA, termB, series);
 
   if (milestones.length === 0) return null;
+
+  // Enhance peak milestones with AI explanations
+  const enhancedMilestones = milestones.map(milestone => {
+    if (milestone.type === 'peak') {
+      const explanation = milestone.termLeader === termA 
+        ? peakExplanations?.termA 
+        : peakExplanations?.termB;
+      return { ...milestone, aiExplanation: explanation };
+    }
+    return milestone;
+  });
 
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-lg p-4 sm:p-6">
@@ -261,7 +277,7 @@ export default function HistoricalTimeline({
       </div>
 
       <div className="space-y-4">
-        {milestones.map((milestone, index) => (
+        {enhancedMilestones.map((milestone, index) => (
           <div
             key={index}
             className={`relative pl-8 pb-6 ${
@@ -296,7 +312,7 @@ export default function HistoricalTimeline({
 
               <p className="text-xs sm:text-sm text-slate-500 mb-2">{formatDate(milestone.date)}</p>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm mb-2">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className="font-medium text-slate-700 truncate">
                     {prettyTerm(termA)}:
@@ -314,6 +330,23 @@ export default function HistoricalTimeline({
                   </span>
                 </div>
               </div>
+              
+              {/* AI Explanation for Peak Events */}
+              {(milestone as any).aiExplanation && (
+                <div className="mt-3 p-3 bg-gradient-to-r from-violet-50 to-purple-50 border-l-3 border-violet-400 rounded-r-lg">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-violet-900 mb-1">AI-Powered Explanation</p>
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        {(milestone as any).aiExplanation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}

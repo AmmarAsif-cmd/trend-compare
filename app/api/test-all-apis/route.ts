@@ -4,6 +4,8 @@ import { tmdbAdapter } from '@/lib/sources/adapters/tmdb';
 import { bestBuyAdapter } from '@/lib/sources/adapters/bestbuy';
 import { spotifyAdapter } from '@/lib/sources/adapters/spotify';
 import { steamAdapter } from '@/lib/sources/adapters/steam';
+import { wikipediaAdapter } from '@/lib/sources/adapters/wikipedia';
+import { GoogleTrendsAdapter } from '@/lib/sources/adapters/google-trends';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,6 +132,46 @@ export async function GET() {
       configured: true,
       error: error instanceof Error ? error.message : 'Unknown error',
       note: 'Steam should work without API key',
+    };
+  }
+
+  // Test Wikipedia (no key needed)
+  try {
+    const stats = await wikipediaAdapter.getArticleStats('iPhone');
+    results.apis.wikipedia = {
+      status: 'success',
+      configured: true,
+      test: stats.articleExists 
+        ? `Found: ${stats.articleTitle} (avg ${Math.round(stats.avgPageviews).toLocaleString()} views/day)`
+        : 'No article found',
+      note: 'Wikipedia works without API key',
+    };
+  } catch (error) {
+    results.apis.wikipedia = {
+      status: 'error',
+      configured: true,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      note: 'Wikipedia should work without API key',
+    };
+  }
+
+  // Test Google Trends (no key needed, but may be rate-limited)
+  try {
+    const googleTrendsAdapter = new GoogleTrendsAdapter();
+    const healthCheck = await googleTrendsAdapter.healthCheck();
+    results.apis['google-trends'] = {
+      status: healthCheck ? 'success' : 'error',
+      configured: true,
+      test: healthCheck ? 'Google Trends adapter is healthy' : 'Health check failed',
+      note: 'Google Trends works without API key but may be rate-limited',
+      healthCheck,
+    };
+  } catch (error) {
+    results.apis['google-trends'] = {
+      status: 'error',
+      configured: true,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      note: 'Google Trends should work without API key',
     };
   }
 
