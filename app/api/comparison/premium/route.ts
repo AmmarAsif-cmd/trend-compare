@@ -475,9 +475,6 @@ export async function GET(request: NextRequest) {
         await triggerWarmup(canonical, dataHash, timeframe, geo);
       }
 
-      // Determine needsWarmup
-      const needsWarmup = !hasForecasts;
-
       // Load debug information if DEBUG_API_HEADERS is enabled
       let debugInfo: any = undefined;
       if (process.env.DEBUG_API_HEADERS === 'true') {
