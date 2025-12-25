@@ -4,11 +4,14 @@
  */
 
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/user-auth-helpers';
+import { getCurrentUser, getUserWithSubscription, canAccessPremium } from '@/lib/user-auth-helpers';
 import { getSavedComparisons } from '@/lib/saved-comparisons';
 import { getComparisonHistory, getMostViewedComparisons } from '@/lib/comparison-history';
+import { getTodayComparisonCount } from '@/lib/daily-limit';
 import Link from 'next/link';
-import { Bookmark, Clock, TrendingUp, BarChart3, ArrowRight, Search, Plus, Bell } from 'lucide-react';
+import { Bookmark, Clock, TrendingUp, BarChart3, ArrowRight, Search, Plus, Bell, Calendar } from 'lucide-react';
+
+const FREE_USER_DAILY_LIMIT = 20;
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -17,12 +20,21 @@ export default async function DashboardPage() {
     redirect('/login?redirect=/dashboard');
   }
 
+  const userId = (user as any).id;
+  const isPremium = await canAccessPremium();
+  const fullUser = await getUserWithSubscription(userId);
+
+  // Get today's comparison count for free users
+  let todayCount = 0;
+  if (!isPremium) {
+    todayCount = await getTodayComparisonCount(userId);
+  }
+
   // Fetch user data
-  const [savedResult, historyResult, mostViewed, alerts] = await Promise.all([
+  const [savedResult, historyResult, mostViewed] = await Promise.all([
     getSavedComparisons(50, 0),
     getComparisonHistory(20, 0),
     getMostViewedComparisons(10),
-    isPremium ? getUserAlerts(userId) : Promise.resolve([]),
   ]);
 
   // Debug logging
@@ -49,7 +61,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className={`grid grid-cols-1 sm:grid-cols-3 ${isPremium ? 'lg:grid-cols-4' : ''} gap-4 sm:gap-6 mb-8`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
@@ -74,32 +86,80 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
-                <TrendingUp className="w-6 h-6 text-white" />
+          {!isPremium ? (
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-300 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900 mb-1">Today's Usage</p>
+                  <p className="text-3xl font-bold text-blue-900">
+                    {todayCount}
+                    <span className="text-lg text-blue-700">/{FREE_USER_DAILY_LIMIT}</span>
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-600 mb-1">Most Viewed</p>
-                <p className="text-3xl font-bold text-slate-900">{mostViewed.length}</p>
+              <div className="w-full bg-blue-200/50 rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    todayCount >= FREE_USER_DAILY_LIMIT
+                      ? "bg-red-500"
+                      : todayCount >= FREE_USER_DAILY_LIMIT - 5
+                      ? "bg-orange-500"
+                      : "bg-blue-500"
+                  }`}
+                  style={{ width: `${Math.min((todayCount / FREE_USER_DAILY_LIMIT) * 100, 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-blue-700 mt-2">
+                {FREE_USER_DAILY_LIMIT - todayCount > 0
+                  ? `${FREE_USER_DAILY_LIMIT - todayCount} comparison${FREE_USER_DAILY_LIMIT - todayCount === 1 ? "" : "s"} remaining`
+                  : "Daily limit reached"}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-600 mb-1">Most Viewed</p>
+                  <p className="text-3xl font-bold text-slate-900">{mostViewed.length}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {isPremium && (
+          {isPremium ? (
             <Link
-              href="/dashboard/alerts"
-              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow hover:border-indigo-300 group"
+              href="/account"
+              className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-300 p-6 shadow-sm hover:shadow-md transition-shadow hover:border-purple-400 group"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <Bell className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <TrendingUp className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-600 mb-1">Active Alerts</p>
-                  <p className="text-3xl font-bold text-slate-900">{alerts.length}</p>
+                  <p className="text-sm font-medium text-purple-900 mb-1">Premium Status</p>
+                  <p className="text-lg font-bold text-purple-900">Active</p>
                 </div>
-                <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                <ArrowRight className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors" />
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/pricing"
+              className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-300 p-6 shadow-sm hover:shadow-md transition-shadow hover:border-purple-400 group"
+            >
+              <div className="flex flex-col">
+                <p className="text-sm font-medium text-purple-900 mb-2">Upgrade to Premium</p>
+                <p className="text-xs text-purple-700 mb-3">Unlimited comparisons + AI insights</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold text-purple-900">$4.99/mo</span>
+                  <ArrowRight className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors" />
+                </div>
               </div>
             </Link>
           )}
