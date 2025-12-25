@@ -15,7 +15,7 @@ export type SimplePrediction = {
  * Free users get this instead of full predictions
  */
 export function generateSimplePrediction(
-  series: Array<{ date: string; [key: string]: number }>,
+  series: Array<{ date: string; [key: string]: string | number }>,
   term: string
 ): SimplePrediction | null {
   if (!series || series.length < 7) {

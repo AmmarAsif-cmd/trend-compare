@@ -177,9 +177,9 @@ export async function GET(request: NextRequest) {
     const aiInsightsKey = createCacheKey('ai-insights', canonical, timeframe);
     
     const [cachedForecastA, cachedForecastB, cachedAIInsights] = await Promise.all([
-      cache.get(forecastKeyA),
-      cache.get(forecastKeyB),
-      cache.get(aiInsightsKey),
+      cache.get<any>(forecastKeyA),
+      cache.get<any>(forecastKeyB),
+      cache.get<any>(aiInsightsKey),
     ]);
 
     // Get InsightsPack (read-only, no AI generation)
@@ -193,6 +193,10 @@ export async function GET(request: NextRequest) {
       series,
       signals,
       interpretations,
+      scores: {
+        termA: { overall: scores.termA.overall, breakdown: { momentum: scores.termA.breakdown.momentum } },
+        termB: { overall: scores.termB.overall, breakdown: { momentum: scores.termB.breakdown.momentum } },
+      },
       decisionGuidance: {
         marketer: decisionGuidance.marketer,
         founder: decisionGuidance.founder,
@@ -248,18 +252,18 @@ export async function GET(request: NextRequest) {
 
       // Signals
       csvRows.push('=== Signals ===');
-      csvRows.push('Type,Severity,Term,Value,Description');
-      for (const signal of insightsPack.signals) {
-        csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},${signal.value || ''},"${signal.description || ''}"`);
+      csvRows.push('Type,Severity,Term,Confidence,Description');
+      for (const signal of signals) {
+        csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},${signal.confidence || ''},"${signal.description || ''}"`);
       }
       csvRows.push('');
 
       // Interpretations
       csvRows.push('=== Interpretations ===');
-      csvRows.push('Category,Confidence,Summary,Reasons');
+      csvRows.push('Category,Term,Confidence,Text,Evidence');
       for (const interpretation of insightsPack.interpretations) {
-        const reasons = interpretation.reasons?.join('; ') || '';
-        csvRows.push(`${interpretation.category},${interpretation.confidence},"${interpretation.summary || ''}","${reasons}"`);
+        const evidence = interpretation.evidence?.join('; ') || '';
+        csvRows.push(`${interpretation.category},${interpretation.term},${interpretation.confidence},"${interpretation.text || ''}","${evidence}"`);
       }
       csvRows.push('');
 

@@ -8,7 +8,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { guardAICall, createKeywordContextKey } from '../index';
 import { PROMPT_VERSION } from '@/lib/insights/contracts/versions';
 import { getCache } from '@/lib/cache';
-import type { ComparisonCategory } from '@/lib/trendarc-score';
+import type { ComparisonCategory } from '@/lib/category-resolver';
 
 export interface KeywordContextInput {
   termA: string;

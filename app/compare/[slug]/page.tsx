@@ -415,7 +415,6 @@ export default async function ComparePage({
       verdict: { margin, confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80, headline: '', recommendation: '', evidence: [] },
       performance: { sourcesQueried: ['Google Trends'] },
       category: { category: 'general' as const },
-      performance: { sourcesQueried: ['Google Trends'] },
     };
     
     verdictData = {
@@ -1128,27 +1127,22 @@ export default async function ComparePage({
           )}
 
           {/* Geographic Breakdown */}
-          {geographicData && geographicData.countries && geographicData.countries.length > 0 && (
+          {geographicData && (geographicData.termA_dominance || geographicData.termB_dominance || geographicData.competitive_regions) && (
             <GeographicBreakdown
               termA={actualTerms[0]}
               termB={actualTerms[1]}
-              data={geographicData}
+              geoData={geographicData}
             />
           )}
 
           {/* Related Comparisons */}
           <RelatedComparisons
-            slug={canonical || slug}
-            termA={actualTerms[0]}
-            termB={actualTerms[1]}
-            category={verdictData.category}
+            currentSlug={canonical || slug}
+            terms={actualTerms}
           />
 
           {/* FAQ Section */}
-          <FAQSection
-            termA={actualTerms[0]}
-            termB={actualTerms[1]}
-          />
+          <FAQSection />
         </div>
 
         {/* Sidebar - Trending Comparisons & Ads */}

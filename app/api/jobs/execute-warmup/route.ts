@@ -40,7 +40,7 @@ function isValidTopic(
  */
 async function generateForecast(
   term: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: Array<{ date: string; [key: string]: string | number }>,
   category: string = 'general',
   termLabel: 'termA' | 'termB' = 'termA'
 ): Promise<ForecastBundleSummary | null> {
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No comparison data available');
       }
 
-      const series = row.series as Array<{ date: string; [key: string]: number }>;
+      const series = row.series as Array<{ date: string; [key: string]: string | number }>;
       const category = row.category || 'general';
 
       // Step 3: Generate forecasts for both terms

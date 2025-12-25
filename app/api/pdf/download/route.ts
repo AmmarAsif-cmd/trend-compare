@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
         },
       },
       aiInsights: aiInsights,
-      geographicData: geographicData,
+      geographicData: undefined, // TODO: Transform GeographicBreakdown to match expected format
       predictions: (predictionsA || predictionsB) ? {
         predictionsA,
         predictionsB,
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
     const filename = `${formatTerm(terms[0])}-vs-${formatTerm(terms[1])}-Trend-Report.pdf`;
 
     // Return PDF
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,

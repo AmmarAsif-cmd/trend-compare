@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     const actualTerms = row.terms as string[];
-    const rawSeries = row.series as Array<{ date: string; [key: string]: number }>;
+    const rawSeries = row.series as Array<{ date: string; [key: string]: string | number }>;
     
     // Ensure series is an array
     if (!Array.isArray(rawSeries) || rawSeries.length === 0) {

@@ -165,9 +165,9 @@ export async function POST(request: NextRequest) {
       const aiInsightsKey = createCacheKey('ai-insights', slug, timeframe);
       
       const [cachedForecastA, cachedForecastB, cachedAIInsights] = await Promise.all([
-        cache.get(forecastKeyA),
-        cache.get(forecastKeyB),
-        cache.get(aiInsightsKey),
+        cache.get<any>(forecastKeyA),
+        cache.get<any>(forecastKeyB),
+        cache.get<any>(aiInsightsKey),
       ]);
 
       // Get InsightsPack (read-only, no AI generation)
@@ -181,6 +181,10 @@ export async function POST(request: NextRequest) {
         series,
         signals,
         interpretations,
+        scores: {
+          termA: { overall: scores.termA.overall, breakdown: { momentum: scores.termA.breakdown.momentum } },
+          termB: { overall: scores.termB.overall, breakdown: { momentum: scores.termB.breakdown.momentum } },
+        },
         decisionGuidance: {
           marketer: decisionGuidance.marketer,
           founder: decisionGuidance.founder,

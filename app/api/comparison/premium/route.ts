@@ -315,7 +315,7 @@ export async function GET(request: NextRequest) {
     }
 
     const actualTerms = row.terms as string[];
-    const series = row.series as Array<{ date: string; [key: string]: number }>;
+    const series = row.series as Array<{ date: string; [key: string]: string | number }>;
     
     if (!Array.isArray(series) || series.length === 0) {
       return NextResponse.json(

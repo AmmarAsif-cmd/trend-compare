@@ -33,7 +33,7 @@ export interface OnDemandWarmupResult {
  */
 async function generateForecast(
   term: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: Array<{ date: string; [key: string]: string | number }>,
   category: string = 'general',
   termLabel: 'termA' | 'termB' = 'termA'
 ): Promise<ForecastBundleSummary | null> {
@@ -206,7 +206,7 @@ export async function warmupOnDemand(
         };
       }
 
-      const series = row.series as Array<{ date: string; [key: string]: number }>;
+      const series = row.series as Array<{ date: string; [key: string]: string | number }>;
       const category = row.category || 'general';
 
       // Get intelligent comparison for scores

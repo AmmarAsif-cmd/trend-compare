@@ -13,7 +13,7 @@
 
 import type { SeriesPoint } from './trends';
 import { calculateTrendArcScoreTimeSeries, type TrendArcScoreTimeSeries } from './trendarc-score-time-series';
-import type { ComparisonCategory } from './trendarc-score';
+import type { ComparisonCategory } from './category-resolver';
 
 export type PredictionResult = {
   predictions: Array<{

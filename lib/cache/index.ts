@@ -171,10 +171,10 @@ class Cache {
     const lockKey = `lock:${key}`;
 
     // Create pending compute for request coalescing
-    let resolvePending: (value: T) => void;
+    let resolvePending: (value: unknown) => void;
     let rejectPending: (error: Error) => void;
     const pendingPromise = new Promise<T>((resolve, reject) => {
-      resolvePending = resolve;
+      resolvePending = resolve as (value: unknown) => void;
       rejectPending = reject;
     });
 
