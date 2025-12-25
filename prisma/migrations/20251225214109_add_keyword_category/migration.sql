@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "KeywordCategory" (
+CREATE TABLE IF NOT EXISTS "KeywordCategory" (
     "id" TEXT NOT NULL,
     "keyword" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -13,13 +13,13 @@ CREATE TABLE "KeywordCategory" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "KeywordCategory_keyword_key" ON "KeywordCategory"("keyword");
+CREATE UNIQUE INDEX IF NOT EXISTS "KeywordCategory_keyword_key" ON "KeywordCategory"("keyword");
 
 -- CreateIndex
-CREATE INDEX "KeywordCategory_category_idx" ON "KeywordCategory"("category");
+CREATE INDEX IF NOT EXISTS "KeywordCategory_category_idx" ON "KeywordCategory"("category");
 
 -- CreateIndex
-CREATE INDEX "KeywordCategory_source_idx" ON "KeywordCategory"("source");
+CREATE INDEX IF NOT EXISTS "KeywordCategory_source_idx" ON "KeywordCategory"("source");
 
 -- CreateIndex
-CREATE INDEX "KeywordCategory_updatedAt_idx" ON "KeywordCategory"("updatedAt");
+CREATE INDEX IF NOT EXISTS "KeywordCategory_updatedAt_idx" ON "KeywordCategory"("updatedAt");

@@ -24,6 +24,12 @@ export const authConfig: NextAuthConfig = {
         console.log('[Auth] Attempting login for:', email);
 
         try {
+          // Check if Prisma is available
+          if (!prisma) {
+            console.error('[Auth] Prisma client not initialized - database unavailable');
+            throw new Error('Database connection unavailable. Please ensure migrations have been run.');
+          }
+
           const user = await prisma.user.findUnique({
             where: {
               email: email,
@@ -84,8 +90,16 @@ export const authConfig: NextAuthConfig = {
           console.error('[Auth] Error during authentication:', {
             message: error?.message,
             code: error?.code,
-            stack: error?.stack,
+            name: error?.name,
+            stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
           });
+
+          // If it's a Prisma initialization error, log it clearly
+          if (error?.message?.includes('Prisma client is not initialized')) {
+            console.error('[Auth] ❌ CRITICAL: Prisma client not initialized. Database operations are failing.');
+            console.error('[Auth] This typically means migrations have not been run or there is a schema mismatch.');
+          }
+
           return null;
         }
       },
@@ -109,10 +123,13 @@ export const authConfig: NextAuthConfig = {
   },
   pages: {
     signIn: "/login",
+    error: "/login", // Redirect errors to login page instead of default error page
   },
   session: {
     strategy: "jwt",
   },
+  // Add debug mode to see what's happening
+  debug: process.env.NODE_ENV === 'development',
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
