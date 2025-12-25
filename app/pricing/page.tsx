@@ -42,7 +42,7 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm">
+      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="text-2xl font-bold text-gray-900">
@@ -72,11 +72,11 @@ export default function PricingPage() {
           Choose Your Plan
         </h1>
         <p className="text-xl text-gray-600 mb-12">
-          Start free, upgrade when you need advanced insights
+          Start free with 20 comparisons daily, upgrade for unlimited AI insights
         </p>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
           {/* Free Tier */}
           <div className="bg-white rounded-2xl shadow-lg p-8 border-2 border-gray-200">
             <div className="mb-6">
@@ -88,10 +88,18 @@ export default function PricingPage() {
               <p className="text-gray-600">Perfect for casual exploration</p>
             </div>
 
+            {/* Daily Limit Badge */}
+            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+              <p className="text-blue-900 font-semibold text-sm">
+                ⏰ 20 comparisons per day
+              </p>
+              <p className="text-blue-700 text-xs mt-1">Resets daily at midnight UTC</p>
+            </div>
+
             <ul className="space-y-4 mb-8 text-left">
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -104,12 +112,12 @@ export default function PricingPage() {
                   />
                 </svg>
                 <span className="text-gray-700">
-                  View all trend comparisons
+                  All trend comparison charts
                 </span>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -121,11 +129,11 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-gray-700">Basic AI insights</span>
+                <span className="text-gray-700">TrendArc Score analysis</span>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -137,11 +145,11 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-gray-700">12-month timeframe</span>
+                <span className="text-gray-700">Multi-source data breakdown</span>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -153,11 +161,11 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-gray-700">Worldwide data</span>
+                <span className="text-gray-700">All timeframes (7d to 5y)</span>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -169,7 +177,73 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-gray-700">Blog access</span>
+                <span className="text-gray-700">Save comparisons</span>
+              </li>
+              <li className="flex items-start">
+                <svg
+                  className="w-6 h-6 text-green-500 mr-2 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span className="text-gray-700">Geographic data</span>
+              </li>
+
+              {/* What's NOT included */}
+              <li className="flex items-start opacity-50">
+                <svg
+                  className="w-6 h-6 text-gray-400 mr-2 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                <span className="text-gray-500">No AI-powered insights</span>
+              </li>
+              <li className="flex items-start opacity-50">
+                <svg
+                  className="w-6 h-6 text-gray-400 mr-2 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                <span className="text-gray-500">No trend predictions</span>
+              </li>
+              <li className="flex items-start opacity-50">
+                <svg
+                  className="w-6 h-6 text-gray-400 mr-2 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                <span className="text-gray-500">No PDF/CSV exports</span>
               </li>
             </ul>
 
@@ -193,13 +267,21 @@ export default function PricingPage() {
                 <span className="text-5xl font-bold text-white">$4.99</span>
                 <span className="text-blue-100 ml-2">/month</span>
               </div>
-              <p className="text-blue-100">For power users and researchers</p>
+              <p className="text-blue-100">For marketers, researchers & power users</p>
+            </div>
+
+            {/* Unlimited Badge */}
+            <div className="mb-6 bg-white/20 backdrop-blur border-2 border-white/30 rounded-lg p-3">
+              <p className="text-white font-semibold text-sm">
+                ∞ Unlimited comparisons
+              </p>
+              <p className="text-blue-100 text-xs mt-1">No daily limits, ever</p>
             </div>
 
             <ul className="space-y-4 mb-8 text-left">
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -217,7 +299,7 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -229,14 +311,14 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-white">
-                  <strong>Rich AI insights</strong> with category analysis &
-                  predictions
-                </span>
+                <div className="text-white">
+                  <strong>AI Peak Explanations</strong>
+                  <p className="text-blue-100 text-sm">Why trends spike with real events & dates</p>
+                </div>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -248,11 +330,14 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-white">All timeframes (7d, 30d, 12m, 5y, all)</span>
+                <div className="text-white">
+                  <strong>30-Day Predictions</strong>
+                  <p className="text-blue-100 text-sm">ML-powered forecasts with 5 ensemble methods</p>
+                </div>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -264,11 +349,14 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-white">Geographic breakdowns</span>
+                <div className="text-white">
+                  <strong>Actionable Insights</strong>
+                  <p className="text-blue-100 text-sm">What the data means for your business</p>
+                </div>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -280,11 +368,27 @@ export default function PricingPage() {
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
-                <span className="text-white">CSV export</span>
+                <span className="text-white">PDF & CSV exports</span>
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span className="text-white">Email trend alerts</span>
+              </li>
+              <li className="flex items-start">
+                <svg
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -300,7 +404,7 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start">
                 <svg
-                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0"
+                  className="w-6 h-6 text-yellow-300 mr-2 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -319,10 +423,82 @@ export default function PricingPage() {
             <button
               onClick={handleUpgrade}
               disabled={loading}
-              className="block w-full py-3 px-6 text-center font-medium text-purple-600 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+              className="block w-full py-3 px-6 text-center font-medium text-purple-600 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Processing..." : "Upgrade to Premium"}
             </button>
+          </div>
+        </div>
+
+        {/* Feature Comparison Table */}
+        <div className="max-w-5xl mx-auto mt-16 bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+              Feature Comparison
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-4 px-4 text-gray-700 font-semibold">Feature</th>
+                    <th className="text-center py-4 px-4 text-gray-700 font-semibold">Free</th>
+                    <th className="text-center py-4 px-4 text-purple-700 font-semibold">Premium</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr>
+                    <td className="py-4 px-4 text-gray-700">Daily comparisons</td>
+                    <td className="text-center py-4 px-4 text-gray-600">20/day</td>
+                    <td className="text-center py-4 px-4 text-purple-600 font-semibold">Unlimited</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="py-4 px-4 text-gray-700">Basic charts & data</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-4 text-gray-700">Save comparisons</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="py-4 px-4 text-gray-700">AI peak explanations</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-4 text-gray-700">30-day ML predictions</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="py-4 px-4 text-gray-700">Actionable insights</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-4 text-gray-700">PDF exports</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="py-4 px-4 text-gray-700">CSV/JSON exports</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-4 text-gray-700">Email alerts</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="py-4 px-4 text-gray-700">Ad-free</td>
+                    <td className="text-center py-4 px-4 text-gray-400">❌</td>
+                    <td className="text-center py-4 px-4">✅</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -333,6 +509,16 @@ export default function PricingPage() {
           </h2>
 
           <div className="space-y-6">
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                What happens when I hit the 20 comparison daily limit?
+              </h3>
+              <p className="text-gray-600">
+                You'll see a friendly message letting you know you've reached your daily limit.
+                Your limit resets at midnight UTC each day. Or upgrade to Premium for unlimited comparisons!
+              </p>
+            </div>
+
             <div className="bg-white rounded-lg p-6 shadow-md">
               <h3 className="font-semibold text-gray-900 mb-2">
                 Can I cancel anytime?
@@ -346,23 +532,33 @@ export default function PricingPage() {
 
             <div className="bg-white rounded-lg p-6 shadow-md">
               <h3 className="font-semibold text-gray-900 mb-2">
-                What payment methods do you accept?
+                What are "AI peak explanations"?
               </h3>
               <p className="text-gray-600">
-                We accept all major credit cards, debit cards, and payment
-                methods through Stripe's secure payment processing.
+                Premium users get AI-powered analysis that explains WHY trends spike,
+                with specific dates, real events, and citations from Wikipedia and news sources.
+                It's like having a trend analyst explain every chart to you.
               </p>
             </div>
 
             <div className="bg-white rounded-lg p-6 shadow-md">
               <h3 className="font-semibold text-gray-900 mb-2">
-                What are "Rich AI insights"?
+                How accurate are the predictions?
               </h3>
               <p className="text-gray-600">
-                Rich AI insights use advanced Claude AI to analyze trends,
-                categorize comparisons, predict future movements, and provide
-                actionable implications. Free users get template-based basic
-                insights.
+                Our predictions use 5 different machine learning methods (ensemble approach)
+                and we track accuracy over time. You can see verified predictions with actual
+                accuracy scores on comparison pages.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                What payment methods do you accept?
+              </h3>
+              <p className="text-gray-600">
+                We accept all major credit cards, debit cards, and payment
+                methods through Stripe's secure payment processing.
               </p>
             </div>
 
