@@ -948,17 +948,19 @@ export default async function ComparePage({
             breakdownB={intelligentComparison?.scores?.termB?.breakdown}
           />
 
-          {/* Actionable Insights Panel */}
-          <ActionableInsightsPanel
-            winner={verdictData.winner}
-            loser={verdictData.loser}
-            winnerScore={verdictData.winnerScore}
-            loserScore={verdictData.loserScore}
-            margin={verdictData.margin}
-            category={verdictData.category}
-            termA={actualTerms[0]}
-            termB={actualTerms[1]}
-          />
+          {/* Actionable Insights Panel - Premium Only */}
+          {hasPremiumAccess && (
+            <ActionableInsightsPanel
+              winner={verdictData.winner}
+              loser={verdictData.loser}
+              winnerScore={verdictData.winnerScore}
+              loserScore={verdictData.loserScore}
+              margin={verdictData.margin}
+              category={verdictData.category}
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+            />
+          )}
       </div>
 
       {/* Grid layout starts from Verified Predictions - Sidebar appears here */}
@@ -994,13 +996,43 @@ export default async function ComparePage({
             </>
           )}
           
-          {!hasPremiumAccess && (simplePredictionA || simplePredictionB) && (
-            <SimplePrediction
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-              predictionA={simplePredictionA}
-              predictionB={simplePredictionB}
-            />
+          {/* Premium Upgrade Prompt for Predictions - Free users see upgrade CTA instead of predictions */}
+          {!hasPremiumAccess && (
+            <section className="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 rounded-xl border-2 border-purple-300 shadow-lg p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    🔮 30-Day Trend Predictions
+                    <span className="text-xs font-semibold px-2 py-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full">PREMIUM</span>
+                  </h3>
+                  <p className="text-slate-600 mb-4 text-sm">
+                    Get ML-powered forecasts with confidence intervals, ensemble predictions from 5 statistical methods,
+                    and historical accuracy tracking.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-white/80 rounded-lg p-3 border border-purple-200">
+                      <div className="text-purple-600 font-bold text-lg">30 Days</div>
+                      <div className="text-xs text-slate-600">Future Forecast</div>
+                    </div>
+                    <div className="bg-white/80 rounded-lg p-3 border border-purple-200">
+                      <div className="text-purple-600 font-bold text-lg">5 Methods</div>
+                      <div className="text-xs text-slate-600">Ensemble ML</div>
+                    </div>
+                  </div>
+                  <a
+                    href="/pricing"
+                    className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-md hover:shadow-lg"
+                  >
+                    Upgrade to Premium
+                  </a>
+                </div>
+              </div>
+            </section>
           )}
 
           {/* Multi-Source Score Breakdown */}

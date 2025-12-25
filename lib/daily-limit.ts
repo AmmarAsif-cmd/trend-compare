@@ -1,12 +1,12 @@
 /**
  * Daily Comparison Limit for Free Users
- * Implements soft limit of 50 comparisons per day for free users
+ * Implements soft limit of 20 comparisons per day for free users
  */
 
 import { prisma } from './db';
 import { getCurrentUser, canAccessPremium } from './user-auth-helpers';
 
-const FREE_USER_DAILY_LIMIT = 50;
+const FREE_USER_DAILY_LIMIT = 20;
 
 /**
  * Get today's date at midnight (UTC)
