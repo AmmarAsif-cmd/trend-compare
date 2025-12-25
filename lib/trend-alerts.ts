@@ -54,8 +54,8 @@ export async function createTrendAlert(data: {
   // Get intelligent comparison for scores
   const intelligentComparison = await runIntelligentComparison(
     [data.termA, data.termB],
-    '12m',
-    ''
+    comparison.series as any[],
+    {}
   );
 
   const baselineScoreA = intelligentComparison.scores.termA.overall;
@@ -137,10 +137,21 @@ export async function checkAlert(alert: TrendAlert): Promise<{
 }> {
   try {
     // Get current comparison data
+    const comparison = await getOrBuildComparison({
+      slug: alert.slug,
+      terms: [alert.termA, alert.termB],
+      timeframe: '12m',
+      geo: '',
+    });
+
+    if (!comparison) {
+      return { shouldTrigger: false, reason: 'Comparison not found' };
+    }
+
     const intelligentComparison = await runIntelligentComparison(
       [alert.termA, alert.termB],
-      '12m',
-      ''
+      comparison.series as any[],
+      {}
     );
 
     const currentScoreA = Math.round(intelligentComparison.scores.termA.overall);

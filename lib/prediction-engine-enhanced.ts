@@ -35,6 +35,9 @@ export type PredictionResult = {
     historicalAccuracy?: number; // If we have verified predictions
     volatility: number; // Coefficient of variation
     trendStrength: number; // How strong the trend is
+    momentum: number; // Rate of change
+    acceleration: number; // Change in momentum
+    seasonality: number; // Seasonality strength
   };
 };
 
@@ -42,7 +45,7 @@ export type PredictionOptions = {
   series: SeriesPoint[];
   term: string;
   forecastDays?: number;
-  methods?: ('linear' | 'exponential' | 'moving-average' | 'holt-winters' | 'all')[];
+  methods?: ('linear' | 'exponential' | 'moving-average' | 'holt-winters' | 'polynomial' | 'all')[];
   category?: ComparisonCategory; // For TrendArc Score calculation
   useTrendArcScore?: boolean; // Use TrendArc Score instead of raw Google Trends (default: true)
 };
@@ -179,11 +182,11 @@ export async function predictTrend(options: PredictionOptions): Promise<Predicti
   
   // Use all methods if 'all' is specified
   const useAllMethods = methods.includes('all');
-  const methodsToUse: Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'> = useAllMethods 
-    ? ['linear', 'polynomial', 'exponential', 'holt-winters', 'moving-average'] 
-    : methods.filter((m): m is 'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial' => 
+  const methodsToUse: Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'> = (useAllMethods
+    ? ['linear', 'polynomial', 'exponential', 'holt-winters', 'moving-average']
+    : methods.filter((m): m is 'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial' =>
         m !== 'all' && (m === 'linear' || m === 'exponential' || m === 'holt-winters' || m === 'moving-average' || m === 'polynomial')
-      );
+      )) as Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'>;
 
   // Run all selected methods
   const methodResults = await Promise.all(

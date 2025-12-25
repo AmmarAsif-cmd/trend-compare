@@ -130,7 +130,7 @@ async function main() {
       console.log(`   User exists: ✅`);
       console.log(`   Password correct: ${passwordValid ? '✅' : '❌'}`);
       console.log(`   Premium tier: ${finalUser.subscriptionTier === 'premium' ? '✅' : '❌'}`);
-      console.log(`   Active premium subscription: ${finalUser.subscriptions.some(s => s.tier === 'premium') ? '✅' : '❌'}`);
+      console.log(`   Active premium subscription: ${finalUser.subscriptions.some((s: any) => s.tier === 'premium') ? '✅' : '❌'}`);
       
       if (passwordValid && finalUser.subscriptionTier === 'premium') {
         console.log('\n✨ Login credentials:');

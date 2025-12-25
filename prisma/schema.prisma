@@ -399,3 +399,18 @@ model ProcessedLedger {
   lastSeenAt DateTime @default(now())
   usedCount  Int      @default(0)
 }
+
+model KeywordCategory {
+  id         String   @id @default(cuid())
+  keyword    String   @unique
+  category   String
+  confidence Int
+  source     String   // 'ai' | 'api_probing' | 'manual'
+  reasoning  String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([category])
+  @@index([source])
+  @@index([updatedAt])
+}

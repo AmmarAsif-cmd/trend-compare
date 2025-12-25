@@ -166,13 +166,13 @@ export async function getCacheStats(): Promise<{
       take: 100,
     });
 
-    const verifiedCount = all.filter(c => c.status === 'verified').length;
-    const unknownCount = all.filter(c => c.status === 'unknown').length;
-    const avgConfidence = all.reduce((sum, c) => sum + c.confidence, 0) / all.length || 0;
+    const verifiedCount = all.filter((c: any) => c.status === 'verified').length;
+    const unknownCount = all.filter((c: any) => c.status === 'unknown').length;
+    const avgConfidence = all.reduce((sum: any, c: any) => sum + c.confidence, 0) / all.length || 0;
 
     const mostAccessed = all
       .slice(0, 10)
-      .map(c => ({ keyword: c.keyword, accessCount: c.accessCount }));
+      .map((c: any) => ({ keyword: c.keyword, accessCount: c.accessCount }));
 
     return {
       totalCached: all.length,

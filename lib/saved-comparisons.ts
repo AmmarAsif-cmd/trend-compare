@@ -199,7 +199,7 @@ export async function getSavedComparisons(
     ]);
 
     return {
-      comparisons: comparisons.map((c) => ({
+      comparisons: comparisons.map((c: any) => ({
         id: c.id,
         slug: c.slug,
         termA: c.termA,

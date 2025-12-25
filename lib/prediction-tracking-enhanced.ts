@@ -289,7 +289,7 @@ export async function getVerifiedPredictions(
       take: 50, // Limit to 50 most recent
     });
 
-    return predictions.map(p => ({
+    return predictions.map((p: any) => ({
       id: p.id,
       forecastDate: p.forecastDate.toISOString().split('T')[0],
       predictedValue: p.predictedValue,
@@ -324,14 +324,14 @@ export async function getPredictionStats(): Promise<{
 
     const verifiedCount = verified.length;
     const avgAccuracy = verifiedCount > 0
-      ? verified.reduce((sum, p) => sum + (p.accuracy || 0), 0) / verifiedCount
+      ? verified.reduce((sum: any, p: any) => sum + (p.accuracy || 0), 0) / verifiedCount
       : 0;
 
     // Calculate accuracy by method
     const methodAccuracies: Record<string, number[]> = {};
-    verified.forEach(p => {
+    verified.forEach((p: any) => {
       const methods = p.method.split('+');
-      methods.forEach(method => {
+      methods.forEach((method: any) => {
         if (!methodAccuracies[method]) {
           methodAccuracies[method] = [];
         }

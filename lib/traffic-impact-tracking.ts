@@ -367,12 +367,12 @@ async function getActualPeakDate(keyword: string): Promise<Date | null> {
 
 async function getArticlesForPeriod(userId: string, period: string): Promise<ArticlePerformance[]> {
   // Get articles from database for this period
-  return [];
+  return [] as ArticlePerformance[];
 }
 
 async function getPredictionsForPeriod(userId: string, period: string) {
   // Get predictions we provided in this period
-  return [];
+  return [] as any[];
 }
 
 function generateId(): string {

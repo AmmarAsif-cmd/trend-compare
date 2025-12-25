@@ -17,7 +17,7 @@ import { detectPeaksWithEvents } from '@/lib/peak-event-detector';
 import type { ForecastBundleSummary } from '@/lib/insights/contracts/forecast-bundle-summary';
 import type { AIInsights } from '@/lib/insights/contracts/ai-insights';
 import { PREDICTION_ENGINE_VERSION, PROMPT_VERSION } from '@/lib/insights/contracts/versions';
-import { stableHash } from '@/lib/cache/hash';
+import { stableHash, createCacheKey } from '@/lib/cache/hash';
 import { forecastKey, warmupStatusKey, warmupLockKey, type WarmupKeyParams } from '@/lib/forecast/cacheKeys';
 
 export interface OnDemandWarmupResult {
@@ -227,8 +227,8 @@ export async function warmupOnDemand(
         termA: intelligentComparison.scores.termA,
         termB: intelligentComparison.scores.termB,
       } : {
-        termA: { overall: 50, breakdown: { searchInterest: 50, socialBuzz: 50, authority: 50, momentum: 50 } },
-        termB: { overall: 50, breakdown: { searchInterest: 50, socialBuzz: 50, authority: 50, momentum: 50 } },
+        termA: { overall: 50, confidence: 50, breakdown: { searchInterest: 50, socialBuzz: 50, authority: 50, momentum: 50 }, sources: ['google-trends'], explanation: 'Fallback score based on Google Trends data only' },
+        termB: { overall: 50, confidence: 50, breakdown: { searchInterest: 50, socialBuzz: 50, authority: 50, momentum: 50 }, sources: ['google-trends'], explanation: 'Fallback score based on Google Trends data only' },
       };
 
       // Generate forecasts
@@ -285,17 +285,17 @@ export async function warmupOnDemand(
         .filter(p => p.term === termA)
         .slice(0, 3)
         .map(p => ({
-          id: p.id,
+          id: stableHash({ term: p.term, date: p.date }),
           term: 'termA' as const,
-          type: p.type as any,
-          peakDate: p.peakDate.toISOString(),
-          magnitude: p.magnitude,
-          duration: p.duration,
-          classification: p.classification as any,
-          startDate: p.startDate.toISOString(),
-          endDate: p.endDate.toISOString(),
-          context: p.context,
-          peakHash: stableHash({ term: termA, date: p.peakDate, magnitude: p.magnitude }),
+          type: 'spike' as any,
+          peakDate: p.date,
+          magnitude: p.value,
+          duration: 1,
+          classification: 'detected' as any,
+          startDate: p.date,
+          endDate: p.date,
+          context: p.event?.title || 'Peak detected',
+          peakHash: stableHash({ term: termA, date: p.date, magnitude: p.value }),
           generatedAt: new Date().toISOString(),
           dataFreshness: {
             lastUpdatedAt: new Date().toISOString(),
@@ -328,13 +328,7 @@ export async function warmupOnDemand(
             generatedAt: meaningExplanation.generatedAt,
             promptVersion: PROMPT_VERSION,
           } : undefined,
-          peakExplanations: peakExplanations?.peakExplanations.map(exp => ({
-            peakId: exp.peakId,
-            text: exp.summary,
-            confidence: exp.confidence,
-            generatedAt: exp.generatedAt,
-            promptVersion: PROMPT_VERSION,
-          })),
+          peakExplanations: undefined,
           generatedAt: new Date().toISOString(),
           dataFreshness: {
             lastUpdatedAt: new Date().toISOString(),
@@ -342,7 +336,7 @@ export async function warmupOnDemand(
           },
           aiInsightsHash: stableHash({
             meaning: meaningExplanation?.summary,
-            peaks: peakExplanations?.peakExplanations.map(e => e.summary),
+            peaks: undefined,
           }),
         };
 
