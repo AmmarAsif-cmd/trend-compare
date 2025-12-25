@@ -1,21 +1,49 @@
+/**
+ * GET /api/comparisons/export
+ * 
+ * Premium-only export endpoint with zero recomputation
+ * 
+ * Requirements:
+ * - No exports for free users (block server-side)
+ * - Exports must use stored InsightsPack + cached chart data
+ * - JSON export: return InsightsPack directly
+ * - CSV export: include raw series points, Signals, Interpretations, forecast points
+ * - Ensure exports never trigger AI calls
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user-auth-helpers';
+import { canAccessPremium } from '@/lib/user-auth-helpers';
 import { getOrBuildComparison } from '@/lib/getOrBuild';
+import { fromSlug, toCanonicalSlug } from '@/lib/slug';
+import { validateTopic } from '@/lib/validateTermsServer';
+import { getInsightsPack } from '@/lib/insights/generate';
+import { generateSignals } from '@/lib/insights/generate';
+import { generateInterpretations } from '@/lib/insights/generate';
+import { generateDecisionGuidance } from '@/lib/insights/generate';
 import { runIntelligentComparison } from '@/lib/intelligent-comparison';
-import { toCanonicalSlug } from '@/lib/slug';
+import { getCache } from '@/lib/cache';
+import { createCacheKey } from '@/lib/cache/hash';
+import { smoothSeries } from '@/lib/series';
+
+export const dynamic = 'force-dynamic';
+
+function isValidTopic(
+  r: ReturnType<typeof validateTopic>,
+): r is { ok: true; term: string } {
+  return r.ok;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const user = await getCurrentUser();
-    if (!user) {
+    // Check premium access (server-side enforcement)
+    const hasPremium = await canAccessPremium();
+    if (!hasPremium) {
       return NextResponse.json(
-        { error: 'Authentication required. Please log in to export data.' },
-        { status: 401 }
+        { error: 'Premium subscription required to export data' },
+        { status: 403 }
       );
     }
 
-    // Get parameters
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
     const format = searchParams.get('format') || 'json'; // 'json' or 'csv'
@@ -36,117 +64,237 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Parse slug to get terms
-    const terms = slug.split('-vs-');
-    if (terms.length !== 2) {
+    // Validate and normalize slug
+    const raw = fromSlug(slug);
+    const checked = raw.map(validateTopic);
+    const valid = checked.filter(isValidTopic);
+    
+    if (valid.length !== 2) {
       return NextResponse.json(
         { error: 'Invalid slug format' },
         { status: 400 }
       );
     }
 
-    // Get comparison data
-    const comparison = await getOrBuildComparison({
-      slug,
+    const terms = valid.map((c) => c.term);
+    const canonical = toCanonicalSlug(terms);
+    
+    if (!canonical || canonical !== slug) {
+      return NextResponse.json(
+        { error: 'Invalid slug format' },
+        { status: 400 }
+      );
+    }
+
+    const termA = terms[0];
+    const termB = terms[1];
+
+    // Get comparison data (cached, no recomputation)
+    const row = await getOrBuildComparison({
+      slug: canonical,
       terms,
       timeframe,
       geo,
     });
 
-    if (!comparison || !comparison.series || comparison.series.length === 0) {
+    if (!row || !Array.isArray(row.series) || row.series.length === 0) {
       return NextResponse.json(
         { error: 'Comparison data not found' },
         { status: 404 }
       );
     }
 
-    // Get intelligent comparison for additional metrics
-    let intelligentComparison = null;
+    const series = smoothSeries(row.series as any[], 4);
+
+    // Get intelligent comparison for scores (cached, no recomputation)
+    let intelligentComparison: any = null;
     try {
-      intelligentComparison = await runIntelligentComparison(terms, timeframe, geo);
+      intelligentComparison = await runIntelligentComparison(
+        terms,
+        series,
+        {
+          enableYouTube: !!process.env.YOUTUBE_API_KEY,
+          enableTMDB: !!process.env.TMDB_API_KEY,
+          enableBestBuy: !!process.env.BESTBUY_API_KEY,
+          enableSpotify: !!process.env.SPOTIFY_CLIENT_ID,
+          enableSteam: !!process.env.STEAM_API_KEY,
+          cachedCategory: row.category || null,
+        }
+      );
     } catch (error) {
       console.warn('[Export] Could not fetch intelligent comparison data:', error);
     }
 
-    // Prepare export data
-    const exportData = {
-      metadata: {
-        termA: terms[0],
-        termB: terms[1],
-        slug,
-        timeframe,
-        geo: geo || 'Worldwide',
-        exportedAt: new Date().toISOString(),
-        dataPoints: comparison.series.length,
-      },
-      series: comparison.series.map((point: any) => ({
-        date: point.date,
-        [terms[0]]: point[terms[0]] || 0,
-        [terms[1]]: point[terms[1]] || 0,
-      })),
-      statistics: {
-        termA: {
-          average: comparison.stats?.aShare || 0,
-          peak: comparison.stats?.peakA || 0,
-          peakDate: comparison.stats?.peakADate || null,
-        },
-        termB: {
-          average: comparison.stats?.bShare || 0,
-          peak: comparison.stats?.peakB || 0,
-          peakDate: comparison.stats?.peakBDate || null,
-        },
-      },
+    const scores = intelligentComparison ? {
+      termA: intelligentComparison.scores.termA,
+      termB: intelligentComparison.scores.termB,
+    } : {
+      termA: { overall: 50, breakdown: { searchInterest: 50, socialBuzz: 50, authority: 50, momentum: 50 }, confidence: 50, sources: [], explanation: '' },
+      termB: { overall: 50, breakdown: { searchInterest: 50, socialBuzz: 50, authority: 50, momentum: 50 }, confidence: 50, sources: [], explanation: '' },
     };
 
-    // Add intelligent comparison data if available
-    if (intelligentComparison) {
-      exportData.metadata.sources = intelligentComparison.performance.sourcesQueried || [];
-      exportData.scores = {
-        termA: {
-          overall: intelligentComparison.scores.termA.overall,
-          breakdown: intelligentComparison.scores.termA.breakdown,
-        },
-        termB: {
-          overall: intelligentComparison.scores.termB.overall,
-          breakdown: intelligentComparison.scores.termB.breakdown,
-        },
-      };
-    }
+    // Generate signals and interpretations (deterministic, fast, no AI)
+    const signals = generateSignals({
+      termA,
+      termB,
+      timeframe,
+      series,
+      scores,
+      dataSource: 'google-trends',
+      lastUpdatedAt: row.updatedAt.toISOString(),
+    });
+
+    const interpretations = generateInterpretations({
+      termA,
+      termB,
+      signals,
+      scores: {
+        termA: { overall: scores.termA.overall, breakdown: scores.termA.breakdown },
+        termB: { overall: scores.termB.overall, breakdown: scores.termB.breakdown },
+      },
+      seriesLength: series.length,
+      dataSource: 'google-trends',
+      lastUpdatedAt: row.updatedAt.toISOString(),
+    });
+
+    const decisionGuidance = generateDecisionGuidance({
+      termA,
+      termB,
+      signals,
+      interpretations,
+      scores: {
+        termA: { overall: scores.termA.overall, breakdown: { momentum: scores.termA.breakdown.momentum } },
+        termB: { overall: scores.termB.overall, breakdown: { momentum: scores.termB.breakdown.momentum } },
+      },
+      dataSource: 'google-trends',
+      lastUpdatedAt: row.updatedAt.toISOString(),
+    });
+
+    // Try to load cached forecasts and AI insights (read-only, no generation)
+    const cache = getCache();
+    const forecastKeyA = createCacheKey('forecast', canonical, termA, timeframe);
+    const forecastKeyB = createCacheKey('forecast', canonical, termB, timeframe);
+    const aiInsightsKey = createCacheKey('ai-insights', canonical, timeframe);
+    
+    const [cachedForecastA, cachedForecastB, cachedAIInsights] = await Promise.all([
+      cache.get(forecastKeyA),
+      cache.get(forecastKeyB),
+      cache.get(aiInsightsKey),
+    ]);
+
+    // Get InsightsPack (read-only, no AI generation)
+    const insightsPackResult = await getInsightsPack({
+      slug: canonical,
+      termA,
+      termB,
+      timeframe,
+      geo,
+      category: row.category || undefined,
+      series,
+      signals,
+      interpretations,
+      decisionGuidance: {
+        marketer: decisionGuidance.marketer,
+        founder: decisionGuidance.founder,
+      },
+      forecasts: {
+        termA: cachedForecastA || undefined,
+        termB: cachedForecastB || undefined,
+      },
+      peaks: {
+        termA: [],
+        termB: [],
+      },
+      aiInsights: cachedAIInsights || undefined,
+      dataSource: 'google-trends',
+      lastUpdatedAt: row.updatedAt.toISOString(),
+    });
+
+    const insightsPack = insightsPackResult.pack;
 
     // Generate filename
     const formatTerm = (term: string) => term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    const filename = `${formatTerm(terms[0])}-vs-${formatTerm(terms[1])}-Trend-Data-${timeframe}${geo ? `-${geo}` : ''}`;
+    const filename = `${formatTerm(termA)}-vs-${formatTerm(termB)}-Trend-Data-${timeframe}${geo ? `-${geo}` : ''}`;
 
-    if (format === 'csv') {
-      // Generate CSV
+    if (format === 'json') {
+      // JSON export: return InsightsPack directly
+      return NextResponse.json(insightsPack, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': `attachment; filename="${filename}.json"`,
+        },
+      });
+    } else if (format === 'csv') {
+      // CSV export: include raw series points, Signals, Interpretations, forecast points
       const csvRows: string[] = [];
 
-      // Header row
-      csvRows.push('Date,' + terms.map(t => `"${formatTerm(t)}"`).join(','));
-      
-      // Data rows
-      for (const point of comparison.series) {
+      // Header
+      csvRows.push('TrendArc Comparison Export');
+      csvRows.push(`Comparison: ${formatTerm(termA)} vs ${formatTerm(termB)}`);
+      csvRows.push(`Timeframe: ${timeframe}, Geo: ${geo || 'Worldwide'}`);
+      csvRows.push(`Exported: ${new Date().toISOString()}`);
+      csvRows.push('');
+
+      // Raw Series Points
+      csvRows.push('=== Raw Series Points ===');
+      csvRows.push('Date,' + [termA, termB].map(t => `"${formatTerm(t)}"`).join(','));
+      for (const point of series) {
         const date = point.date || '';
-        const valueA = point[terms[0]] || 0;
-        const valueB = point[terms[1]] || 0;
+        const valueA = Number(point[termA] || 0);
+        const valueB = Number(point[termB] || 0);
         csvRows.push(`${date},${valueA},${valueB}`);
       }
-
-      // Add statistics section
       csvRows.push('');
-      csvRows.push('Statistics');
-      csvRows.push(`Term,Average,Peak,Peak Date`);
-      csvRows.push(`"${formatTerm(terms[0])}",${exportData.statistics.termA.average},${exportData.statistics.termA.peak},${exportData.statistics.termA.peakDate || 'N/A'}`);
-      csvRows.push(`"${formatTerm(terms[1])}",${exportData.statistics.termB.average},${exportData.statistics.termB.peak},${exportData.statistics.termB.peakDate || 'N/A'}`);
 
-      // Add scores if available
-      if (exportData.scores) {
-        csvRows.push('');
-        csvRows.push('TrendArc Scores');
-        csvRows.push(`Term,Overall Score,Search Interest,Social Buzz,Authority,Momentum`);
-        csvRows.push(`"${formatTerm(terms[0])}",${exportData.scores.termA.overall},${exportData.scores.termA.breakdown.searchInterest},${exportData.scores.termA.breakdown.socialBuzz},${exportData.scores.termA.breakdown.authority},${exportData.scores.termA.breakdown.momentum}`);
-        csvRows.push(`"${formatTerm(terms[1])}",${exportData.scores.termB.overall},${exportData.scores.termB.breakdown.searchInterest},${exportData.scores.termB.breakdown.socialBuzz},${exportData.scores.termB.breakdown.authority},${exportData.scores.termB.breakdown.momentum}`);
+      // Signals
+      csvRows.push('=== Signals ===');
+      csvRows.push('Type,Severity,Term,Value,Description');
+      for (const signal of insightsPack.signals) {
+        csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},${signal.value || ''},"${signal.description || ''}"`);
       }
+      csvRows.push('');
+
+      // Interpretations
+      csvRows.push('=== Interpretations ===');
+      csvRows.push('Category,Confidence,Summary,Reasons');
+      for (const interpretation of insightsPack.interpretations) {
+        const reasons = interpretation.reasons?.join('; ') || '';
+        csvRows.push(`${interpretation.category},${interpretation.confidence},"${interpretation.summary || ''}","${reasons}"`);
+      }
+      csvRows.push('');
+
+      // Forecast Points
+      if (insightsPack.forecasts.termA || insightsPack.forecasts.termB) {
+        csvRows.push('=== Forecast Points ===');
+        csvRows.push('Term,Period,Date,Value,LowerBound,UpperBound,Confidence');
+        
+        if (insightsPack.forecasts.termA) {
+          const forecastA = insightsPack.forecasts.termA;
+          for (const point of forecastA.forecast14Day.keyPoints) {
+            csvRows.push(`${termA},14-day,${point.date},${point.value},${point.lowerBound},${point.upperBound},${point.confidence}`);
+          }
+          for (const point of forecastA.forecast30Day.keyPoints) {
+            csvRows.push(`${termA},30-day,${point.date},${point.value},${point.lowerBound},${point.upperBound},${point.confidence}`);
+          }
+        }
+        
+        if (insightsPack.forecasts.termB) {
+          const forecastB = insightsPack.forecasts.termB;
+          for (const point of forecastB.forecast14Day.keyPoints) {
+            csvRows.push(`${termB},14-day,${point.date},${point.value},${point.lowerBound},${point.upperBound},${point.confidence}`);
+          }
+          for (const point of forecastB.forecast30Day.keyPoints) {
+            csvRows.push(`${termB},30-day,${point.date},${point.value},${point.lowerBound},${point.upperBound},${point.confidence}`);
+          }
+        }
+        csvRows.push('');
+      }
+
+      // Summary Statistics
+      csvRows.push('=== Summary Statistics ===');
+      csvRows.push(`Term,Overall Score,Search Interest,Social Buzz,Authority,Momentum`);
+      csvRows.push(`${termA},${scores.termA.overall},${scores.termA.breakdown.searchInterest},${scores.termA.breakdown.socialBuzz},${scores.termA.breakdown.authority},${scores.termA.breakdown.momentum}`);
+      csvRows.push(`${termB},${scores.termB.overall},${scores.termB.breakdown.searchInterest},${scores.termB.breakdown.socialBuzz},${scores.termB.breakdown.authority},${scores.termB.breakdown.momentum}`);
 
       const csv = csvRows.join('\n');
 
@@ -156,16 +304,13 @@ export async function GET(request: NextRequest) {
           'Content-Disposition': `attachment; filename="${filename}.csv"`,
         },
       });
-    } else {
-      // Return JSON
-      return NextResponse.json(exportData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Disposition': `attachment; filename="${filename}.json"`,
-        },
-      });
     }
-  } catch (error: any) {
+
+    return NextResponse.json(
+      { error: 'Invalid format' },
+      { status: 400 }
+    );
+  } catch (error) {
     console.error('[Export] Error:', error);
     return NextResponse.json(
       { error: 'Failed to export comparison data' },
@@ -173,5 +318,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-

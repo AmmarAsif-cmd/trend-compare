@@ -116,6 +116,7 @@ model User {
   savedComparisons  SavedComparison[]
   subscriptions     Subscription[]
   trendAlerts       TrendAlert[]
+  pdfJobs           PdfJob[]
 
   @@index([email])
   @@index([subscriptionTier])
@@ -242,6 +243,52 @@ model ComparisonHistory {
   @@index([userId, viewedAt])
   @@index([slug])
   @@index([viewedAt])
+}
+
+model PdfJob {
+  id          String   @id @default(cuid())
+  userId      String
+  slug        String
+  timeframe   String
+  geo         String
+  status      String   @default("pending") // pending, processing, completed, failed
+  fileUrl     String?
+  signedUrl   String?
+  signedUrlExpiresAt DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slug, timeframe, geo], name: "user_slug_timeframe_geo")
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model WarmupJob {
+  id          String   @id @default(cuid())
+  slug        String
+  timeframe   String
+  geo         String
+  dataHash    String
+  status      String   @default("queued") // queued, running, ready, failed
+  attempts    Int      @default(0)
+  lastError   String?
+  debugId     String   @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  @@unique([slug, timeframe, geo, dataHash], name: "warmup_job_unique", map: "warmup_job_unique")
+  @@index([status])
+  @@index([slug])
+  @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 model TrendAlert {
