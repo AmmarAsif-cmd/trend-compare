@@ -22,7 +22,7 @@ import DataExportButton from "@/components/DataExportButton";
 import SaveComparisonButton from "@/components/SaveComparisonButton";
 import CreateAlertButton from "@/components/CreateAlertButton";
 import ComparisonHistoryTracker from "@/components/ComparisonHistoryTracker";
-import DailyLimitStatus from "@/components/DailyLimitStatus";
+import DailyLimitBanner from "@/components/DailyLimitBanner";
 import StructuredData from "@/components/StructuredData";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
@@ -711,8 +711,8 @@ export default async function ComparePage({
               </div>
             </div>
 
-            {/* Daily Limit Status (Free Users) */}
-            <DailyLimitStatus />
+            {/* Daily Limit Banner (Free Users) - Progressive warnings */}
+            <DailyLimitBanner />
 
             {/* Track comparison view in history */}
             <ComparisonHistoryTracker
