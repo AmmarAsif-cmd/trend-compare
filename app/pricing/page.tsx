@@ -571,6 +571,49 @@ export default function PricingPage() {
                 with Premium, contact us within 7 days for a full refund.
               </p>
             </div>
+
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                Do I need to create an account for the free tier?
+              </h3>
+              <p className="text-gray-600">
+                You can browse comparisons without an account, but creating a free account
+                lets you track your daily usage, save favorite comparisons, and view your history.
+                Sign up is quick and only requires an email address.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                Can I save comparisons on the free tier?
+              </h3>
+              <p className="text-gray-600">
+                Yes! Free users can save up to 50 comparisons and access their comparison history.
+                Premium users get unlimited saved comparisons and additional organization features.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                What happens to my data if I downgrade from Premium?
+              </h3>
+              <p className="text-gray-600">
+                Your saved comparisons and history are preserved when you downgrade. You'll just
+                lose access to premium features like AI insights, predictions, and exports. You can
+                upgrade again anytime to restore full access.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 shadow-md">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                Is there a free trial for Premium?
+              </h3>
+              <p className="text-gray-600">
+                While we don't offer a traditional free trial, the free tier gives you a great taste
+                of our platform with 20 comparisons daily. You can see all the data and charts - Premium
+                just adds the AI insights, predictions, and exports. Plus, we have a 7-day money-back guarantee!
+              </p>
+            </div>
           </div>
         </div>
       </div>
