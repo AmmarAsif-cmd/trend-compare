@@ -41,6 +41,7 @@ import KeyMetricsDashboard from "@/components/KeyMetricsDashboard";
 import ActionableInsightsPanel from "@/components/ActionableInsightsPanel";
 import TrendPrediction from "@/components/TrendPrediction";
 import SimplePrediction from "@/components/SimplePrediction";
+import PremiumFeaturePrompt from "@/components/PremiumFeaturePrompt";
 import PredictionAccuracyBadge from "@/components/PredictionAccuracyBadge";
 import { predictTrend } from "@/lib/prediction-engine-enhanced";
 import { getMaxHistoricalData } from "@/lib/get-max-historical-data";
@@ -993,13 +994,12 @@ export default async function ComparePage({
               />
             </>
           )}
-          
-          {!hasPremiumAccess && (simplePredictionA || simplePredictionB) && (
-            <SimplePrediction
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-              predictionA={simplePredictionA}
-              predictionB={simplePredictionB}
+
+          {/* Premium Feature Prompt for Free Users */}
+          {!hasPremiumAccess && (
+            <PremiumFeaturePrompt
+              feature="predictions"
+              className="print:hidden"
             />
           )}
 
