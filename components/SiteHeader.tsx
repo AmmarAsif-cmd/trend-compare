@@ -14,15 +14,24 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
-  // Check if user is logged in
+  // Check if user is logged in and premium status
   useEffect(() => {
     async function checkAuth() {
       try {
         const response = await fetch('/api/user/me');
-        setIsLoggedIn(response.ok);
+        if (response.ok) {
+          const data = await response.json();
+          setIsLoggedIn(true);
+          setIsPremium(data.user?.subscriptionTier === 'premium');
+        } else {
+          setIsLoggedIn(false);
+          setIsPremium(false);
+        }
       } catch {
         setIsLoggedIn(false);
+        setIsPremium(false);
       }
     }
     checkAuth();
@@ -95,6 +104,16 @@ export default function SiteHeader() {
               </Link>
             </li>
           )}
+          {!isPremium && (
+            <li>
+              <Link
+                href="/pricing"
+                className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5"
+              >
+                ✨ Upgrade
+              </Link>
+            </li>
+          )}
           <li>
             {isLoggedIn ? (
               <Link
@@ -160,6 +179,17 @@ export default function SiteHeader() {
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Dashboard
+                </Link>
+              </li>
+            )}
+            {!isPremium && (
+              <li>
+                <Link
+                  href="/pricing"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold text-center hover:from-purple-700 hover:to-pink-700 transition-all shadow-sm"
+                >
+                  ✨ Upgrade to Premium
                 </Link>
               </li>
             )}
