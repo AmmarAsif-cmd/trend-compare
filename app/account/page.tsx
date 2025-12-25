@@ -17,11 +17,19 @@ type UserData = {
   } | null;
 };
 
+type LimitStatus = {
+  remaining: number;
+  limit: number;
+  count: number;
+  allowed: boolean;
+};
+
 export default function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
   const success = searchParams.get("success");
@@ -44,10 +52,27 @@ export default function AccountPage() {
       }
 
       setUserData(data.user);
+
+      // Fetch daily limit status for free users
+      if (data.user?.subscriptionTier !== 'premium') {
+        fetchLimitStatus();
+      }
     } catch (error) {
       console.error("Error fetching user data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLimitStatus = async () => {
+    try {
+      const response = await fetch("/api/user/daily-limit");
+      if (response.ok) {
+        const data = await response.json();
+        setLimitStatus(data);
+      }
+    } catch (error) {
+      console.error("Error fetching limit status:", error);
     }
   };
 
@@ -323,23 +348,83 @@ export default function AccountPage() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Free Plan Info */}
                 <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
                   <div className="flex items-center gap-3 mb-4">
                     <User className="w-6 h-6 text-slate-400" />
                     <h3 className="text-lg font-semibold text-slate-900">Free Plan</h3>
                   </div>
+
+                  {/* Daily Usage */}
+                  {limitStatus && limitStatus.limit !== Infinity && (
+                    <div className="mb-6 p-4 bg-white rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-slate-700">Today's Comparisons</p>
+                        <p className="text-lg font-bold text-slate-900">
+                          {limitStatus.count}/{limitStatus.limit}
+                        </p>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 ${
+                            limitStatus.remaining === 0
+                              ? "bg-red-500"
+                              : limitStatus.remaining <= 5
+                              ? "bg-orange-500"
+                              : "bg-blue-500"
+                          }`}
+                          style={{ width: `${(limitStatus.count / limitStatus.limit) * 100}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-slate-600 mt-2">
+                        {limitStatus.remaining > 0
+                          ? `${limitStatus.remaining} comparison${limitStatus.remaining === 1 ? "" : "s"} remaining today`
+                          : "Daily limit reached - resets at midnight UTC"}
+                      </p>
+                    </div>
+                  )}
+
                   <p className="text-sm text-slate-600 mb-6">
-                    You're currently on the free plan. Upgrade to Premium to unlock advanced AI insights, 
+                    You're currently on the free plan. Upgrade to Premium to unlock advanced AI insights,
                     unlimited comparisons, and professional features.
                   </p>
 
                   <Link
                     href="/pricing"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl mb-6"
                   >
                     <Crown className="w-4 h-4" />
                     Upgrade to Premium
                   </Link>
+
+                  {/* What you're missing */}
+                  <div className="pt-6 border-t border-slate-200">
+                    <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      Premium Features You're Missing
+                    </h4>
+                    <ul className="space-y-2.5">
+                      {[
+                        "Unlimited comparisons (no daily limit)",
+                        "AI-powered insights with category analysis",
+                        "30-day trend predictions and forecasts",
+                        "PDF report downloads",
+                        "CSV/JSON data export",
+                        "Email alerts for trend changes",
+                        "Ad-free experience",
+                        "Priority support",
+                      ].map((feature, idx) => (
+                        <li key={idx} className="flex items-center gap-3">
+                          <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg className="w-3 h-3 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </div>
+                          <span className="text-sm text-slate-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </div>
             )}
