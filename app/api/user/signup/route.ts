@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { sendVerificationEmail } from "@/lib/email";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,13 +70,19 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hash(password, 12);
 
-    // Create user with free unlimited access
+    // Generate verification token (32 random bytes as hex string)
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiry = new Date();
+    tokenExpiry.setHours(tokenExpiry.getHours() + 24); // Token expires in 24 hours
+
+    // Create user with free unlimited access (email NOT verified initially)
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name: name || null,
         subscriptionTier: "free", // All users get free unlimited access
+        emailVerified: null, // Not verified yet
       },
       select: {
         id: true,
@@ -85,10 +93,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Store verification token
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token: verificationToken,
+        expires: tokenExpiry,
+      },
+    });
+
+    // Send verification email (don't block on this)
+    try {
+      await sendVerificationEmail(email, verificationToken);
+      console.log('[Signup] Verification email sent to:', email);
+    } catch (emailError) {
+      console.error('[Signup] Failed to send verification email:', emailError);
+      // Don't fail signup if email fails - user can request new verification email
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Account created successfully",
+      message: "Account created successfully. Please check your email to verify your account.",
       user,
+      requiresVerification: true,
     });
   } catch (error: any) {
     console.error("[Signup] Error:", error);

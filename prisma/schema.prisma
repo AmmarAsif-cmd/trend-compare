@@ -103,29 +103,32 @@ model KeywordPair {
 }
 
 model User {
-  id                String              @id @default(cuid())
-  email             String              @unique
-  name              String?
-  password          String?             // Optional for OAuth users
-  emailVerified     DateTime?
-  image             String?             // For OAuth profile pictures
-  subscriptionTier  String              @default("free")
-  stripeCustomerId  String?             @unique
-  trialStartedAt    DateTime?
-  trialEndsAt       DateTime?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  accounts          Account[]           // OAuth accounts
-  sessions          Session[]           // User sessions
-  comparisonHistory ComparisonHistory[]
-  savedComparisons  SavedComparison[]
-  subscriptions     Subscription[]
-  trendAlerts       TrendAlert[]
-  pdfJobs           PdfJob[]
+  id                   String              @id @default(cuid())
+  email                String              @unique
+  name                 String?
+  password             String?             // Optional for OAuth users
+  emailVerified        DateTime?
+  image                String?             // For OAuth profile pictures
+  subscriptionTier     String              @default("free")
+  stripeCustomerId     String?             @unique
+  trialStartedAt       DateTime?
+  trialEndsAt          DateTime?
+  failedLoginAttempts  Int                 @default(0)  // Track failed login attempts
+  accountLockedUntil   DateTime?           // When account lockout expires
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  accounts             Account[]           // OAuth accounts
+  sessions             Session[]           // User sessions
+  comparisonHistory    ComparisonHistory[]
+  savedComparisons     SavedComparison[]
+  subscriptions        Subscription[]
+  trendAlerts          TrendAlert[]
+  pdfJobs              PdfJob[]
 
   @@index([email])
   @@index([subscriptionTier])
   @@index([trialEndsAt, subscriptionTier])
+  @@index([accountLockedUntil])
 }
 
 model Account {

@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { sendAccountLockoutEmail } from "@/lib/email";
 
 // Ensure AUTH_SECRET is set
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -72,18 +73,35 @@ export const authConfig: NextAuthConfig = {
             return null;
           }
 
+          // Check if account is locked
+          if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
+            const minutesRemaining = Math.ceil((user.accountLockedUntil.getTime() - Date.now()) / 60000);
+            console.log('[Auth] Account locked for:', email, 'Minutes remaining:', minutesRemaining);
+            throw new Error(`Account is temporarily locked due to multiple failed login attempts. Please try again in ${minutesRemaining} minute${minutesRemaining > 1 ? 's' : ''}.`);
+          }
+
+          // If lockout has expired, clear it
+          if (user.accountLockedUntil && user.accountLockedUntil <= new Date()) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                accountLockedUntil: null,
+                failedLoginAttempts: 0,
+              },
+            });
+          }
+
           console.log('[Auth] User found:', {
             id: user.id,
             email: user.email,
             hasPassword: !!user.password,
-            passwordLength: user.password?.length,
-            passwordPrefix: user.password?.substring(0, 10),
+            failedAttempts: user.failedLoginAttempts,
             subscriptionTier: user.subscriptionTier,
           });
 
           if (!user.password) {
-            console.error('[Auth] User has no password set!');
-            return null;
+            console.error('[Auth] User has no password set! User may have signed up with OAuth.');
+            throw new Error('This account was created using Google sign-in. Please log in with Google instead.');
           }
 
           const isPasswordValid = await compare(password, user.password);
@@ -92,10 +110,61 @@ export const authConfig: NextAuthConfig = {
 
           if (!isPasswordValid) {
             console.error('[Auth] Invalid password for user:', email);
-            // Test if password hash format is correct
-            const hashFormat = user.password.substring(0, 7);
-            console.error('[Auth] Password hash format:', hashFormat, '(should start with $2a$12$ or $2b$12$)');
-            return null;
+
+            // Increment failed login attempts
+            const newFailedAttempts = user.failedLoginAttempts + 1;
+
+            if (newFailedAttempts >= 5) {
+              // Lock account for 30 minutes
+              const lockUntil = new Date();
+              lockUntil.setMinutes(lockUntil.getMinutes() + 30);
+
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  failedLoginAttempts: newFailedAttempts,
+                  accountLockedUntil: lockUntil,
+                },
+              });
+
+              console.log('[Auth] Account locked for:', email, 'until:', lockUntil);
+
+              // Send lockout email (don't block on this)
+              try {
+                await sendAccountLockoutEmail(email, lockUntil);
+              } catch (emailError) {
+                console.error('[Auth] Failed to send lockout email:', emailError);
+              }
+
+              throw new Error('Too many failed login attempts. Your account has been locked for 30 minutes. Please check your email for details.');
+            } else {
+              // Just increment failed attempts
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  failedLoginAttempts: newFailedAttempts,
+                },
+              });
+
+              const attemptsRemaining = 5 - newFailedAttempts;
+              throw new Error(`Invalid email or password. ${attemptsRemaining} attempt${attemptsRemaining > 1 ? 's' : ''} remaining before account lockout.`);
+            }
+          }
+
+          // Password is valid - reset failed attempts
+          if (user.failedLoginAttempts > 0) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                failedLoginAttempts: 0,
+              },
+            });
+          }
+
+          // Check if email is verified (only for email/password users)
+          if (!user.emailVerified) {
+            console.log('[Auth] Email not verified for:', email);
+            throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
           }
 
           console.log('[Auth] ✅ Login successful for:', email);
