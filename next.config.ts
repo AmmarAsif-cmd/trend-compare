@@ -17,7 +17,7 @@ const cspReportOnly = [
   "font-src 'self' data:",
   "worker-src 'self' blob:",
   // Network calls your app makes (add any others you actually call)
-  "connect-src 'self' https://suggestqueries.google.com https://www.google-analytics.com https://www.googletagmanager.com https://trendarc.net https://www.trendarc.net https://dev.trendarc.net",
+  "connect-src 'self' https://suggestqueries.google.com https://www.google-analytics.com https://www.googletagmanager.com https://accounts.google.com https://oauth2.googleapis.com https://trendarc.net https://www.trendarc.net https://dev.trendarc.net",
   // No plugins/objects
   "object-src 'none'",
   // Where browsers send CSP reports
