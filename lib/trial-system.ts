@@ -65,7 +65,7 @@ export async function getTrialStatus(userId: string): Promise<TrialStatus> {
   }
 
   const isPremium = user.subscriptionTier === 'premium';
-  const isInTrial = user.subscriptionTier === 'trial' && user.trialEndsAt && !isPast(user.trialEndsAt);
+  const isInTrial = user.subscriptionTier === 'trial' && user.trialEndsAt !== null && !isPast(user.trialEndsAt);
   const hasTrialExpired = user.trialEndsAt ? isPast(user.trialEndsAt) : false;
 
   const daysRemaining = user.trialEndsAt
