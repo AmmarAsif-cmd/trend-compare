@@ -5,6 +5,7 @@ import TopLoadingBar from "@/components/TopLoadingBar";
 import CookieConsent from "@/components/CookieConsent";
 import ConsentManagementPlatform from "@/components/ConsentManagementPlatform";
 import { TrialBanner } from "@/components/TrialBanner";
+import { AnonymousLimitBanner } from "@/components/AnonymousLimitBanner";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Script from "next/script";
 import { Suspense } from "react";
@@ -67,6 +68,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <Suspense fallback={null}>
           <TrialBanner />
+        </Suspense>
+        <Suspense fallback={null}>
+          <AnonymousLimitBanner />
         </Suspense>
         <div className="flex-1">{children}</div>
         <CookieConsent />

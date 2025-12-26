@@ -18,27 +18,23 @@ export type ComparisonHistoryItem = {
 
 /**
  * Record a comparison view in user's history
+ * Supports both authenticated users and anonymous users (tracked by IP)
  */
 export async function recordComparisonView(
   slug: string,
   termA: string,
   termB: string,
   timeframe: string = '12m',
-  geo: string = ''
+  geo: string = '',
+  ipAddress: string | null = null
 ): Promise<void> {
   try {
     const user = await getCurrentUser();
-    if (!user) return; // Don't track for anonymous users
+    const userId = user ? (user as any).id : null;
 
-    const userId = (user as any).id;
-    if (!userId) {
-      console.error('[ComparisonHistory] User missing id:', user);
-      return;
-    }
+    console.log('[ComparisonHistory] Recording view:', { userId, ipAddress, slug, termA, termB, timeframe, geo });
 
-    console.log('[ComparisonHistory] Recording view:', { userId, slug, termA, termB, timeframe, geo });
-
-    // Create history entry (allow duplicates for same user/slug - shows frequency)
+    // Create history entry for authenticated or anonymous users
     await prisma.comparisonHistory.create({
       data: {
         userId,
@@ -47,6 +43,7 @@ export async function recordComparisonView(
         termB,
         timeframe,
         geo: geo || '',
+        ipAddress, // Track IP for anonymous users
       },
     });
 

@@ -233,17 +233,20 @@ model SavedComparison {
 
 model ComparisonHistory {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?  // Optional for anonymous users
   slug      String
   termA     String
   termB     String
   timeframe String   @default("12m")
   geo       String   @default("")
+  ipAddress String?  // Track anonymous users by IP
   viewedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, viewedAt])
+  @@index([ipAddress]) // For anonymous user tracking
+  @@index([ipAddress, viewedAt]) // For anonymous rate limiting
   @@index([slug])
   @@index([viewedAt])
 }
