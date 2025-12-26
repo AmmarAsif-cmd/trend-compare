@@ -3,8 +3,16 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/db";
 
+// Ensure AUTH_SECRET is set
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+if (!authSecret) {
+  console.error('❌ CRITICAL: AUTH_SECRET or NEXTAUTH_SECRET environment variable is not set!');
+  console.error('   NextAuth will not work properly without this.');
+  console.error('   Generate one with: openssl rand -base64 32');
+}
+
 export const authConfig: NextAuthConfig = {
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  secret: authSecret,
   providers: [
     CredentialsProvider({
       name: "credentials",
