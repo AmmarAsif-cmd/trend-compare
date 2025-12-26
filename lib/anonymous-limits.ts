@@ -6,8 +6,7 @@
 import { prisma } from './db';
 import { NextRequest } from 'next/server';
 
-const ANONYMOUS_DAILY_LIMIT = 5; // Anonymous users get 5 comparisons per day
-const ANONYMOUS_HOURLY_LIMIT = 3; // Max 3 per hour to prevent abuse
+const ANONYMOUS_DAILY_LIMIT = 1; // Anonymous users get 1 comparison before signup required
 
 /**
  * Get client IP address from request
@@ -38,7 +37,6 @@ export async function checkAnonymousLimit(ipAddress: string): Promise<{
 }> {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const hourStart = new Date(now.getTime() - 60 * 60 * 1000);
 
   try {
     // Get today's count
@@ -52,20 +50,7 @@ export async function checkAnonymousLimit(ipAddress: string): Promise<{
       },
     });
 
-    // Get hourly count
-    const hourlyCount = await prisma.comparisonHistory.count({
-      where: {
-        userId: null,
-        ipAddress,
-        viewedAt: {
-          gte: hourStart,
-        },
-      },
-    });
-
-    const dailyAllowed = dailyCount < ANONYMOUS_DAILY_LIMIT;
-    const hourlyAllowed = hourlyCount < ANONYMOUS_HOURLY_LIMIT;
-    const allowed = dailyAllowed && hourlyAllowed;
+    const allowed = dailyCount < ANONYMOUS_DAILY_LIMIT;
 
     const tomorrow = new Date(todayStart);
     tomorrow.setDate(tomorrow.getDate() + 1);

@@ -4,7 +4,6 @@ import SiteHeader from "@/components/SiteHeader";
 import TopLoadingBar from "@/components/TopLoadingBar";
 import CookieConsent from "@/components/CookieConsent";
 import ConsentManagementPlatform from "@/components/ConsentManagementPlatform";
-import { TrialBanner } from "@/components/TrialBanner";
 import { AnonymousLimitBanner } from "@/components/AnonymousLimitBanner";
 import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 import { BRAND, TAGLINE } from "@/lib/brand";
@@ -68,9 +67,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Suspense>
           <ConsentManagementPlatform />
           <SiteHeader />
-          <Suspense fallback={null}>
-            <TrialBanner />
-          </Suspense>
           <Suspense fallback={null}>
             <AnonymousLimitBanner />
           </Suspense>
