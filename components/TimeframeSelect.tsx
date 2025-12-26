@@ -22,14 +22,23 @@ export default function TimeframeSelect() {
 
   const current = sp.get("tf") ?? "12m";
 
-  // Check premium status
+  // Check premium status (including active trial)
   useEffect(() => {
     async function checkPremium() {
       try {
         const response = await fetch('/api/user/me');
         if (response.ok) {
           const data = await response.json();
-          setIsPremium(data.user?.subscriptionTier === 'premium' || false);
+          const tier = data.user?.subscriptionTier;
+          const trialEndsAt = data.user?.trialEndsAt;
+
+          // User has premium access if:
+          // 1. They are premium tier
+          // 2. They are in trial and trial hasn't expired
+          const isPremiumTier = tier === 'premium';
+          const isActiveTrial = tier === 'trial' && trialEndsAt && new Date(trialEndsAt) > new Date();
+
+          setIsPremium(isPremiumTier || isActiveTrial);
         }
       } catch (error) {
         console.error('Error checking premium status:', error);

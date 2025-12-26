@@ -16,7 +16,7 @@ export default function SiteHeader() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
 
-  // Check if user is logged in and premium status
+  // Check if user is logged in and premium status (including active trial)
   useEffect(() => {
     async function checkAuth() {
       try {
@@ -24,7 +24,17 @@ export default function SiteHeader() {
         if (response.ok) {
           const data = await response.json();
           setIsLoggedIn(true);
-          setIsPremium(data.user?.subscriptionTier === 'premium');
+
+          const tier = data.user?.subscriptionTier;
+          const trialEndsAt = data.user?.trialEndsAt;
+
+          // User has premium access if:
+          // 1. They are premium tier
+          // 2. They are in trial and trial hasn't expired
+          const isPremiumTier = tier === 'premium';
+          const isActiveTrial = tier === 'trial' && trialEndsAt && new Date(trialEndsAt) > new Date();
+
+          setIsPremium(isPremiumTier || isActiveTrial);
         } else {
           setIsLoggedIn(false);
           setIsPremium(false);

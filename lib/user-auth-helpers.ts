@@ -63,11 +63,11 @@ export async function isPremiumUser(): Promise<boolean> {
 /**
  * Get user's subscription tier
  */
-export async function getUserTier(): Promise<"free" | "premium" | null> {
+export async function getUserTier(): Promise<"free" | "premium" | "trial" | null> {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  return (user as any).subscriptionTier as "free" | "premium";
+  return (user as any).subscriptionTier as "free" | "premium" | "trial";
 }
 
 /**
@@ -92,7 +92,7 @@ export async function getUserWithSubscription(userId: string) {
 
 /**
  * Check if user can access premium features
- * Returns true if user is premium or in trial
+ * Returns true if user is premium or in an active trial
  */
 export async function canAccessPremium(): Promise<boolean> {
   const user = await getCurrentUser();
@@ -103,7 +103,7 @@ export async function canAccessPremium(): Promise<boolean> {
     console.error('[canAccessPremium] User object missing id:', user);
     return false;
   }
-  
+
   const fullUser = await getUserWithSubscription(userId);
 
   if (!fullUser) return false;
@@ -111,7 +111,15 @@ export async function canAccessPremium(): Promise<boolean> {
   // Check if user is premium tier
   if (fullUser.subscriptionTier === "premium") return true;
 
-  // Check if user has active subscription in trial
+  // Check if user is in trial and trial hasn't expired
+  if (fullUser.subscriptionTier === "trial" && fullUser.trialEndsAt) {
+    const now = new Date();
+    if (fullUser.trialEndsAt > now) {
+      return true;
+    }
+  }
+
+  // Check if user has active subscription in trial (legacy check)
   const activeSub = fullUser.subscriptions[0];
   if (activeSub && activeSub.status === "trialing") return true;
 

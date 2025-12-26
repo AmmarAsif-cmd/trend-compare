@@ -4,6 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import TopLoadingBar from "@/components/TopLoadingBar";
 import CookieConsent from "@/components/CookieConsent";
 import ConsentManagementPlatform from "@/components/ConsentManagementPlatform";
+import { TrialBanner } from "@/components/TrialBanner";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Script from "next/script";
 import { Suspense } from "react";
@@ -64,6 +65,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Suspense>
         <ConsentManagementPlatform />
         <SiteHeader />
+        <Suspense fallback={null}>
+          <TrialBanner />
+        </Suspense>
         <div className="flex-1">{children}</div>
         <CookieConsent />
         <footer className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700/50">

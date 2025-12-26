@@ -39,16 +39,23 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hash(password, 12);
 
-    // Create user with free tier subscription
+    // Calculate trial period (7 days from now)
+    const trialStartDate = new Date();
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    // Create user with trial subscription
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name: name || null,
-        subscriptionTier: "free",
+        subscriptionTier: "trial",
+        trialStartedAt: trialStartDate,
+        trialEndsAt: trialEndDate,
         subscriptions: {
           create: {
-            tier: "free",
+            tier: "trial",
             status: "active",
           },
         },

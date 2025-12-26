@@ -104,15 +104,30 @@ async function incrementCount(key: string): Promise<number> {
 }
 
 /**
- * Check if user has premium access
+ * Check if user has premium access (including active trial)
  */
 async function isPremiumUser(userId: string): Promise<boolean> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { subscriptionTier: true },
+      select: {
+        subscriptionTier: true,
+        trialEndsAt: true,
+      },
     });
-    return user?.subscriptionTier === 'premium';
+
+    if (!user) return false;
+
+    // Premium users always have access
+    if (user.subscriptionTier === 'premium') return true;
+
+    // Trial users have access if trial hasn't expired
+    if (user.subscriptionTier === 'trial' && user.trialEndsAt) {
+      const now = new Date();
+      return user.trialEndsAt > now;
+    }
+
+    return false;
   } catch (error) {
     console.error('[AIBudget] Error checking premium status:', error);
     return false;

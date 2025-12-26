@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
         email: fullUser.email,
         name: fullUser.name,
         subscriptionTier: fullUser.subscriptionTier,
+        trialStartedAt: fullUser.trialStartedAt,
+        trialEndsAt: fullUser.trialEndsAt,
         subscription: activeSubscription
           ? {
               status: activeSubscription.status,

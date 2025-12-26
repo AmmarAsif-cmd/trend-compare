@@ -110,6 +110,8 @@ model User {
   emailVerified     DateTime?
   subscriptionTier  String              @default("free")
   stripeCustomerId  String?             @unique
+  trialStartedAt    DateTime?
+  trialEndsAt       DateTime?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   comparisonHistory ComparisonHistory[]
@@ -120,6 +122,7 @@ model User {
 
   @@index([email])
   @@index([subscriptionTier])
+  @@index([trialEndsAt, subscriptionTier])
 }
 
 model Subscription {
