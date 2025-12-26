@@ -6,6 +6,7 @@ import CookieConsent from "@/components/CookieConsent";
 import ConsentManagementPlatform from "@/components/ConsentManagementPlatform";
 import { TrialBanner } from "@/components/TrialBanner";
 import { AnonymousLimitBanner } from "@/components/AnonymousLimitBanner";
+import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Script from "next/script";
 import { Suspense } from "react";
@@ -61,19 +62,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 text-slate-900 antialiased flex flex-col">
-        <Suspense fallback={null}>
-          <TopLoadingBar />
-        </Suspense>
-        <ConsentManagementPlatform />
-        <SiteHeader />
-        <Suspense fallback={null}>
-          <TrialBanner />
-        </Suspense>
-        <Suspense fallback={null}>
-          <AnonymousLimitBanner />
-        </Suspense>
-        <div className="flex-1">{children}</div>
-        <CookieConsent />
+        <SessionProviderWrapper>
+          <Suspense fallback={null}>
+            <TopLoadingBar />
+          </Suspense>
+          <ConsentManagementPlatform />
+          <SiteHeader />
+          <Suspense fallback={null}>
+            <TrialBanner />
+          </Suspense>
+          <Suspense fallback={null}>
+            <AnonymousLimitBanner />
+          </Suspense>
+          <div className="flex-1">{children}</div>
+          <CookieConsent />
         <footer className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700/50">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAzNGMwIDIuMjA5LTEuNzkxIDQtNCA0cy00LTEuNzkxLTQtNCAxLjc5MS00IDQtNCA0IDEuNzkxIDQgNHptMTAtMTBjMCAyLjIwOS0xLjc5MSA0LTQgNHMtNC0xLjc5MS00LTQgMS43OTEtNCA0LTQgNCAxLjc5MSA0IDR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDMiLz48L2c+PC9zdmc+')] opacity-20" />
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -127,6 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </footer>
+        </SessionProviderWrapper>
         {/* Google tag (gtag.js)  */}
         {/*<Script
           strategy="afterInteractive"
