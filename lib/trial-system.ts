@@ -90,7 +90,8 @@ export async function hasPremiumAccess(userId: string): Promise<boolean> {
 }
 
 /**
- * Convert trial user to expired (ran by cron job)
+ * Convert expired trials to premium (automatic conversion after 7 days)
+ * In production, you may want to check for payment method before converting
  */
 export async function expireTrials(): Promise<number> {
   const result = await prisma.user.updateMany({
@@ -101,10 +102,24 @@ export async function expireTrials(): Promise<number> {
       },
     },
     data: {
-      subscriptionTier: 'free',
+      subscriptionTier: 'premium',
     },
   });
 
-  console.log(`[Trial] Expired ${result.count} trials`);
+  console.log(`[Trial] Converted ${result.count} trial users to premium`);
   return result.count;
+}
+
+/**
+ * Convert a specific trial user to premium manually
+ */
+export async function convertTrialToPremium(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      subscriptionTier: 'premium',
+    },
+  });
+
+  console.log(`[Trial] Manually converted user ${userId} to premium`);
 }

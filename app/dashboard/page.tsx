@@ -8,6 +8,8 @@ import { getCurrentUser, getUserWithSubscription, canAccessPremium } from '@/lib
 import { getSavedComparisons } from '@/lib/saved-comparisons';
 import { getComparisonHistory, getMostViewedComparisons } from '@/lib/comparison-history';
 import { getTodayComparisonCount } from '@/lib/daily-limit';
+import { getUserStatistics, getUserAchievements } from '@/lib/user-statistics';
+import { UserStatisticsPanel } from '@/components/UserStatistics';
 import Link from 'next/link';
 import { Bookmark, Clock, TrendingUp, BarChart3, ArrowRight, Search, Plus, Bell, Calendar } from 'lucide-react';
 
@@ -31,10 +33,12 @@ export default async function DashboardPage() {
   }
 
   // Fetch user data
-  const [savedResult, historyResult, mostViewed] = await Promise.all([
+  const [savedResult, historyResult, mostViewed, userStats, userAchievements] = await Promise.all([
     getSavedComparisons(50, 0),
     getComparisonHistory(20, 0),
     getMostViewedComparisons(10),
+    getUserStatistics(userId),
+    getUserAchievements(userId),
   ]);
 
   // Debug logging
@@ -53,11 +57,16 @@ export default async function DashboardPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2">
-            My Dashboard
+            Welcome back, {fullUser?.name || 'there'}! 👋
           </h1>
           <p className="text-lg text-slate-600">
-            Manage your saved comparisons and view your history
+            Here's your TrendArc overview and achievements
           </p>
+        </div>
+
+        {/* Statistics and Achievements Panel */}
+        <div className="mb-8">
+          <UserStatisticsPanel stats={userStats} achievements={userAchievements} />
         </div>
 
         {/* Stats Overview */}

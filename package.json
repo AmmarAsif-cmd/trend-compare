@@ -39,6 +39,7 @@
     "dotenv": "^17.2.3",
     "dynamic": "^4.2.2",
     "google-trends-api": "^4.9.2",
+    "html2canvas": "^1.4.1",
     "is-url-superb": "^6.1.0",
     "leo-profanity": "^1.8.0",
     "lucide-react": "^0.552.0",

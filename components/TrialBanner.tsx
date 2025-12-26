@@ -38,20 +38,20 @@ export function TrialBanner() {
       <div className="mx-auto max-w-7xl flex items-center justify-between gap-4">
         <div className="flex-1 text-left">
           {isLastDay ? (
-            <span className="font-bold">⏰ Last day of your trial!</span>
+            <span className="font-bold">🎉 Last day of trial - Premium access continues automatically!</span>
           ) : (
             <span>
-              ✨ Trial active: <strong>{daysRemaining} days remaining</strong> to enjoy premium features
+              ✨ Premium trial active: <strong>{daysRemaining} days</strong> to explore all features - Premium access continues after trial
             </span>
           )}
         </div>
 
         <div className="flex gap-2">
           <button
-            onClick={() => router.push('/pricing')}
+            onClick={() => router.push('/account')}
             className="px-4 py-1.5 bg-white text-gray-900 rounded-md hover:bg-gray-100 font-semibold text-sm transition-colors"
           >
-            Upgrade Now
+            View Account
           </button>
           {!isLastDay && (
             <button
