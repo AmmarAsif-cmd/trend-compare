@@ -28,7 +28,7 @@ export interface ImpactMetrics {
     week4Average: number;
   };
   velocity: {
-    timeToP eak: number; // Hours from start to peak
+    timeToPeak: number; // Hours from start to peak
     peakDecayRate: number; // Percentage decrease per day
     accelerationTrend: 'increasing' | 'stable' | 'decreasing'; // Compared to previous occurrences
   };
@@ -222,7 +222,7 @@ function calculateVelocity(
     }
   }
 
-  const timeTopeakHours = Math.round((peakTime - riseStartTime) / oneHour);
+  const timeToPeak = Math.round((peakTime - riseStartTime) / oneHour);
 
   // Calculate decay rate (first 7 days after peak)
   const sevenDaysAfter = peakTime + 7 * 24 * oneHour;
@@ -240,7 +240,7 @@ function calculateVelocity(
   }
 
   return {
-    timeTopeakHours,
+    timeToPeak,
     peakDecayRate,
     accelerationTrend: 'stable', // Would need historical data to determine
   };
@@ -372,7 +372,7 @@ Search Volume Spike:
 → Day ${metrics.duration.totalDays}: Returns to baseline
 
 Peak Characteristics:
-→ Time to peak: ${metrics.velocity.timeTopeakHours} hours
+→ Time to peak: ${metrics.velocity.timeToPeak} hours
 → Duration: ${metrics.duration.totalDays} days
 → Half-life: ${metrics.duration.halfLifeDays} days (50% reduction)
 → Decay rate: ${metrics.velocity.peakDecayRate}% per day

@@ -458,3 +458,4 @@ The branch includes extensive documentation:
 3. Test thoroughly with free and premium users
 4. Deploy to production
 
+

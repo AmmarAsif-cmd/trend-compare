@@ -22,6 +22,7 @@ import { getCache } from '@/lib/cache';
 import { createCacheKey } from '@/lib/cache/hash';
 import { smoothSeries } from '@/lib/series';
 import { generatePDF } from '@/lib/pdf-generator-enhanced';
+import type { ForecastBundleSummary, AIInsights } from '@/lib/insights/contracts';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -170,6 +171,27 @@ export async function POST(request: NextRequest) {
         cache.get(aiInsightsKey),
       ]);
 
+      // Type guard to check if cached value is a valid ForecastBundleSummary
+      const isValidForecast = (value: any): value is ForecastBundleSummary => {
+        return value && 
+          typeof value === 'object' && 
+          typeof value.id === 'string' &&
+          (value.term === 'termA' || value.term === 'termB') &&
+          typeof value.direction === 'string' &&
+          value.forecast14Day &&
+          value.forecast30Day;
+      };
+
+      // Type guard to check if cached value is a valid AIInsights
+      const isValidAIInsights = (value: any): value is AIInsights => {
+        return value && 
+          typeof value === 'object' && 
+          typeof value.id === 'string' &&
+          typeof value.generatedAt === 'string' &&
+          value.dataFreshness &&
+          typeof value.dataFreshness === 'object';
+      };
+
       // Get InsightsPack (read-only, no AI generation)
       const insightsPackResult = await getInsightsPack({
         slug,
@@ -181,19 +203,23 @@ export async function POST(request: NextRequest) {
         series,
         signals,
         interpretations,
+        scores: {
+          termA: { overall: scores.termA.overall, breakdown: { momentum: scores.termA.breakdown.momentum } },
+          termB: { overall: scores.termB.overall, breakdown: { momentum: scores.termB.breakdown.momentum } },
+        },
         decisionGuidance: {
           marketer: decisionGuidance.marketer,
           founder: decisionGuidance.founder,
         },
         forecasts: {
-          termA: cachedForecastA || undefined,
-          termB: cachedForecastB || undefined,
+          termA: isValidForecast(cachedForecastA) ? cachedForecastA : undefined,
+          termB: isValidForecast(cachedForecastB) ? cachedForecastB : undefined,
         },
         peaks: {
           termA: [],
           termB: [],
         },
-        aiInsights: cachedAIInsights || undefined,
+        aiInsights: isValidAIInsights(cachedAIInsights) ? cachedAIInsights : undefined,
         dataSource: 'google-trends',
         lastUpdatedAt: row.updatedAt.toISOString(),
       });

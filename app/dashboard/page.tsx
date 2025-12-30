@@ -8,7 +8,7 @@ import { getCurrentUser } from '@/lib/user-auth-helpers';
 import { getSavedComparisons } from '@/lib/saved-comparisons';
 import { getComparisonHistory, getMostViewedComparisons } from '@/lib/comparison-history';
 import Link from 'next/link';
-import { Bookmark, Clock, TrendingUp, BarChart3, ArrowRight, Search, Plus, Bell } from 'lucide-react';
+import { Bookmark, Clock, TrendingUp, BarChart3, ArrowRight, Search, Plus } from 'lucide-react';
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -18,11 +18,10 @@ export default async function DashboardPage() {
   }
 
   // Fetch user data
-  const [savedResult, historyResult, mostViewed, alerts] = await Promise.all([
+  const [savedResult, historyResult, mostViewed] = await Promise.all([
     getSavedComparisons(50, 0),
     getComparisonHistory(20, 0),
     getMostViewedComparisons(10),
-    isPremium ? getUserAlerts(userId) : Promise.resolve([]),
   ]);
 
   // Debug logging
@@ -49,7 +48,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className={`grid grid-cols-1 sm:grid-cols-3 ${isPremium ? 'lg:grid-cols-4' : ''} gap-4 sm:gap-6 mb-8`}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
@@ -86,23 +85,6 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {isPremium && (
-            <Link
-              href="/dashboard/alerts"
-              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow hover:border-indigo-300 group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <Bell className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-600 mb-1">Active Alerts</p>
-                  <p className="text-3xl font-bold text-slate-900">{alerts.length}</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-              </div>
-            </Link>
-          )}
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">

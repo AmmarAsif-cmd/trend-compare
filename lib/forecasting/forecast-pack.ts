@@ -10,7 +10,8 @@ import { forecast, type ForecastResult, type TimeSeriesPoint } from './core';
 import { computeHeadToHeadForecast, type HeadToHeadForecast } from './head-to-head';
 import { createHash } from 'crypto';
 import { calculateTrendArcScoreTimeSeries, type TrendArcScoreTimeSeries } from '@/lib/trendarc-score-time-series';
-import type { ComparisonCategory } from '@/lib/trendarc-score';
+import type { ComparisonCategory } from '@/lib/category-resolver';
+import type { SeriesPoint } from '@/lib/trends';
 
 export interface ForecastPack {
   termA: ForecastResult;
@@ -35,7 +36,7 @@ function hashSeriesData(series: TimeSeriesPoint[]): string {
  * This provides more accurate forecasts using the same data shown in the main chart
  */
 function convertToTimeSeries(
-  series: Array<{ date: string; [key: string]: number }>,
+  series: SeriesPoint[],
   term: string,
   category: ComparisonCategory = 'general'
 ): TimeSeriesPoint[] {
@@ -74,7 +75,7 @@ function convertToTimeSeries(
     const timeSeries = series
       .map(point => ({
         date: String(point.date),
-        value: Number(point[termKey] || 0),
+        value: Number((point[termKey] as number | string) || 0),
       }))
       .filter(point => isFinite(point.value) && point.value >= 0)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -326,7 +327,7 @@ export async function getOrComputeForecastPack(
   comparisonId: string,
   termA: string,
   termB: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: SeriesPoint[],
   timeframe: string,
   horizon: number = 28,
   category: ComparisonCategory = 'general'

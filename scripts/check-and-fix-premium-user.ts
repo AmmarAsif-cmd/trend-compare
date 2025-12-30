@@ -125,7 +125,7 @@ async function main() {
       },
     });
 
-    if (finalUser) {
+    if (finalUser && finalUser.password) {
       const passwordValid = await compare(password, finalUser.password);
       console.log(`   User exists: ✅`);
       console.log(`   Password correct: ${passwordValid ? '✅' : '❌'}`);

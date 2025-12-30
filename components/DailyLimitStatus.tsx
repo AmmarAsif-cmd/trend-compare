@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AlertCircle, Infinity } from 'lucide-react';
+import { AlertCircle, Infinity as InfinityIcon } from 'lucide-react';
 
 type LimitStatus = {
   allowed: boolean;
@@ -42,7 +42,7 @@ export default function DailyLimitStatus() {
   if (status.remaining === Infinity) {
     return (
       <div className="flex items-center gap-2 text-xs text-slate-500">
-        <Infinity className="w-4 h-4" />
+        <InfinityIcon className="w-4 h-4" />
         <span>Unlimited</span>
       </div>
     );

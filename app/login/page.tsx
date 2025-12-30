@@ -126,14 +126,10 @@ export default function LoginPage() {
           {/* Google Sign In Button */}
           <button
             onClick={async () => {
-              const result = await signIn("google", { 
+              await signIn("google", { 
                 callbackUrl: redirect,
                 redirect: true 
               });
-              // If redirect is false, manually trigger auth state change
-              if (!result?.ok && typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('auth-state-change'));
-              }
             }}
             className="w-full py-3 px-4 bg-white border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors flex items-center justify-center gap-3 mb-6"
           >

@@ -127,6 +127,7 @@ model User {
   Session             Session[]
   subscriptions       Subscription[]
   trendAlerts         TrendAlert[]
+  pdfJobs             PdfJob[]
 
   @@index([email])
   @@index([subscriptionTier])
@@ -382,6 +383,29 @@ model TrendAlert {
   @@index([slug])
   @@index([status])
   @@index([lastChecked])
+}
+
+model PdfJob {
+  id                String    @id @default(cuid())
+  userId            String
+  slug              String
+  timeframe         String
+  geo               String
+  status            String    @default("pending")
+  fileUrl           String?
+  signedUrl         String?
+  signedUrlExpiresAt DateTime?
+  error             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  completedAt       DateTime?
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slug, timeframe, geo])
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model ApiConfig {

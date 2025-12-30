@@ -12,6 +12,7 @@ import { getOrBuildComparison } from '@/lib/getOrBuild';
 import { fromSlug, toCanonicalSlug } from '@/lib/slug';
 import { validateTopic } from '@/lib/validateTermsServer';
 import { smoothSeries } from '@/lib/series';
+import type { SeriesPoint } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 600; // 10 minutes
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
     }
 
     const actualTerms = row.terms as string[];
-    const rawSeries = row.series as Array<{ date: string; [key: string]: number }>;
+    const rawSeries = row.series as SeriesPoint[];
     
     // Ensure series is an array
     if (!Array.isArray(rawSeries) || rawSeries.length === 0) {

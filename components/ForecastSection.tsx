@@ -70,7 +70,7 @@ interface ForecastPack {
 interface Props {
   termA: string;
   termB: string;
-  series: Array<{ date: string; [key: string]: number }>;
+  series: Array<{ date: string; [key: string]: number | string }>;
   forecastPack: ForecastPack | null;
   trustStats?: {
     totalEvaluated: number;

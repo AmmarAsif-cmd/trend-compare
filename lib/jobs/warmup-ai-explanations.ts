@@ -87,7 +87,7 @@ async function generateAIInsightsForComparison(
   slug: string,
   termA: string,
   termB: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: Array<{ date: string; [key: string]: number | string }>,
   category: string | null,
   scores: { termA: any; termB: any }
 ): Promise<AIInsights | null> {
@@ -129,18 +129,18 @@ async function generateAIInsightsForComparison(
     const topPeaksA = peakEvents
       .filter(p => p.term === termA)
       .slice(0, 3)
-      .map(p => ({
-        id: p.id,
+      .map((p, idx) => ({
+        id: `${termA}-${p.date}-${idx}`,
         term: 'termA' as const,
-        type: p.type as any,
-        peakDate: p.peakDate.toISOString(),
-        magnitude: p.magnitude,
-        duration: p.duration,
-        classification: p.classification as any,
-        startDate: p.startDate.toISOString(),
-        endDate: p.endDate.toISOString(),
-        context: p.context,
-        peakHash: stableHash({ term: termA, date: p.peakDate, magnitude: p.magnitude }),
+        type: 'spike' as any,
+        peakDate: p.date,
+        magnitude: p.value,
+        duration: 1,
+        classification: 'significant' as any,
+        startDate: p.date,
+        endDate: p.date,
+        context: p.event?.title || '',
+        peakHash: stableHash({ term: termA, date: p.date, magnitude: p.value }),
         generatedAt: new Date().toISOString(),
         dataFreshness: {
           lastUpdatedAt: new Date().toISOString(),
@@ -151,18 +151,18 @@ async function generateAIInsightsForComparison(
     const topPeaksB = peakEvents
       .filter(p => p.term === termB)
       .slice(0, 3)
-      .map(p => ({
-        id: p.id,
+      .map((p, idx) => ({
+        id: `${termB}-${p.date}-${idx}`,
         term: 'termB' as const,
-        type: p.type as any,
-        peakDate: p.peakDate.toISOString(),
-        magnitude: p.magnitude,
-        duration: p.duration,
-        classification: p.classification as any,
-        startDate: p.startDate.toISOString(),
-        endDate: p.endDate.toISOString(),
-        context: p.context,
-        peakHash: stableHash({ term: termB, date: p.peakDate, magnitude: p.magnitude }),
+        type: 'spike' as any,
+        peakDate: p.date,
+        magnitude: p.value,
+        duration: 1,
+        classification: 'significant' as any,
+        startDate: p.date,
+        endDate: p.date,
+        context: p.event?.title || '',
+        peakHash: stableHash({ term: termB, date: p.date, magnitude: p.value }),
         generatedAt: new Date().toISOString(),
         dataFreshness: {
           lastUpdatedAt: new Date().toISOString(),
@@ -177,27 +177,16 @@ async function generateAIInsightsForComparison(
     // Build AI insights
     const aiInsights: AIInsights = {
       id: `ai-insights-${slug}-${stableHash({ termA, termB, slug })}`,
-      meaningExplanation: meaningExplanation ? {
-        text: meaningExplanation.summary,
-        confidence: meaningExplanation.confidence,
-        generatedAt: meaningExplanation.generatedAt,
-        promptVersion: PROMPT_VERSION,
-      } : undefined,
-      peakExplanations: peakExplanations?.peakExplanations.map(exp => ({
-        peakId: exp.peakId,
-        text: exp.summary,
-        confidence: exp.confidence,
-        generatedAt: exp.generatedAt,
-        promptVersion: PROMPT_VERSION,
-      })),
+      meaningExplanation: undefined, // Skip for background jobs
+      peakExplanations: undefined, // Skip for background jobs
       generatedAt: new Date().toISOString(),
       dataFreshness: {
         lastUpdatedAt: new Date().toISOString(),
         source: 'ai-insights',
       },
       aiInsightsHash: stableHash({
-        meaning: meaningExplanation?.summary,
-        peaks: peakExplanations?.peakExplanations.map(e => e.summary),
+        meaning: undefined,
+        peaks: undefined,
       }),
     };
 

@@ -5,7 +5,8 @@
  */
 
 import type { SeriesPoint } from './trends';
-import { CATEGORY_WEIGHTS, type ComparisonCategory } from './trendarc-score';
+import { CATEGORY_WEIGHTS } from './trendarc-score';
+import type { ComparisonCategory } from './category-resolver';
 
 export type TrendArcScoreTimeSeries = Array<{
   date: string;

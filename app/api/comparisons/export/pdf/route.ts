@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { canAccessPremium, getCurrentUser } from '@/lib/user-auth-helpers';
+import { getCurrentUser } from '@/lib/user-auth-helpers';
 import { prisma } from '@/lib/db';
 import { fromSlug, toCanonicalSlug } from '@/lib/slug';
 import { validateTopic } from '@/lib/validateTermsServer';
@@ -64,15 +64,6 @@ async function generateSignedUrl(fileUrl: string, expiresInSeconds: number = 360
 
 export async function POST(request: NextRequest) {
   try {
-    // Check premium access (server-side enforcement)
-    const hasPremium = await canAccessPremium();
-    if (!hasPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required to export PDFs' },
-        { status: 403 }
-      );
-    }
-
     // Get user
     const user = await getCurrentUser();
     if (!user || !(user as any).id) {
@@ -130,7 +121,7 @@ export async function POST(request: NextRequest) {
     // Check if PDF job already exists and is completed
     const existingJob = await prisma.pdfJob.findUnique({
       where: {
-        user_slug_timeframe_geo: {
+        userId_slug_timeframe_geo: {
           userId,
           slug: canonical,
           timeframe,
@@ -244,15 +235,6 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check premium access
-    const hasPremium = await canAccessPremium();
-    if (!hasPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required' },
-        { status: 403 }
-      );
-    }
-
     const user = await getCurrentUser();
     if (!user || !(user as any).id) {
       return NextResponse.json(

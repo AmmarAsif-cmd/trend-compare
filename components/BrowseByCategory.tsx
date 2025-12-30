@@ -61,8 +61,8 @@ export default function BrowseByCategory({ categories, hybridData }: Props) {
             </div>
           </div>
 
-          {/* Comparisons Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Comparisons Grid - Show more comparisons */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {comparisons.map((comparison, idx) => (
               <Link
                 key={comparison.slug}

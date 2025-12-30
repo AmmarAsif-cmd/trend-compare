@@ -370,7 +370,7 @@ async function getArticlesForPeriod(userId: string, period: string): Promise<Art
   return [];
 }
 
-async function getPredictionsForPeriod(userId: string, period: string) {
+async function getPredictionsForPeriod(userId: string, period: string): Promise<Array<{ keyword: string; estimatedTraffic?: { average: number } }>> {
   // Get predictions we provided in this period
   return [];
 }

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       limit: limitCheck.limit,
       count: limitCheck.count,
       message: statusMessage.message,
-      showUpgrade: statusMessage.showUpgrade,
+      showUpgrade: statusMessage.showSignup,
     });
   } catch (error: any) {
     console.error('[API Limit] Error checking limit:', error);

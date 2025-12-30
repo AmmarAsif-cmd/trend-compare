@@ -84,7 +84,7 @@ async function getPopularComparisons(limit: number = 50): Promise<Array<{
  */
 async function generateForecast(
   term: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: Array<{ date: string; [key: string]: number | string }>,
   category: string = 'general',
   termLabel: 'termA' | 'termB' = 'termA'
 ): Promise<ForecastBundleSummary | null> {

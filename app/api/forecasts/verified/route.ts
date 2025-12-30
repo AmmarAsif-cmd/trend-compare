@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get evaluated forecast runs for this comparison
+    const terms = Array.isArray(comparison.terms) ? (comparison.terms as string[]) : [];
     const forecastRuns = await prisma.forecastRun.findMany({
       where: {
         comparisonId: comparison.id,
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       include: {
         evaluations: true,
         forecastPoints: {
-          where: term ? { term: term === comparison.terms[0] ? 'termA' : 'termB' } : undefined,
+          where: term && terms.length > 0 ? { term: term === terms[0] ? 'termA' : 'termB' } : undefined,
           orderBy: { date: 'asc' },
         },
       },

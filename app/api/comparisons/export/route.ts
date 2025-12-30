@@ -1,10 +1,9 @@
 /**
  * GET /api/comparisons/export
  * 
- * Premium-only export endpoint with zero recomputation
+ * Export endpoint with zero recomputation
  * 
  * Requirements:
- * - No exports for free users (block server-side)
  * - Exports must use stored InsightsPack + cached chart data
  * - JSON export: return InsightsPack directly
  * - CSV export: include raw series points, Signals, Interpretations, forecast points
@@ -12,7 +11,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { canAccessPremium } from '@/lib/user-auth-helpers';
 import { getOrBuildComparison } from '@/lib/getOrBuild';
 import { fromSlug, toCanonicalSlug } from '@/lib/slug';
 import { validateTopic } from '@/lib/validateTermsServer';
@@ -24,6 +22,8 @@ import { runIntelligentComparison } from '@/lib/intelligent-comparison';
 import { getCache } from '@/lib/cache';
 import { createCacheKey } from '@/lib/cache/hash';
 import { smoothSeries } from '@/lib/series';
+import type { ForecastBundleSummary } from '@/lib/insights/contracts/forecast-bundle-summary';
+import type { AIInsights } from '@/lib/insights/contracts/ai-insights';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,15 +35,6 @@ function isValidTopic(
 
 export async function GET(request: NextRequest) {
   try {
-    // Check premium access (server-side enforcement)
-    const hasPremium = await canAccessPremium();
-    if (!hasPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required to export data' },
-        { status: 403 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
     const format = searchParams.get('format') || 'json'; // 'json' or 'csv'
@@ -177,9 +168,9 @@ export async function GET(request: NextRequest) {
     const aiInsightsKey = createCacheKey('ai-insights', canonical, timeframe);
     
     const [cachedForecastA, cachedForecastB, cachedAIInsights] = await Promise.all([
-      cache.get(forecastKeyA),
-      cache.get(forecastKeyB),
-      cache.get(aiInsightsKey),
+      cache.get<ForecastBundleSummary>(forecastKeyA),
+      cache.get<ForecastBundleSummary>(forecastKeyB),
+      cache.get<AIInsights>(aiInsightsKey),
     ]);
 
     // Get InsightsPack (read-only, no AI generation)
@@ -193,6 +184,10 @@ export async function GET(request: NextRequest) {
       series,
       signals,
       interpretations,
+      scores: {
+        termA: { overall: scores.termA.overall, breakdown: { momentum: scores.termA.breakdown.momentum } },
+        termB: { overall: scores.termB.overall, breakdown: { momentum: scores.termB.breakdown.momentum } },
+      },
       decisionGuidance: {
         marketer: decisionGuidance.marketer,
         founder: decisionGuidance.founder,
@@ -248,18 +243,18 @@ export async function GET(request: NextRequest) {
 
       // Signals
       csvRows.push('=== Signals ===');
-      csvRows.push('Type,Severity,Term,Value,Description');
-      for (const signal of insightsPack.signals) {
-        csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},${signal.value || ''},"${signal.description || ''}"`);
+      csvRows.push('Type,Severity,Term,Description,Confidence');
+      for (const signal of signals) {
+        csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},"${signal.description || ''}",${signal.confidence || 0}`);
       }
       csvRows.push('');
 
       // Interpretations
       csvRows.push('=== Interpretations ===');
-      csvRows.push('Category,Confidence,Summary,Reasons');
+      csvRows.push('Category,Term,Confidence,Text,Evidence');
       for (const interpretation of insightsPack.interpretations) {
-        const reasons = interpretation.reasons?.join('; ') || '';
-        csvRows.push(`${interpretation.category},${interpretation.confidence},"${interpretation.summary || ''}","${reasons}"`);
+        const evidence = interpretation.evidence?.join('; ') || '';
+        csvRows.push(`${interpretation.category},${interpretation.term},${interpretation.confidence},"${interpretation.text || ''}","${evidence}"`);
       }
       csvRows.push('');
 

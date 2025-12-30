@@ -173,7 +173,8 @@ function forecastETS(
   for (const a of [0.1, 0.2, 0.3, 0.4, 0.5]) {
     for (const b of [0.05, 0.1, 0.15, 0.2]) {
       for (const g of hasSeasonality ? [0.05, 0.1, 0.15, 0.2] : [0]) {
-        const mse = fitETS(values, a, b, g, seasonLength, hasSeasonality);
+        const result = fitETS(values, a, b, g, seasonLength, hasSeasonality);
+        const mse = typeof result === 'number' ? result : result.mse;
         if (mse < bestMSE) {
           bestMSE = mse;
           bestParams = { alpha: a, beta: b, gamma: g };
@@ -187,8 +188,9 @@ function forecastETS(
   gamma = bestParams.gamma;
 
   // Re-fit with best parameters to get final state
+  const fitResult = fitETS(values, alpha, beta, gamma, seasonLength, hasSeasonality, true);
   const { level: finalLevel, trend: finalTrend, seasonal: finalSeasonal, mse } = 
-    fitETS(values, alpha, beta, gamma, seasonLength, hasSeasonality, true);
+    typeof fitResult === 'number' ? { level: 0, trend: 0, seasonal: [], mse: fitResult } : fitResult;
 
   // Generate forecasts
   const points: ForecastPoint[] = [];

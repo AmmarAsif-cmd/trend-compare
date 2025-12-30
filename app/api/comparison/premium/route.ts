@@ -48,6 +48,7 @@ import {
   type WarmupKeyParams
 } from '@/lib/forecast/cacheKeys';
 import { getOrComputeForecastPack } from '@/lib/forecasting/forecast-pack';
+import type { SeriesPoint } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
 
@@ -316,7 +317,7 @@ export async function GET(request: NextRequest) {
     }
 
     const actualTerms = row.terms as string[];
-    const series = row.series as Array<{ date: string; [key: string]: number }>;
+    const series = row.series as SeriesPoint[];
     
     if (!Array.isArray(series) || series.length === 0) {
       return NextResponse.json(
@@ -451,7 +452,7 @@ export async function GET(request: NextRequest) {
         series,
         timeframe,
         28, // 4 weeks default
-        row.category || 'general' // Use category from database for TrendArc Score calculation
+        (row.category as any) || 'general' // Use category from database for TrendArc Score calculation
       ).catch(error => {
         console.error('[Premium] Error computing forecast pack:', error);
         return null;
@@ -491,9 +492,6 @@ export async function GET(request: NextRequest) {
         warmupTriggered = true;
         await triggerWarmup(canonical, dataHash, timeframe, geo);
       }
-
-      // Determine needsWarmup
-      const needsWarmup = !hasForecasts;
 
       // Load debug information if DEBUG_API_HEADERS is enabled
       let debugInfo: any = undefined;

@@ -19,6 +19,7 @@ import { getGeographicBreakdown } from '@/lib/getGeographicData';
 import { fromSlug, toCanonicalSlug } from '@/lib/slug';
 import { validateTopic } from '@/lib/validateTermsServer';
 import { smoothSeries } from '@/lib/series';
+import type { SeriesPoint } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
     }
 
     const actualTerms = row.terms as string[];
-    const rawSeries = row.series as Array<{ date: string; [key: string]: number }>;
+    const rawSeries = row.series as SeriesPoint[];
     
     if (!Array.isArray(rawSeries) || rawSeries.length === 0) {
       return NextResponse.json(

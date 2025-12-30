@@ -74,6 +74,16 @@ export function warmupFinishedAtKey(params: WarmupKeyParams): string {
   return createCacheKey('warmup-finished-at', slug, tf, geo, dataHash);
 }
 
+/**
+ * Generate warmup debug ID cache key
+ * 
+ * Format: warmup-debug-id:{slug}:{timeframe}:{geo}:{dataHash}
+ */
+export function warmupDebugIdKey(params: WarmupKeyParams): string {
+  const { slug, tf, geo, dataHash } = params;
+  return createCacheKey('warmup-debug-id', slug, tf, geo, dataHash);
+}
+
 // Legacy function signatures for backward compatibility (will be removed)
 export function warmupLockKey(params: WarmupKeyParams): string {
   const { slug, tf, geo, dataHash } = params;

@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getOrBuildComparison } from '@/lib/getOrBuild';
+import type { SeriesPoint } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -49,7 +50,7 @@ async function fetchActualValues(
       return [];
     }
 
-    const series = comparison.series as Array<{ date: string; [key: string]: number }>;
+    const series = comparison.series as SeriesPoint[];
     const actuals: Array<{ date: string; value: number }> = [];
 
     for (const point of series) {
@@ -196,7 +197,7 @@ async function evaluateForecastRun(forecastRun: any): Promise<void> {
         errorsB.push(error);
         percentageErrorsB.push(pctError);
         intervalHits80B.push(actualB >= pointB.lower80 && actualB <= pointB.upper80);
-        intervalHits95B.push(actualB >= pointB.lower95 && pointB.upper95);
+        intervalHits95B.push(actualB >= pointB.lower95 && actualB <= pointB.upper95);
 
         // Check direction
         if (i > 0) {
@@ -394,4 +395,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 

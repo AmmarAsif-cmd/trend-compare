@@ -149,7 +149,7 @@ export default function DataSources() {
         </span>
         <span className="flex items-center gap-2">
           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          Updated hourly
+          Updated regularly
         </span>
       </div>
     </div>

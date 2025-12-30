@@ -143,33 +143,44 @@ export async function getTrendingByCategory(
 }
 
 /**
- * Get hybrid comparisons for a category (curated + trending)
- * Returns up to 4 comparisons: curated first, then trending if available
+ * Get hybrid comparisons for a category (curated + trending + random)
+ * Returns up to 10 comparisons with time-based randomization
  */
 export async function getHybridComparisons(
   category: ComparisonCategory,
-  limit: number = 4
+  limit: number = 10
 ): Promise<Array<{ slug: string; title: string; trending?: boolean }>> {
   const categoryData = CATEGORY_DATA.find((c) => c.id === category);
   if (!categoryData) return [];
 
-  // Get curated comparisons (first 2)
+  // Import random comparisons helper
+  const { getRandomComparisonsForCategory } = await import('./randomComparisons');
+  
+  // Get random comparisons from database (time-based randomized)
+  const randomComparisons = await getRandomComparisonsForCategory(category, limit);
+  
+  // If we got enough random comparisons, use them
+  if (randomComparisons.length >= limit) {
+    return randomComparisons.slice(0, limit);
+  }
+
+  // Fallback: Get curated comparisons (first 2)
   const curated = categoryData.curated.slice(0, 2).map((c) => ({
     slug: c.slug,
     title: c.title,
     trending: false,
   }));
 
-  // Get trending comparisons (up to 2)
-  const trending = await getTrendingByCategory(category, 2);
+  // Get trending comparisons (up to 3)
+  const trending = await getTrendingByCategory(category, 3);
   const trendingMapped = trending.map((t) => ({
     slug: t.slug,
     title: t.title,
     trending: true,
   }));
 
-  // Combine: curated + trending, remove duplicates, limit to requested amount
-  const combined = [...curated, ...trendingMapped];
+  // Combine: random + curated + trending, remove duplicates
+  const combined = [...randomComparisons, ...curated, ...trendingMapped];
   const uniqueSlugs = new Set<string>();
   const unique = combined.filter((item) => {
     if (uniqueSlugs.has(item.slug)) return false;

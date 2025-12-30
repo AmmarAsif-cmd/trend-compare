@@ -20,7 +20,7 @@ export interface CacheEntry<T> {
 }
 
 export class RedisStore {
-  private redis: Redis | null = null;
+  private redis: InstanceType<typeof Redis> | null = null;
   private initialized = false;
 
   constructor(redisUrl?: string, redisToken?: string) {
@@ -59,7 +59,7 @@ export class RedisStore {
     }
 
     try {
-      const data = await this.redis!.get<string>(key);
+      const data = await this.redis!.get(key) as string | null;
       if (!data) {
         return null;
       }
@@ -154,7 +154,7 @@ export class RedisStore {
 
     try {
       const tagKey = `tag:${tag}`;
-      const keys = await this.redis!.smembers<string[]>(tagKey);
+      const keys = await this.redis!.smembers(tagKey) as string[] | null;
       
       if (keys && keys.length > 0) {
         await this.redis!.del(...keys);

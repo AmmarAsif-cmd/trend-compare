@@ -10,7 +10,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import type { ComparisonCategory } from './trendarc-score';
+import type { ComparisonCategory } from './category-resolver';
 
 export type NormalizedTerm = {
   original: string;

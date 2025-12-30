@@ -24,9 +24,9 @@ export interface GetOrSetOptions {
   forceRefresh?: boolean;
 }
 
-interface PendingCompute {
-  promise: Promise<unknown>;
-  resolve: (value: unknown) => void;
+interface PendingCompute<T = unknown> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
   reject: (error: Error) => void;
 }
 
@@ -34,7 +34,7 @@ class Cache {
   private config: CacheConfig;
   private memoryStore: MemoryStore;
   private redisStore: RedisStore | null = null;
-  private pendingComputes = new Map<string, PendingCompute>();
+  private pendingComputes = new Map<string, PendingCompute<any>>();
 
   constructor() {
     this.config = loadCacheConfig();
@@ -180,7 +180,7 @@ class Cache {
 
     this.pendingComputes.set(key, {
       promise: pendingPromise,
-      resolve: resolvePending!,
+      resolve: resolvePending! as (value: unknown) => void,
       reject: rejectPending!,
     });
 

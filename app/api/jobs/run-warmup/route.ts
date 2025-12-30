@@ -37,7 +37,7 @@ function isValidTopic(
  */
 async function generateForecast(
   term: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: SeriesPoint[],
   category: string = 'general',
   termLabel: 'termA' | 'termB' = 'termA'
 ): Promise<ForecastBundleSummary | null> {
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No comparison data available');
       }
 
-      const series = row.series as Array<{ date: string; [key: string]: number }>;
+      const series = row.series as SeriesPoint[];
       const category = row.category || 'general';
 
       // Generate forecasts for both terms
@@ -237,8 +237,8 @@ export async function POST(request: NextRequest) {
 
       // Write forecasts to cache using canonical keys
       const cache = getCache();
-      const keyA = forecastKey(job.slug, termA, job.timeframe, job.geo, job.dataHash);
-      const keyB = forecastKey(job.slug, termB, job.timeframe, job.geo, job.dataHash);
+      const keyA = forecastKey({ slug: job.slug, term: termA, tf: job.timeframe, geo: job.geo, dataHash: job.dataHash });
+      const keyB = forecastKey({ slug: job.slug, term: termB, tf: job.timeframe, geo: job.geo, dataHash: job.dataHash });
 
       await Promise.all([
         cache.set(keyA, forecastA, 24 * 60 * 60, 7 * 24 * 60 * 60), // 24h fresh, 7d stale
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Store debug ID in cache for debugging
-      const debugIdKey = warmupDebugIdKey(job.slug, job.timeframe, job.geo, job.dataHash);
+      const debugIdKey = warmupDebugIdKey({ slug: job.slug, tf: job.timeframe, geo: job.geo, dataHash: job.dataHash });
       await cache.set(debugIdKey, job.debugId, 24 * 60 * 60);
 
       // Mark as ready
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
       console.error(`[RunWarmup] ❌ Job ${job.id} failed:`, errorMessage);
 
       // Store error in cache
-      const errorKey = warmupErrorKey(job.slug, job.timeframe, job.geo, job.dataHash);
+      const errorKey = warmupErrorKey({ slug: job.slug, tf: job.timeframe, geo: job.geo, dataHash: job.dataHash });
       await getCache().set(errorKey, errorMessage, 10 * 60); // 10 min TTL
 
       // Mark as failed

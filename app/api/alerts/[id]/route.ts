@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user-auth-helpers';
 import { updateAlertStatus, deleteAlert } from '@/lib/trend-alerts';
-import { canAccessPremium } from '@/lib/user-auth-helpers';
 
 export async function PATCH(
   request: NextRequest,
@@ -19,14 +18,6 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'You must be logged in' },
         { status: 401 }
-      );
-    }
-
-    const isPremium = await canAccessPremium();
-    if (!isPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required' },
-        { status: 403 }
       );
     }
 
@@ -64,14 +55,6 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'You must be logged in' },
         { status: 401 }
-      );
-    }
-
-    const isPremium = await canAccessPremium();
-    if (!isPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required' },
-        { status: 403 }
       );
     }
 

@@ -1,10 +1,9 @@
 /**
  * API Route: Generate and download PDF report
- * Premium feature - requires authentication
+ * Requires authentication
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { canAccessPremium } from '@/lib/user-auth-helpers';
 import { generateComparisonPDF } from '@/lib/pdf-generator';
 import { getOrBuildComparison } from '@/lib/getOrBuild';
 import { runIntelligentComparison } from '@/lib/intelligent-comparison';
@@ -15,15 +14,6 @@ import { getMaxHistoricalData } from '@/lib/get-max-historical-data';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check premium access
-    const hasPremium = await canAccessPremium();
-    if (!hasPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required to download PDF reports' },
-        { status: 403 }
-      );
-    }
-
     // Get parameters
     const searchParams = request.nextUrl.searchParams;
     const slug = searchParams.get('slug');
@@ -177,7 +167,13 @@ export async function GET(request: NextRequest) {
         },
       },
       aiInsights: aiInsights,
-      geographicData: geographicData,
+      geographicData: geographicData ? {
+        countries: [
+          ...geographicData.termA_dominance.map(r => ({ name: r.country, termAValue: r.termA_value, termBValue: r.termB_value })),
+          ...geographicData.termB_dominance.map(r => ({ name: r.country, termAValue: r.termA_value, termBValue: r.termB_value })),
+          ...geographicData.competitive_regions.map(r => ({ name: r.country, termAValue: r.termA_value, termBValue: r.termB_value })),
+        ]
+      } : undefined,
       predictions: (predictionsA || predictionsB) ? {
         predictionsA,
         predictionsB,
@@ -195,7 +191,7 @@ export async function GET(request: NextRequest) {
     const filename = `${formatTerm(terms[0])}-vs-${formatTerm(terms[1])}-Trend-Report.pdf`;
 
     // Return PDF
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,

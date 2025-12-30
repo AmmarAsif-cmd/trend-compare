@@ -22,7 +22,6 @@ import DataExportButton from "@/components/DataExportButton";
 import SaveComparisonButton from "@/components/SaveComparisonButton";
 import CreateAlertButton from "@/components/CreateAlertButton";
 import ComparisonHistoryTracker from "@/components/ComparisonHistoryTracker";
-import DailyLimitStatus from "@/components/DailyLimitStatus";
 import StructuredData from "@/components/StructuredData";
 import GeographicBreakdown from "@/components/GeographicBreakdown";
 import { getGeographicBreakdown } from "@/lib/getGeographicData";
@@ -74,11 +73,11 @@ export async function generateMetadata({
   params,
   searchParams,
 }: {
-  params: { slug: string };
-  searchParams: { tf?: string; geo?: string };
+  params: Promise<{ slug: string }>;
+  searchParams?: { tf?: string; geo?: string };
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { tf, geo } = await searchParams;
+  const { tf, geo } = searchParams || {};
 
   const raw = fromSlug(slug);
   const checked = raw.map(validateTopic);
@@ -172,8 +171,8 @@ export default async function ComparePage({
   params,
   searchParams,
 }: {
-  params: { slug: string };
-  searchParams: { tf?: string; geo?: string; smooth?: string };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tf?: string; geo?: string; smooth?: string }>;
 }) {
   const { slug } = await params;
   const { tf, geo, smooth } = await searchParams;
@@ -399,7 +398,6 @@ export default async function ComparePage({
       verdict: { margin, confidence: margin < 5 ? 40 : margin < 15 ? 60 : 80, headline: '', recommendation: '', evidence: [] },
       performance: { sourcesQueried: ['Google Trends'] },
       category: { category: 'general' as const },
-      performance: { sourcesQueried: ['Google Trends'] },
     };
     
     verdictData = {
@@ -543,9 +541,6 @@ export default async function ComparePage({
               </div>
             </div>
 
-            {/* Daily Limit Status (Free Users) */}
-            <DailyLimitStatus />
-
             {/* Track comparison view in history */}
             <ComparisonHistoryTracker
               slug={canonical || slug}
@@ -641,7 +636,7 @@ export default async function ComparePage({
           )}
 
           {/* Fallback when AI is unavailable */}
-          {!aiInsights && aiInsightsError !== 'Premium subscription required' && aiInsightsError && (
+          {!aiInsights && aiInsightsError && (
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-200 shadow-lg p-4 sm:p-6 print:hidden">
               <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
@@ -873,27 +868,22 @@ export default async function ComparePage({
           )}
 
           {/* Geographic Breakdown */}
-          {geographicData && geographicData.countries && geographicData.countries.length > 0 && (
+          {geographicData && (geographicData.termA_dominance.length > 0 || geographicData.termB_dominance.length > 0 || geographicData.competitive_regions.length > 0) && (
             <GeographicBreakdown
               termA={actualTerms[0]}
               termB={actualTerms[1]}
-              data={geographicData}
+              geoData={geographicData}
             />
           )}
 
           {/* Related Comparisons */}
           <RelatedComparisons
-            slug={canonical || slug}
-            termA={actualTerms[0]}
-            termB={actualTerms[1]}
-            category={verdictData.category}
+            currentSlug={canonical || slug}
+            terms={actualTerms}
           />
 
           {/* FAQ Section */}
-          <FAQSection
-            termA={actualTerms[0]}
-            termB={actualTerms[1]}
-          />
+          <FAQSection />
         </div>
 
         {/* Sidebar - Trending Comparisons & Ads */}

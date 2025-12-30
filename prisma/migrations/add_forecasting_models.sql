@@ -102,3 +102,4 @@ ALTER TABLE "ForecastRun" ADD CONSTRAINT "ForecastRun_comparisonId_fkey" FOREIGN
 ALTER TABLE "ForecastPoint" ADD CONSTRAINT "ForecastPoint_forecastRunId_fkey" FOREIGN KEY ("forecastRunId") REFERENCES "ForecastRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ForecastEvaluation" ADD CONSTRAINT "ForecastEvaluation_forecastRunId_fkey" FOREIGN KEY ("forecastRunId") REFERENCES "ForecastRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+

@@ -15,7 +15,7 @@ export type SimplePrediction = {
  * Free users get this instead of full predictions
  */
 export function generateSimplePrediction(
-  series: Array<{ date: string; [key: string]: number }>,
+  series: Array<{ date: string; [key: string]: number | string }>,
   term: string
 ): SimplePrediction | null {
   if (!series || series.length < 7) {
@@ -24,7 +24,7 @@ export function generateSimplePrediction(
 
   // Get last 30 days of data (or available data)
   const recentData = series.slice(-30);
-  const termValues = recentData.map((point) => point[term] || 0).filter((v) => v > 0);
+  const termValues = recentData.map((point) => Number(point[term]) || 0).filter((v) => v > 0);
 
   if (termValues.length < 7) {
     return null;

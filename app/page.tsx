@@ -5,7 +5,6 @@ import FeaturesSection from "@/components/FeaturesSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
-import SimpleTrendingKeywords from "@/components/SimpleTrendingKeywords";
 import DataSources from "@/components/DataSources";
 
 export default function Home() {
@@ -17,13 +16,6 @@ export default function Home() {
       <div className="relative bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <BrowseByCategoryServer />
-        </div>
-      </div>
-
-      {/* Live Trending Keywords */}
-      <div className="relative bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 py-20 sm:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SimpleTrendingKeywords />
         </div>
       </div>
 

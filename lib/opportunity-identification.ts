@@ -49,7 +49,7 @@ export interface OpportunityAnalysis {
   content: ContentOpportunity[];
   timing: TimingOpportunity[];
   competitiveGaps: string[]; // What competitors are NOT covering
-  contrarian Angles: string[]; // Opposite perspectives that get engagement
+  contrarianAngles: string[]; // Opposite perspectives that get engagement
   summary: {
     highestROI: ContentOpportunity | null;
     quickestWin: ContentOpportunity | null;

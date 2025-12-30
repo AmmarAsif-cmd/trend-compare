@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user-auth-helpers';
 import { createTrendAlert, getUserAlerts } from '@/lib/trend-alerts';
-import { canAccessPremium } from '@/lib/user-auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,15 +15,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'You must be logged in' },
         { status: 401 }
-      );
-    }
-
-    // Check premium access
-    const isPremium = await canAccessPremium();
-    if (!isPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required' },
-        { status: 403 }
       );
     }
 
@@ -48,15 +38,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'You must be logged in' },
         { status: 401 }
-      );
-    }
-
-    // Check premium access
-    const isPremium = await canAccessPremium();
-    if (!isPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required to create alerts' },
-        { status: 403 }
       );
     }
 

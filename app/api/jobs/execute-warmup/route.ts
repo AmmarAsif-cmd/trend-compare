@@ -25,6 +25,7 @@ import { validateTopic } from '@/lib/validateTermsServer';
 import type { ForecastBundleSummary } from '@/lib/insights/contracts/forecast-bundle-summary';
 import { PREDICTION_ENGINE_VERSION } from '@/lib/insights/contracts/versions';
 import { stableHash } from '@/lib/cache/hash';
+import type { SeriesPoint } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -40,7 +41,7 @@ function isValidTopic(
  */
 async function generateForecast(
   term: string,
-  series: Array<{ date: string; [key: string]: number }>,
+  series: SeriesPoint[],
   category: string = 'general',
   termLabel: 'termA' | 'termB' = 'termA'
 ): Promise<ForecastBundleSummary | null> {
@@ -219,7 +220,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No comparison data available');
       }
 
-      const series = row.series as Array<{ date: string; [key: string]: number }>;
+      const series = row.series as SeriesPoint[];
       const category = row.category || 'general';
 
       // Step 3: Generate forecasts for both terms

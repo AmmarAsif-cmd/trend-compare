@@ -18,6 +18,7 @@ export const ADMIN_ROUTES = {
   blog: `/admin/blog`,
   keywords: `/admin/keywords`,
   system: `/admin/system`,
+  users: `/admin/users`,
   dashboard: `/admin`,
   api: {
     // API routes stay at /api/admin/
@@ -30,7 +31,7 @@ export const ADMIN_ROUTES = {
 /**
  * Get the full admin URL for a given route
  */
-export function getAdminUrl(route: 'login' | 'blog' | 'keywords' | 'system' | 'dashboard'): string {
+export function getAdminUrl(route: 'login' | 'blog' | 'keywords' | 'system' | 'users' | 'dashboard'): string {
   return ADMIN_ROUTES[route];
 }
 

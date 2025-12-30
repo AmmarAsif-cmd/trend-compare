@@ -11,25 +11,6 @@ export async function GET(request: NextRequest) {
     // Get total users
     const totalUsers = await prisma.user.count();
 
-    // Get free users
-    const freeUsers = await prisma.user.count({
-      where: { subscriptionTier: "free" },
-    });
-
-    // Get premium users
-    const premiumUsers = await prisma.user.count({
-      where: { subscriptionTier: "premium" },
-    });
-
-    // Get active subscriptions
-    const activeSubscriptions = await prisma.subscription.count({
-      where: {
-        status: {
-          in: ["active", "trialing"],
-        },
-      },
-    });
-
     // Get new users today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -42,35 +23,39 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Get new subscriptions this month
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
-    firstDayOfMonth.setHours(0, 0, 0, 0);
-
-    const newSubscriptionsThisMonth = await prisma.subscription.count({
+    // Get active users (users who have viewed comparisons)
+    const activeUsers = await prisma.user.count({
       where: {
-        createdAt: {
-          gte: firstDayOfMonth,
-        },
-        status: {
-          in: ["active", "trialing"],
+        comparisonHistory: {
+          some: {},
         },
       },
     });
 
-    // Calculate Monthly Recurring Revenue (MRR)
-    const mrr = premiumUsers * 4.99;
+    // Get users with Google OAuth
+    const googleUsers = await prisma.user.count({
+      where: {
+        lastSignInMethod: "google",
+      },
+    });
+
+    // Get users with email/password
+    const emailUsers = await prisma.user.count({
+      where: {
+        password: { not: null },
+      },
+    });
 
     return NextResponse.json({
       success: true,
       stats: {
         total: totalUsers,
-        free: freeUsers,
-        premium: premiumUsers,
-        activeSubscriptions,
+        active: activeUsers,
         newToday: newUsersToday,
-        newSubscriptionsThisMonth,
-        mrr: Math.round(mrr * 100) / 100, // Round to 2 decimal places
+        authentication: {
+          google: googleUsers,
+          email: emailUsers,
+        },
       },
     });
   } catch (error) {
@@ -81,12 +66,12 @@ export async function GET(request: NextRequest) {
         error: "Failed to fetch stats",
         stats: {
           total: 0,
-          free: 0,
-          premium: 0,
-          activeSubscriptions: 0,
+          active: 0,
           newToday: 0,
-          newSubscriptionsThisMonth: 0,
-          mrr: 0,
+          authentication: {
+            google: 0,
+            email: 0,
+          },
         },
       },
       { status: 500 }

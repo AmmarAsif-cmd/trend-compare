@@ -13,7 +13,7 @@
 
 import type { SeriesPoint } from './trends';
 import { calculateTrendArcScoreTimeSeries, type TrendArcScoreTimeSeries } from './trendarc-score-time-series';
-import type { ComparisonCategory } from './trendarc-score';
+import type { ComparisonCategory } from './category-resolver';
 
 export type PredictionResult = {
   predictions: Array<{
@@ -179,11 +179,11 @@ export async function predictTrend(options: PredictionOptions): Promise<Predicti
   
   // Use all methods if 'all' is specified
   const useAllMethods = methods.includes('all');
-  const methodsToUse: Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'> = useAllMethods 
-    ? ['linear', 'polynomial', 'exponential', 'holt-winters', 'moving-average'] 
-    : methods.filter((m): m is 'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial' => 
+  const methodsToUse: Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'> = useAllMethods
+    ? (['linear', 'polynomial', 'exponential', 'holt-winters', 'moving-average'] as Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'>)
+    : (methods.filter(m =>
         m !== 'all' && (m === 'linear' || m === 'exponential' || m === 'holt-winters' || m === 'moving-average' || m === 'polynomial')
-      );
+      ) as Array<'linear' | 'exponential' | 'holt-winters' | 'moving-average' | 'polynomial'>);
 
   // Run all selected methods
   const methodResults = await Promise.all(
@@ -248,9 +248,6 @@ export async function predictTrend(options: PredictionOptions): Promise<Predicti
       dataQuality,
       volatility,
       trendStrength,
-      momentum,
-      acceleration,
-      seasonality: seasonality ? seasonality.strength : 0,
     },
   };
 }
