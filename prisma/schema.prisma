@@ -24,6 +24,7 @@ model Comparison {
   lastVisited DateTime?
   visitCount  Int       @default(0)
   viewCount   Int       @default(0)
+  forecastRuns ForecastRun[]
 
   @@unique([slug, timeframe, geo], name: "slug_timeframe_geo")
   @@index([slug])
@@ -103,23 +104,34 @@ model KeywordPair {
 }
 
 model User {
-  id                String              @id @default(cuid())
-  email             String              @unique
-  name              String?
-  password          String
-  emailVerified     DateTime?
-  subscriptionTier  String              @default("free")
-  stripeCustomerId  String?             @unique
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  comparisonHistory ComparisonHistory[]
-  savedComparisons  SavedComparison[]
-  subscriptions     Subscription[]
-  trendAlerts       TrendAlert[]
-  pdfJobs           PdfJob[]
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  name                String?
+  password            String?
+  emailVerified       DateTime?
+  subscriptionTier    String              @default("free")
+  stripeCustomerId    String?             @unique
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  trialStartedAt      DateTime?
+  trialEndsAt         DateTime?
+  image               String?
+  failedLoginAttempts Int                 @default(0)
+  accountLockedUntil  DateTime?
+  lastSignInMethod    String?             // "google" or "credentials"
+  passwordResetToken  String?
+  passwordResetExpires DateTime?
+  Account             Account[]
+  comparisonHistory   ComparisonHistory[]
+  savedComparisons    SavedComparison[]
+  Session             Session[]
+  subscriptions       Subscription[]
+  trendAlerts         TrendAlert[]
 
   @@index([email])
   @@index([subscriptionTier])
+  @@index([accountLockedUntil])
+  @@index([trialEndsAt, subscriptionTier])
 }
 
 model Subscription {
@@ -179,26 +191,101 @@ model PredictionStats {
   updatedAt           DateTime @updatedAt
 }
 
+model ForecastRun {
+  id                String             @id @default(cuid())
+  comparisonId      String
+  comparison        Comparison         @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+  timeframe         String
+  horizon           Int                @default(28) // Forecast horizon in days (default 4 weeks)
+  dataHash          String             // Hash of input series data
+  modelTermA        String             // 'ets' | 'arima' | 'naive'
+  modelTermB        String
+  confidenceScoreA  Int                // 0-100
+  confidenceScoreB  Int
+  metricsA          Json               // { mae, mape, intervalCoverage80, intervalCoverage95, sampleSize }
+  metricsB          Json
+  qualityFlagsA     Json               // { seriesTooShort, tooSpiky, eventShockLikely }
+  qualityFlagsB     Json
+  winnerProbability Float?             // P(termB > termA) from head-to-head analysis
+  expectedMargin    Float?             // Expected margin (B - A)
+  leadChangeRisk    String?            // 'low' | 'medium' | 'high'
+  computedAt        DateTime           @default(now())
+  evaluatedAt       DateTime?
+  forecastPoints    ForecastPoint[]
+  evaluations       ForecastEvaluation[]
+
+  @@unique([comparisonId, timeframe, horizon, dataHash], name: "forecast_run_unique")
+  @@index([comparisonId])
+  @@index([computedAt])
+  @@index([evaluatedAt])
+}
+
+model ForecastPoint {
+  id            String       @id @default(cuid())
+  forecastRunId String
+  forecastRun   ForecastRun  @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
+  term          String       // 'termA' | 'termB'
+  date          DateTime
+  value         Float        // Forecasted value
+  lower80       Float        // 80% prediction interval lower bound
+  upper80       Float        // 80% prediction interval upper bound
+  lower95       Float        // 95% prediction interval lower bound
+  upper95       Float        // 95% prediction interval upper bound
+  actualValue   Float?       // Actual observed value (filled during evaluation)
+
+  @@unique([forecastRunId, term, date], name: "forecast_point_unique")
+  @@index([forecastRunId])
+  @@index([date])
+}
+
+model ForecastEvaluation {
+  id                  String       @id @default(cuid())
+  forecastRunId       String
+  forecastRun          ForecastRun @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
+  evaluatedAt         DateTime     @default(now())
+  winnerCorrect       Boolean?     // Whether predicted winner matched actual
+  directionCorrectA   Boolean?     // Whether termA direction was correct
+  directionCorrectB   Boolean?     // Whether termB direction was correct
+  intervalHitRate80   Float?       // % of actuals within 80% interval
+  intervalHitRate95   Float?       // % of actuals within 95% interval
+  mae                 Float?       // Mean Absolute Error over forecast horizon
+  mape                Float?       // Mean Absolute Percentage Error
+  evaluatedPoints     Int          @default(0) // Number of points evaluated
+
+  @@unique([forecastRunId], name: "forecast_evaluation_unique")
+  @@index([forecastRunId])
+  @@index([evaluatedAt])
+}
+
+model ForecastTrustStats {
+  id                      String   @id @default(cuid())
+  period                  String   @unique // e.g., "last90days", "alltime"
+  totalEvaluated          Int      @default(0)
+  winnerAccuracyPercent   Float?   // % of correct winner predictions
+  intervalCoveragePercent Float?   // Average interval coverage
+  last90DaysAccuracy     Float?   // Accuracy for last 90 days
+  sampleSize              Int      @default(0)
+  lastCalculated          DateTime @default(now())
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([period])
+}
+
 model PeakExplanationCache {
   id           String   @id @default(cuid())
-  cacheKey     String   @unique // Format: "keyword:YYYY-MM-DD"
-
-  // Peak data
+  cacheKey     String   @unique
   keyword      String
   peakDate     DateTime
-  peakValue    Int      // 0-100
-
-  // Explanation data
-  explanation  String   @db.Text
-  confidence   Int      // 0-100
-  events       String?  @db.Text // JSON array of RealEvent[]
-  bestEvent    String?  @db.Text // JSON object of RealEvent
-  citations    String   @db.Text // JSON array of citations
+  peakValue    Int
+  explanation  String
+  confidence   Int
+  events       String?
+  bestEvent    String?
+  citations    String
   verified     Boolean  @default(false)
   sourceCount  Int      @default(0)
-  status       String   // 'verified' | 'probable' | 'possible' | 'unknown'
-
-  // Metadata
+  status       String
   createdAt    DateTime @default(now())
   lastAccessed DateTime @default(now())
   accessCount  Int      @default(0)
@@ -230,61 +317,40 @@ model SavedComparison {
 
 model ComparisonHistory {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
   slug      String
   termA     String
   termB     String
   timeframe String   @default("12m")
   geo       String   @default("")
   viewedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, viewedAt])
   @@index([slug])
   @@index([viewedAt])
-}
-
-model PdfJob {
-  id          String   @id @default(cuid())
-  userId      String
-  slug        String
-  timeframe   String
-  geo         String
-  status      String   @default("pending") // pending, processing, completed, failed
-  fileUrl     String?
-  signedUrl   String?
-  signedUrlExpiresAt DateTime?
-  error       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  completedAt DateTime?
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, slug, timeframe, geo], name: "user_slug_timeframe_geo")
-  @@index([userId])
-  @@index([slug])
-  @@index([status])
-  @@index([createdAt])
+  @@index([ipAddress])
+  @@index([ipAddress, viewedAt])
 }
 
 model WarmupJob {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   slug        String
   timeframe   String
   geo         String
   dataHash    String
-  status      String   @default("queued") // queued, running, ready, failed
-  attempts    Int      @default(0)
+  status      String    @default("queued")
+  attempts    Int       @default(0)
   lastError   String?
-  debugId     String   @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  debugId     String    @default(dbgenerated("(gen_random_uuid())::text"))
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   startedAt   DateTime?
   completedAt DateTime?
 
-  @@unique([slug, timeframe, geo, dataHash], name: "warmup_job_unique", map: "warmup_job_unique")
+  @@unique([slug, timeframe, geo, dataHash], map: "WarmupJob_warmup_job_unique_key")
   @@index([status])
   @@index([slug])
   @@index([createdAt])
@@ -301,7 +367,6 @@ model TrendAlert {
   threshold      Float?
   baselineScoreA Float?
   baselineScoreB Float?
-  baselineDate   DateTime?
   changePercent  Float?    @default(10)
   frequency      String    @default("daily")
   status         String    @default("active")
@@ -310,6 +375,7 @@ model TrendAlert {
   notifyCount    Int?      @default(0)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  baselineDate   DateTime?
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -398,4 +464,56 @@ model ProcessedLedger {
   value      String   @id
   lastSeenAt DateTime @default(now())
   usedCount  Int      @default(0)
+}
+
+model Account {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model KeywordCategory {
+  id         String   @id
+  keyword    String   @unique
+  category   String
+  confidence Int
+  source     String
+  reasoning  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+
+  @@index([category])
+  @@index([source])
+  @@index([updatedAt])
+}
+
+model Session {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }

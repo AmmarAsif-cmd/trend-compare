@@ -91,7 +91,7 @@ export default function CTASection() {
             {/* Trust signals */}
             <div className="mt-12 pt-8 border-t border-white/20">
               <p className="text-sm text-white/70">
-                ✓ No credit card required  •  ✓ 100% Free forever  •  ✓ Access all features instantly
+                ✓ Access all features instantly
               </p>
             </div>
           </div>

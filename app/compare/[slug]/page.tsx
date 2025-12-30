@@ -12,7 +12,7 @@ import { smoothSeries, nonZeroRatio } from "@/lib/series";
 import { getDataSources } from "@/lib/trends-router";
 import BackButton from "@/components/BackButton";
 import FAQSection from "@/components/FAQSection";
-import TopThisWeekServer from "@/components/TopThisWeekServer";
+import RelatedComparisonsSidebar from "@/components/RelatedComparisonsSidebar";
 import { validateTopic } from "@/lib/validateTermsServer";
 import RelatedComparisons from "@/components/RelatedComparisons";
 import AdSense from "@/components/AdSense";
@@ -31,7 +31,7 @@ import AIKeyInsights from "@/components/AI/AIKeyInsights";
 import AIPeakExplanations from "@/components/AI/AIPeakExplanations";
 import AIPrediction from "@/components/AI/AIPrediction";
 import AIPracticalImplications from "@/components/AI/AIPracticalImplications";
-import { canAccessPremium } from "@/lib/user-auth-helpers";
+import ComparisonViewTracker from "@/components/ComparisonViewTracker";
 import ComparisonVerdict from "@/components/ComparisonVerdict";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
@@ -39,14 +39,10 @@ import PeakEventCitations from "@/components/PeakEventCitations";
 import ComparisonPoll from "@/components/ComparisonPoll";
 import KeyMetricsDashboard from "@/components/KeyMetricsDashboard";
 import ActionableInsightsPanel from "@/components/ActionableInsightsPanel";
-import TrendPrediction from "@/components/TrendPrediction";
-import SimplePrediction from "@/components/SimplePrediction";
-import PredictionAccuracyBadge from "@/components/PredictionAccuracyBadge";
-import { predictTrend } from "@/lib/prediction-engine-enhanced";
-import { getMaxHistoricalData } from "@/lib/get-max-historical-data";
-import { savePrediction, verifyPredictions } from "@/lib/prediction-tracking-enhanced";
+import ForecastSection from "@/components/ForecastSection";
+import { getOrComputeForecastPack } from "@/lib/forecasting/forecast-pack";
+import { prisma } from "@/lib/db";
 import VerifiedPredictionsPanel from "@/components/VerifiedPredictionsPanel";
-import { getDaysToStore, samplePredictions, getStorageStats } from "@/lib/prediction-sampling";
 import QuickSummaryCard from "@/components/QuickSummaryCard";
 import ViewCounter from "@/components/ViewCounter";
 import ScoreBreakdownTooltip from "@/components/ScoreBreakdownTooltip";
@@ -202,19 +198,8 @@ export default async function ComparePage({
     redirect(`/compare/${canonical}${q.toString() ? `?${q.toString()}` : ""}`);
   }
 
-  // Check premium access early to enforce timeframe restrictions
-  const hasPremiumAccess = await canAccessPremium();
-  
-  // Enforce timeframe restrictions for free users (only 12m allowed)
+  // All features are free - no premium restrictions
   let timeframe = tf ?? "12m";
-  if (!hasPremiumAccess && timeframe !== "12m") {
-    // Free users trying to access premium timeframe - redirect to 12m
-    const q = new URLSearchParams();
-    q.set("tf", "12m");
-    if (geo) q.set("geo", geo);
-    redirect(`/compare/${canonical}?${q.toString()}`);
-  }
-  
   const region = geo ?? "";
 
   let row;
@@ -442,19 +427,15 @@ export default async function ComparePage({
   );
 
   // Run all async operations in parallel for faster loading ⚡
-  // Note: hasPremiumAccess is already checked earlier for timeframe enforcement
-  const [geographicData, aiInsights, aiInsightsError, peakEvents] = await Promise.all([
+  // All features are free - no premium restrictions
+  const [geographicData, aiInsights, aiInsightsError, peakEvents, forecastPack, trustStats] = await Promise.all([
     // Get geographic breakdown (FREE - no API costs)
     getGeographicBreakdown(actualTerms[0], actualTerms[1], series as any[]),
 
     // Get or generate AI insights with smart caching (cost-optimized)
     // NOW INCLUDES MULTI-SOURCE DATA!
-    // PREMIUM ONLY: Rich AI insights
+    // All users get AI insights (free)
     (async () => {
-      if (!hasPremiumAccess) {
-        return null; // Free users don't get rich AI insights
-      }
-
       try {
         const insightData = prepareInsightData(
           actualTerms[0],
@@ -479,9 +460,6 @@ export default async function ComparePage({
 
     // Error tracking for AI insights
     (async () => {
-      if (!hasPremiumAccess) {
-        return 'Premium subscription required';
-      }
       if (!process.env.ANTHROPIC_API_KEY) {
         return 'API key not configured';
       }
@@ -493,175 +471,29 @@ export default async function ComparePage({
       console.warn('[Peak Detection] Error detecting peaks:', error);
       return [];
     }),
+
+        // Get forecast pack (new time-series forecasting system)
+        // Uses TrendArc Score (multi-source combined data) instead of raw Google Trends
+        getOrComputeForecastPack(
+          row.id,
+          actualTerms[0],
+          actualTerms[1],
+          series as any[],
+          timeframe || '12m',
+          28, // 4 weeks default
+          intelligentComparison?.category?.category || row.category || 'general'
+        ).catch(error => {
+          console.error('[ComparePage] Error computing forecast pack:', error);
+          return null;
+        }),
+
+    // Get trust statistics
+    prisma.forecastTrustStats.findUnique({
+      where: { period: 'alltime' },
+    }).catch(() => null),
   ]);
 
-  // Generate trend predictions - PREMIUM ONLY
-  // Free users get simple predictions
-  let predictionsA: any = null;
-  let predictionsB: any = null;
-  let simplePredictionA: any = null;
-  let simplePredictionB: any = null;
-  let maxHistoricalSeries: any[] = []; // Declare outside try block for scope
-  
-  if (hasPremiumAccess) {
-    // Premium: Full predictions with 5-year data
-    try {
-      console.log('[Predictions] 🔮 Generating premium predictions with maximum historical data...');
-      
-      // Fetch maximum historical data (5 years if available) for predictions
-      maxHistoricalSeries = await getMaxHistoricalData(actualTerms, region || '');
-      
-      if (maxHistoricalSeries.length < 7) {
-        console.warn('[Predictions] ⚠️ Insufficient historical data for predictions, using current series');
-        const fallbackSeries = series as any[];
-        [predictionsA, predictionsB] = await Promise.all([
-          predictTrend({
-            series: fallbackSeries,
-            term: actualTerms[0],
-            forecastDays: 30,
-            methods: ['all'],
-            category: intelligentComparison?.category?.category || 'general',
-            useTrendArcScore: true, // Use TrendArc Score for better accuracy
-          }).catch(err => {
-            console.warn('[Predictions] Error predicting termA:', err);
-            return null;
-          }),
-          predictTrend({
-            series: fallbackSeries,
-            term: actualTerms[1],
-            forecastDays: 30,
-            methods: ['all'],
-            category: intelligentComparison?.category?.category || 'general',
-            useTrendArcScore: true, // Use TrendArc Score for better accuracy
-          }).catch(err => {
-            console.warn('[Predictions] Error predicting termB:', err);
-            return null;
-          }),
-        ]);
-      } else {
-        console.log(`[Predictions] ✅ Using ${maxHistoricalSeries.length} data points (${maxHistoricalSeries.length > 200 ? '5 years' : '1 year'}) for predictions`);
-        
-        [predictionsA, predictionsB] = await Promise.all([
-          predictTrend({
-            series: maxHistoricalSeries as any[],
-            term: actualTerms[0],
-            forecastDays: 30,
-            methods: ['all'],
-            category: intelligentComparison?.category?.category || 'general',
-            useTrendArcScore: true, // Use TrendArc Score for better accuracy
-          }).catch(err => {
-            console.warn('[Predictions] Error predicting termA:', err);
-            return null;
-          }),
-          predictTrend({
-            series: maxHistoricalSeries as any[],
-            term: actualTerms[1],
-            forecastDays: 30,
-            methods: ['all'],
-            category: intelligentComparison?.category?.category || 'general',
-            useTrendArcScore: true, // Use TrendArc Score for better accuracy
-          }).catch(err => {
-            console.warn('[Predictions] Error predicting termB:', err);
-            return null;
-          }),
-        ]);
-        
-        // Verify old predictions (background task, don't wait)
-        if (canonical) {
-          Promise.all([
-            verifyPredictions(canonical, actualTerms[0], maxHistoricalSeries as any[]),
-            verifyPredictions(canonical, actualTerms[1], maxHistoricalSeries as any[]),
-          ]).then(([resultA, resultB]) => {
-            const totalVerified = resultA.verified + resultB.verified;
-            if (totalVerified > 0) {
-              console.log(`[PredictionTracking] ✅ Verified ${totalVerified} predictions (${resultA.verified} for ${actualTerms[0]}, ${resultB.verified} for ${actualTerms[1]})`);
-              if (resultA.newlyVerified.length > 0 || resultB.newlyVerified.length > 0) {
-                console.log(`[PredictionTracking] 📊 Newly verified predictions are now available for users to view`);
-              }
-            }
-          }).catch(err => console.warn('[PredictionTracking] Verification failed:', err));
-        }
-      }
-      
-      console.log('[Predictions] ✅ Premium predictions generated:', {
-        termA: predictionsA ? `✓ (${predictionsA.predictions?.length || 0} predictions)` : '✗',
-        termB: predictionsB ? `✓ (${predictionsB.predictions?.length || 0} predictions)` : '✗',
-        dataPoints: maxHistoricalSeries.length,
-        slug: canonical || 'MISSING',
-      });
-      
-      // Smart sampling: Store only key milestones instead of all 30 days
-      const forecastDays = predictionsA?.forecastPeriod || predictionsB?.forecastPeriod || 30;
-      const daysToStore = getDaysToStore(forecastDays, 'smart');
-      const storageStats = getStorageStats(forecastDays, 'smart');
-      
-      console.log(`[Predictions] 📊 Storage optimization: Storing ${storageStats.storedDays} key milestones instead of ${storageStats.totalDays} days (${storageStats.reduction}% reduction)`);
-      
-      const historicalDataForDate = maxHistoricalSeries.length > 0 ? maxHistoricalSeries : series;
-      const lastHistoricalDate = historicalDataForDate.length > 0 
-        ? new Date(historicalDataForDate[historicalDataForDate.length - 1].date)
-        : new Date();
-      
-      // Save only sampled predictions
-      if (predictionsA && predictionsA.predictions.length > 0 && canonical) {
-        const sampledPredictionsA = samplePredictions(
-          predictionsA.predictions,
-          daysToStore,
-          lastHistoricalDate
-        );
-        
-        console.log(`[Predictions] 💾 Saving ${sampledPredictionsA.length} key predictions (out of ${predictionsA.predictions.length} total) for ${actualTerms[0]}...`);
-        const savePromisesA = sampledPredictionsA.map((pred: any) => 
-          savePrediction({
-            slug: canonical,
-            term: actualTerms[0],
-            forecastDate: pred.date,
-            predictedValue: pred.value,
-            confidence: pred.confidence,
-            method: predictionsA.methods.join('+'),
-          })
-        );
-        const savedA = await Promise.allSettled(savePromisesA);
-        const successA = savedA.filter(r => r.status === 'fulfilled').length;
-        console.log(`[Predictions] ✅ Saved ${successA}/${sampledPredictionsA.length} key predictions for ${actualTerms[0]}`);
-      }
-      
-      if (predictionsB && predictionsB.predictions.length > 0 && canonical) {
-        const sampledPredictionsB = samplePredictions(
-          predictionsB.predictions,
-          daysToStore,
-          lastHistoricalDate
-        );
-        
-        console.log(`[Predictions] 💾 Saving ${sampledPredictionsB.length} key predictions (out of ${predictionsB.predictions.length} total) for ${actualTerms[1]}...`);
-        const savePromisesB = sampledPredictionsB.map((pred: any) => 
-          savePrediction({
-            slug: canonical,
-            term: actualTerms[1],
-            forecastDate: pred.date,
-            predictedValue: pred.value,
-            confidence: pred.confidence,
-            method: predictionsB.methods.join('+'),
-          })
-        );
-        const savedB = await Promise.allSettled(savePromisesB);
-        const successB = savedB.filter(r => r.status === 'fulfilled').length;
-        console.log(`[Predictions] ✅ Saved ${successB}/${sampledPredictionsB.length} key predictions for ${actualTerms[1]}`);
-      }
-    } catch (error) {
-      console.error('[Predictions] ❌ Error generating premium predictions:', error);
-    }
-  } else {
-    // Free: Simple predictions only
-    try {
-      const { generateSimplePrediction } = await import('@/lib/simple-prediction');
-      simplePredictionA = generateSimplePrediction(series as any[], actualTerms[0]);
-      simplePredictionB = generateSimplePrediction(series as any[], actualTerms[1]);
-      console.log('[Predictions] ✅ Simple predictions generated for free user');
-    } catch (error) {
-      console.error('[Predictions] ❌ Error generating simple predictions:', error);
-    }
-  }
+  // Old prediction system removed - using new forecasting system (ForecastSection) instead
 
   // Note: Category and AI insights are now saved automatically by getOrGenerateAIInsights()
   // Note: intelligentComparison and verdictData are now computed above, before AI insights
@@ -722,6 +554,9 @@ export default async function ComparePage({
               timeframe={timeframe || '12m'}
               geo={geo || ''}
             />
+            
+            {/* Track anonymous usage for signup prompt */}
+            <ComparisonViewTracker />
 
             {/* Social Share, PDF Download & View Counter */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-200">
@@ -747,7 +582,6 @@ export default async function ComparePage({
                     slug={canonical || slug}
                     termA={actualTerms[0]}
                     termB={actualTerms[1]}
-                    isPremium={hasPremiumAccess}
                   />
                   <DataExportButton
                     slug={canonical || slug}
@@ -755,7 +589,6 @@ export default async function ComparePage({
                     termB={actualTerms[1]}
                     timeframe={timeframe || '12m'}
                     geo={geo || ''}
-                    hasPremiumAccess={hasPremiumAccess}
                   />
                   <PDFDownloadButton
                     slug={canonical || slug}
@@ -763,7 +596,6 @@ export default async function ComparePage({
                     geo={geo || ''}
                     termA={actualTerms[0]}
                     termB={actualTerms[1]}
-                    hasPremiumAccess={hasPremiumAccess}
                   />
                 </div>
               </div>
@@ -809,82 +641,6 @@ export default async function ComparePage({
           )}
 
           {/* Fallback when AI is unavailable */}
-          {!aiInsights && aiInsightsError === 'Premium subscription required' && (
-            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-300 shadow-xl p-4 sm:p-6 print:hidden">
-              <div className="flex flex-col items-start gap-4">
-                <div className="flex items-start gap-3 sm:gap-4 w-full">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-                      Unlock Rich AI Insights
-                      <span className="text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded-full">PREMIUM</span>
-                    </h3>
-                    <p className="text-slate-700 text-sm sm:text-base mb-4">
-                      Get advanced AI-powered analysis with category detection, trend predictions, and actionable insights for just <strong>$4.99/month</strong>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-3 w-full">
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Category Analysis
-                    </h4>
-                    <p className="text-xs text-slate-600">Automatic categorization and domain-specific insights</p>
-                  </div>
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Trend Predictions
-                    </h4>
-                    <p className="text-xs text-slate-600">AI-powered forecasts based on historical patterns</p>
-                  </div>
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Practical Implications
-                    </h4>
-                    <p className="text-xs text-slate-600">Actionable insights for your specific use case</p>
-                  </div>
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-3 border border-purple-200">
-                    <h4 className="font-semibold text-purple-900 mb-2 text-sm flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Peak Explanations
-                    </h4>
-                    <p className="text-xs text-slate-600">Understand why trends spike at specific times</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
-                  <a
-                    href="/pricing"
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl text-center"
-                  >
-                    Upgrade to Premium
-                  </a>
-                  <a
-                    href="/signup"
-                    className="px-6 py-3 bg-white text-purple-700 font-semibold rounded-lg hover:bg-purple-50 transition-colors border-2 border-purple-300 text-center"
-                  >
-                    Sign Up Free
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
           {!aiInsights && aiInsightsError !== 'Premium subscription required' && aiInsightsError && (
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-xl sm:rounded-2xl border-2 border-purple-200 shadow-lg p-4 sm:p-6 print:hidden">
               <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
@@ -974,34 +730,23 @@ export default async function ComparePage({
             />
           )}
 
-          {/* Trend Prediction - Premium: Full predictions, Free: Simple predictions */}
-          {hasPremiumAccess && (predictionsA || predictionsB) && (
-            <>
-              <PredictionAccuracyBadge
-                slug={canonical || ''}
-                termA={actualTerms[0]}
-                termB={actualTerms[1]}
-              />
-              <TrendPrediction
-                termA={actualTerms[0]}
-                termB={actualTerms[1]}
-                series={series as any[]}
-                predictionsA={predictionsA}
-                predictionsB={predictionsB}
-                historicalDataPoints={(maxHistoricalSeries && maxHistoricalSeries.length > 0) ? maxHistoricalSeries.length : series.length}
-                category={verdictData.category as any}
-              />
-            </>
-          )}
-          
-          {!hasPremiumAccess && (simplePredictionA || simplePredictionB) && (
-            <SimplePrediction
+          {/* Forecast Section - New time-series forecasting system */}
+          {forecastPack && (
+            <ForecastSection
               termA={actualTerms[0]}
               termB={actualTerms[1]}
-              predictionA={simplePredictionA}
-              predictionB={simplePredictionB}
+              series={series as any[]}
+              forecastPack={forecastPack}
+              trustStats={trustStats ? {
+                totalEvaluated: trustStats.totalEvaluated,
+                winnerAccuracyPercent: trustStats.winnerAccuracyPercent,
+                intervalCoveragePercent: trustStats.intervalCoveragePercent,
+                last90DaysAccuracy: trustStats.last90DaysAccuracy,
+                sampleSize: trustStats.sampleSize,
+              } : null}
             />
           )}
+
 
           {/* Multi-Source Score Breakdown */}
           {verdictData && intelligentComparison && (
@@ -1154,9 +899,14 @@ export default async function ComparePage({
         {/* Sidebar - Trending Comparisons & Ads */}
         <aside className="lg:col-span-4 space-y-5 sm:space-y-6">
           <div className="lg:sticky lg:top-6 space-y-5 sm:space-y-6">
-            {/* Trending Comparisons */}
+            {/* Related Comparisons */}
             <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <TopThisWeekServer />
+              <RelatedComparisonsSidebar
+                currentSlug={canonical}
+                category={intelligentComparison?.category?.category || row.category || null}
+                terms={actualTerms}
+                limit={6}
+              />
             </section>
             
             {/* AdSense - Sidebar */}

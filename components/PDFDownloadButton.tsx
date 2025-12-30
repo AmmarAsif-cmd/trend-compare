@@ -10,7 +10,6 @@ type Props = {
   geo?: string;
   termA: string;
   termB: string;
-  hasPremiumAccess: boolean;
 };
 
 export default function PDFDownloadButton({
@@ -19,7 +18,6 @@ export default function PDFDownloadButton({
   geo = '',
   termA,
   termB,
-  hasPremiumAccess,
 }: Props) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,12 +28,6 @@ export default function PDFDownloadButton({
   };
 
   const handleDownload = async () => {
-    if (!hasPremiumAccess) {
-      // Redirect to pricing page
-      router.push('/pricing');
-      return;
-    }
-
     setIsDownloading(true);
     setError(null);
 
@@ -72,20 +64,6 @@ export default function PDFDownloadButton({
       setIsDownloading(false);
     }
   };
-
-  if (!hasPremiumAccess) {
-    return (
-      <button
-        onClick={handleDownload}
-        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg font-medium text-sm transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
-        aria-label="Download PDF (Premium)"
-      >
-        <FileText className="w-4 h-4" />
-        <span>Download PDF</span>
-        <span className="text-xs bg-white/20 px-2 py-0.5 rounded">Premium</span>
-      </button>
-    );
-  }
 
   return (
     <div className="relative">

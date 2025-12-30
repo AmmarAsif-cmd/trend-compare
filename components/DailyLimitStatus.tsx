@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AlertCircle, Infinity, Lock } from 'lucide-react';
-import Link from 'next/link';
+import { AlertCircle, Infinity } from 'lucide-react';
 
 type LimitStatus = {
   allowed: boolean;
@@ -61,14 +60,9 @@ export default function DailyLimitStatus() {
           <p className="text-sm font-medium text-red-900">
             Daily limit reached ({status.limit} comparisons/day)
           </p>
-          {status.showUpgrade && (
-            <Link
-              href="/pricing"
-              className="text-xs text-red-700 hover:text-red-900 underline mt-1 inline-block"
-            >
-              Upgrade to Premium for unlimited →
-            </Link>
-          )}
+          <p className="text-xs text-red-700 mt-1">
+            Sign up for unlimited access
+          </p>
         </div>
       </div>
     );
@@ -82,14 +76,6 @@ export default function DailyLimitStatus() {
           <p className="text-sm font-medium text-amber-900">
             {status.remaining} comparisons remaining today
           </p>
-          {status.showUpgrade && (
-            <Link
-              href="/pricing"
-              className="text-xs text-amber-700 hover:text-amber-900 underline mt-1 inline-block"
-            >
-              Upgrade for unlimited →
-            </Link>
-          )}
         </div>
       </div>
     );

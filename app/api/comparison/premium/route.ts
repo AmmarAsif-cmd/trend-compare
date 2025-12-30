@@ -47,6 +47,7 @@ import {
   warmupFinishedAtKey,
   type WarmupKeyParams
 } from '@/lib/forecast/cacheKeys';
+import { getOrComputeForecastPack } from '@/lib/forecasting/forecast-pack';
 
 export const dynamic = 'force-dynamic';
 
@@ -441,11 +442,27 @@ export async function GET(request: NextRequest) {
       const forecastKeyB = forecastKey({ slug: canonical, term: actualTerms[1], tf: timeframe, geo, dataHash });
       const aiInsightsKey = createCacheKey('ai-insights', canonical, timeframe);
       
+      // Get new forecast pack (with proper time-series forecasting)
+      // This runs in parallel with cache reads for better performance
+      const forecastPackPromise = getOrComputeForecastPack(
+        row.id,
+        actualTerms[0],
+        actualTerms[1],
+        series,
+        timeframe,
+        28, // 4 weeks default
+        row.category || 'general' // Use category from database for TrendArc Score calculation
+      ).catch(error => {
+        console.error('[Premium] Error computing forecast pack:', error);
+        return null;
+      });
+      
       // Read forecasts and AI insights from cache
-      const [cachedForecastA, cachedForecastB, cachedAIInsights] = await Promise.all([
+      const [cachedForecastA, cachedForecastB, cachedAIInsights, forecastPack] = await Promise.all([
         cache.get(forecastKeyA),
         cache.get(forecastKeyB),
         cache.get(aiInsightsKey),
+        forecastPackPromise,
       ]);
 
       // Determine forecast availability
@@ -504,9 +521,25 @@ export async function GET(request: NextRequest) {
       }
 
       // Update insightsPack with cached forecasts and AI insights
+      // Prefer new forecast pack if available, otherwise fall back to old forecasts
       const insightsPackWithForecasts = {
         ...result.pack,
-        forecasts: {
+        forecasts: forecastPack ? {
+          termA: {
+            points: forecastPack.termA.points,
+            model: forecastPack.termA.model,
+            confidence: forecastPack.termA.confidenceScore,
+            metrics: forecastPack.termA.metrics,
+            qualityFlags: forecastPack.termA.qualityFlags,
+          },
+          termB: {
+            points: forecastPack.termB.points,
+            model: forecastPack.termB.model,
+            confidence: forecastPack.termB.confidenceScore,
+            metrics: forecastPack.termB.metrics,
+            qualityFlags: forecastPack.termB.qualityFlags,
+          },
+        } : {
           termA: cachedForecastA || undefined,
           termB: cachedForecastB || undefined,
         },
@@ -526,13 +559,24 @@ export async function GET(request: NextRequest) {
       const response: any = {
         isPremium: true,
         cached: isCached,
-        forecastAvailable: hasForecasts,
+        forecastAvailable: hasForecasts || !!forecastPack,
         warmupStatus,
         warmupTriggered,
         signals: insightsPackWithForecasts.signals, // Mirror from insightsPack.signals (single source of truth)
         insightsPack: insightsPackWithForecasts,
         needsWarmup,
       };
+
+      // Add forecast pack if available
+      if (forecastPack) {
+        response.forecastPack = {
+          termA: forecastPack.termA,
+          termB: forecastPack.termB,
+          headToHead: forecastPack.headToHead,
+          computedAt: forecastPack.computedAt,
+          horizon: forecastPack.horizon,
+        };
+      }
 
       // Add debugging info when DEBUG_API_HEADERS is enabled
       if (debugInfo) {

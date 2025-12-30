@@ -1,12 +1,13 @@
 /**
- * Daily Comparison Limit for Free Users
- * Implements soft limit of 50 comparisons per day for free users
+ * Comparison Limit System
+ * - Anonymous users: 1 comparison, then must sign up
+ * - Signed-in users: Unlimited comparisons (everything is free)
  */
 
 import { prisma } from './db';
-import { getCurrentUser, canAccessPremium } from './user-auth-helpers';
+import { getCurrentUser } from './user-auth-helpers';
 
-const FREE_USER_DAILY_LIMIT = 50;
+const ANONYMOUS_USER_LIMIT = 1; // Anonymous users get 1 free comparison
 
 /**
  * Get today's date at midnight (UTC)
@@ -42,66 +43,52 @@ export async function getTodayComparisonCount(userId: string): Promise<number> {
 
 /**
  * Check if user can create/view a new comparison
- * Returns { allowed: boolean, remaining: number, limit: number }
+ * Returns { allowed: boolean, remaining: number, limit: number, isAnonymous: boolean }
  */
 export async function checkComparisonLimit(): Promise<{
   allowed: boolean;
   remaining: number;
   limit: number;
   count: number;
+  isAnonymous: boolean;
+  needsSignup: boolean;
 }> {
   try {
-    // Premium users have unlimited access
-    const isPremium = await canAccessPremium();
-    if (isPremium) {
+    const user = await getCurrentUser();
+    
+    // Signed-in users: unlimited (everything is free)
+    if (user && (user as any).id) {
       return {
         allowed: true,
         remaining: Infinity,
         limit: Infinity,
         count: 0,
+        isAnonymous: false,
+        needsSignup: false,
       };
     }
 
-    // Free users: check daily limit
-    const user = await getCurrentUser();
-    if (!user) {
-      // Anonymous users: allow but track (we'll implement IP-based tracking later if needed)
-      return {
-        allowed: true,
-        remaining: FREE_USER_DAILY_LIMIT,
-        limit: FREE_USER_DAILY_LIMIT,
-        count: 0,
-      };
-    }
-
-    const userId = (user as any).id;
-    if (!userId) {
-      return {
-        allowed: true,
-        remaining: FREE_USER_DAILY_LIMIT,
-        limit: FREE_USER_DAILY_LIMIT,
-        count: 0,
-      };
-    }
-
-    const count = await getTodayComparisonCount(userId);
-    const remaining = Math.max(0, FREE_USER_DAILY_LIMIT - count);
-    const allowed = count < FREE_USER_DAILY_LIMIT;
-
+    // Anonymous users: 1 comparison only
+    // Note: We track this client-side using localStorage
+    // The actual check happens on the client side
     return {
-      allowed,
-      remaining,
-      limit: FREE_USER_DAILY_LIMIT,
-      count,
+      allowed: true, // We'll check client-side
+      remaining: ANONYMOUS_USER_LIMIT,
+      limit: ANONYMOUS_USER_LIMIT,
+      count: 0, // Client-side tracking
+      isAnonymous: true,
+      needsSignup: false, // Client will determine this
     };
   } catch (error) {
     console.error('[DailyLimit] Error checking limit:', error);
     // Fail open - allow comparisons if we can't check
     return {
       allowed: true,
-      remaining: FREE_USER_DAILY_LIMIT,
-      limit: FREE_USER_DAILY_LIMIT,
+      remaining: ANONYMOUS_USER_LIMIT,
+      limit: ANONYMOUS_USER_LIMIT,
       count: 0,
+      isAnonymous: true,
+      needsSignup: false,
     };
   }
 }
@@ -111,39 +98,35 @@ export async function checkComparisonLimit(): Promise<{
  */
 export async function getLimitStatusMessage(): Promise<{
   message: string;
-  showUpgrade: boolean;
+  showSignup: boolean;
   remaining: number;
+  isAnonymous: boolean;
 }> {
   const limitCheck = await checkComparisonLimit();
   
   if (limitCheck.remaining === Infinity) {
     return {
       message: 'Unlimited comparisons',
-      showUpgrade: false,
+      showSignup: false,
       remaining: Infinity,
+      isAnonymous: false,
     };
   }
 
-  if (limitCheck.remaining === 0) {
+  if (limitCheck.isAnonymous) {
     return {
-      message: `Daily limit reached (${limitCheck.limit} comparisons/day)`,
-      showUpgrade: true,
-      remaining: 0,
-    };
-  }
-
-  if (limitCheck.remaining <= 10) {
-    return {
-      message: `${limitCheck.remaining} comparisons remaining today`,
-      showUpgrade: true,
+      message: 'Sign up for unlimited comparisons',
+      showSignup: true,
       remaining: limitCheck.remaining,
+      isAnonymous: true,
     };
   }
 
   return {
-    message: `${limitCheck.remaining} comparisons remaining today`,
-    showUpgrade: false,
-    remaining: limitCheck.remaining,
+    message: 'Unlimited comparisons',
+    showSignup: false,
+    remaining: Infinity,
+    isAnonymous: false,
   };
 }
 

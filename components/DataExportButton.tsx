@@ -10,7 +10,6 @@ type Props = {
   termB: string;
   timeframe?: string;
   geo?: string;
-  hasPremiumAccess: boolean;
 };
 
 export default function DataExportButton({
@@ -19,7 +18,6 @@ export default function DataExportButton({
   termB,
   timeframe = '12m',
   geo = '',
-  hasPremiumAccess,
 }: Props) {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +28,6 @@ export default function DataExportButton({
   };
 
   const handleExport = async (format: 'csv' | 'json') => {
-    if (!hasPremiumAccess) {
-      router.push('/pricing');
-      return;
-    }
-
     setIsExporting(true);
     setError(null);
 
@@ -86,25 +79,6 @@ export default function DataExportButton({
       setIsExporting(false);
     }
   };
-
-  if (!hasPremiumAccess) {
-    return (
-      <div className="relative group">
-        <button
-          onClick={() => router.push('/pricing')}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors border border-slate-300"
-          aria-label="Export Data (Premium)"
-        >
-          <Download className="w-4 h-4" />
-          <span>Export Data</span>
-          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Premium</span>
-        </button>
-        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-lg z-10">
-          Upgrade to Premium to export comparison data as CSV or JSON
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative">

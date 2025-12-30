@@ -4,17 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { User, Crown, Check, LogOut, Settings, ArrowLeft, Sparkles } from "lucide-react";
+import { User, LogOut, Settings, ArrowLeft } from "lucide-react";
 
 type UserData = {
   email: string;
   name: string | null;
-  subscriptionTier: string;
-  subscription: {
-    status: string;
-    currentPeriodEnd: string;
-    cancelAtPeriodEnd: boolean;
-  } | null;
 };
 
 export default function AccountPage() {
@@ -22,9 +16,6 @@ export default function AccountPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
-
-  const success = searchParams.get("success");
 
   useEffect(() => {
     fetchUserData();
@@ -51,30 +42,6 @@ export default function AccountPage() {
     }
   };
 
-  const handleManageSubscription = async () => {
-    setPortalLoading(true);
-
-    try {
-      const response = await fetch("/api/stripe/portal", {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to open portal");
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error("Error opening portal:", error);
-      alert("Failed to open subscription management. Please try again.");
-    } finally {
-      setPortalLoading(false);
-    }
-  };
 
   const handleLogout = async () => {
     if (typeof window !== 'undefined') {
@@ -111,7 +78,6 @@ export default function AccountPage() {
     );
   }
 
-  const isPremium = userData.subscriptionTier === "premium";
 
   return (
     <div>
@@ -126,19 +92,6 @@ export default function AccountPage() {
           Back to Home
         </Link>
 
-        {/* Success Message */}
-        {success && (
-          <div className="mb-6 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <Check className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-emerald-900 font-medium">
-                Welcome to Premium! Your subscription is now active.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Page Header */}
         <div className="mb-8">
@@ -147,26 +100,7 @@ export default function AccountPage() {
               <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2">
                 Account Settings
               </h1>
-              <p className="text-slate-600">Manage your subscription and account details</p>
-            </div>
-            <div
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm ${
-                isPremium
-                  ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-lg"
-                  : "bg-slate-200 text-slate-700"
-              }`}
-            >
-              {isPremium ? (
-                <>
-                  <Crown className="w-4 h-4" />
-                  Premium
-                </>
-              ) : (
-                <>
-                  <User className="w-4 h-4" />
-                  Free
-                </>
-              )}
+              <p className="text-slate-600">Manage your account details</p>
             </div>
           </div>
         </div>
@@ -204,147 +138,6 @@ export default function AccountPage() {
           </div>
         </div>
 
-        {/* Subscription Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden mb-6">
-          <div className="bg-gradient-to-r from-indigo-50/80 via-purple-50/80 to-pink-50/80 px-6 py-5 border-b border-slate-200/60">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 ${isPremium ? 'bg-gradient-to-br from-indigo-600 to-purple-600' : 'bg-slate-400'} rounded-lg flex items-center justify-center`}>
-                {isPremium ? (
-                  <Crown className="w-5 h-5 text-white" />
-                ) : (
-                  <Settings className="w-5 h-5 text-white" />
-                )}
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">Subscription</h2>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {isPremium && userData.subscription ? (
-              <div className="space-y-6">
-                {/* Premium Plan Info */}
-                <div className="bg-gradient-to-br from-indigo-50 via-purple-50/50 to-pink-50/50 rounded-xl p-6 border border-indigo-200/50">
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Crown className="w-5 h-5 text-indigo-600" />
-                        <h3 className="text-lg font-bold text-slate-900">Premium Plan</h3>
-                      </div>
-                      <p className="text-sm text-slate-600">
-                        Status:{" "}
-                        <span className="font-semibold capitalize text-slate-900">
-                          {userData.subscription.status}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                        $4.99
-                      </p>
-                      <p className="text-sm text-slate-600">/month</p>
-                    </div>
-                  </div>
-
-                  {userData.subscription.currentPeriodEnd && (
-                    <div className="mb-6 p-4 bg-white/60 rounded-lg border border-slate-200">
-                      {userData.subscription.cancelAtPeriodEnd ? (
-                        <p className="text-sm text-amber-700 font-medium">
-                          ⚠️ Your subscription will end on{" "}
-                          {new Date(
-                            userData.subscription.currentPeriodEnd
-                          ).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-slate-700">
-                          Next billing date:{" "}
-                          <span className="font-semibold">
-                            {new Date(
-                              userData.subscription.currentPeriodEnd
-                            ).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Premium Features */}
-                  <div className="mb-6">
-                    <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-indigo-600" />
-                      Premium Features
-                    </h4>
-                    <ul className="space-y-2.5">
-                      {[
-                        "Rich AI insights with category analysis",
-                        "Trend predictions and forecasts",
-                        "All timeframes (7d, 30d, 12m, 5y, all-time)",
-                        "Geographic breakdowns by country",
-                        "CSV/JSON data export",
-                        "PDF report downloads",
-                        "Ad-free experience",
-                        "Priority support",
-                      ].map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Check className="w-3 h-3 text-emerald-600" />
-                          </div>
-                          <span className="text-sm text-slate-700">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <button
-                    onClick={handleManageSubscription}
-                    disabled={portalLoading}
-                    className="w-full px-6 py-3 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {portalLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <Settings className="w-4 h-4" />
-                        Manage Subscription
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-                  <div className="flex items-center gap-3 mb-4">
-                    <User className="w-6 h-6 text-slate-400" />
-                    <h3 className="text-lg font-semibold text-slate-900">Free Plan</h3>
-                  </div>
-                  <p className="text-sm text-slate-600 mb-6">
-                    You're currently on the free plan. Upgrade to Premium to unlock advanced AI insights, 
-                    unlimited comparisons, and professional features.
-                  </p>
-
-                  <Link
-                    href="/pricing"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl"
-                  >
-                    <Crown className="w-4 h-4" />
-                    Upgrade to Premium
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Actions Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">

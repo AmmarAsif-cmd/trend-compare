@@ -51,15 +51,14 @@ export default function ComparisonVerdict({ verdict, termA, termB }: Props) {
   }
   
   // Double-check: if scores don't match expected winner, trust the scores
+  // (Silently fix mismatch without console warnings in production)
   if (termAScore > termBScore && !displayIsTermAWinner) {
-    console.warn('[ComparisonVerdict] Score mismatch - termA has higher score but verdict says termB wins. Using score-based determination.');
     displayIsTermAWinner = true;
     // Swap scores
     const temp = termAScore;
     termAScore = termBScore;
     termBScore = temp;
   } else if (termBScore > termAScore && displayIsTermAWinner) {
-    console.warn('[ComparisonVerdict] Score mismatch - termB has higher score but verdict says termA wins. Using score-based determination.');
     displayIsTermAWinner = false;
     // Swap scores
     const temp = termAScore;

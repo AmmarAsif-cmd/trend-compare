@@ -8,12 +8,11 @@ type Props = {
   slug: string;
   termA: string;
   termB: string;
-  isPremium: boolean;
 };
 
 type AlertType = 'score_change' | 'position_change' | 'threshold';
 
-export default function CreateAlertButton({ slug, termA, termB, isPremium }: Props) {
+export default function CreateAlertButton({ slug, termA, termB }: Props) {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,11 +29,6 @@ export default function CreateAlertButton({ slug, termA, termB, isPremium }: Pro
   };
 
   const handleCreate = async () => {
-    if (!isPremium) {
-      router.push('/pricing?feature=alerts');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -71,20 +65,6 @@ export default function CreateAlertButton({ slug, termA, termB, isPremium }: Pro
       setLoading(false);
     }
   };
-
-  if (!isPremium) {
-    return (
-      <button
-        onClick={() => router.push('/pricing?feature=alerts')}
-        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-        title="Premium feature - Upgrade to create alerts"
-      >
-        <Bell className="w-4 h-4" />
-        <span>Create Alert</span>
-        <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white px-1.5 py-0.5 rounded">Premium</span>
-      </button>
-    );
-  }
 
   return (
     <>
