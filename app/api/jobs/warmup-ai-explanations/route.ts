@@ -15,7 +15,7 @@ import { warmupAIExplanations } from '@/lib/jobs/warmup-ai-explanations';
 import { logJobStart, logJobCompletion } from '@/lib/jobs/logger';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 600; // 10 minutes max
+export const maxDuration = 300; // 5 minutes max (Vercel hobby plan limit)
 
 // Job concurrency limit
 const MAX_CONCURRENT_JOBS = 1;
