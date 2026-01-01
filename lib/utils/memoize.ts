@@ -55,7 +55,7 @@ export function memoize<T extends (...args: any[]) => any>(
   }) as MemoizedFunction<T>;
 
   memoized.clear = () => cache.clear();
-  memoized.size = () => cache.size();
+  memoized.size = () => cache.size;
 
   return memoized;
 }
@@ -107,7 +107,7 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
     cache.clear();
     pending.clear();
   };
-  memoized.size = () => cache.size();
+  memoized.size = () => cache.size;
 
   return memoized;
 }

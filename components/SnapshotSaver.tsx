@@ -54,7 +54,7 @@ export default function SnapshotSaver({
     }
 
     // Create stable key to prevent duplicate calls
-    const stableKey = `${session.user.id || 'unknown'}-${slug}-${computedAt || Date.now()}`;
+    const stableKey = `${session?.user?.id || 'unknown'}-${slug}-${computedAt || Date.now()}`;
     
     // If we've already saved with this key, skip
     if (saveKeyRef.current === stableKey) {
@@ -76,7 +76,7 @@ export default function SnapshotSaver({
           winner,
           marginPoints,
           confidence,
-          userId: session.user.id || 'unknown',
+          userId: session?.user?.id || 'unknown',
           status,
         });
 

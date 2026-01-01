@@ -163,7 +163,7 @@ export default function GapForecastChart({
           label: (context: any) => {
             const label = context.dataset.label || '';
             const value = context.parsed.y;
-            if (value === null) return null;
+            if (value === null || value === undefined) return '';
             return `${label}: ${value.toFixed(1)} points`;
           },
         },

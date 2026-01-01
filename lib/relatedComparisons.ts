@@ -74,7 +74,7 @@ export async function getRelatedComparisons(opts: {
   let currentCategory = category;
   if (!currentCategory) {
     try {
-      const current = await prisma.comparison.findUnique({
+      const current = await prisma.comparison.findFirst({
         where: { slug },
         select: { category: true },
       });

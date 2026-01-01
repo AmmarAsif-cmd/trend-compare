@@ -12,6 +12,8 @@ import { calculateTrendArcScoreTimeSeries, type TrendArcScoreTimeSeries } from '
 import type { ComparisonCategory } from '@/lib/category-resolver';
 import type { SeriesPoint } from '@/lib/trends';
 import { forecastGap, getGapForecastInsights, type GapForecastResult } from './gap-forecaster';
+import type { TimeSeriesPoint, ForecastResult } from './core';
+import type { HeadToHeadForecast } from './head-to-head';
 
 export interface ForecastPack {
   // Gap-based forecast (new approach)
@@ -35,8 +37,8 @@ export interface ForecastPack {
 /**
  * Create hash of series data for cache invalidation
  */
-function hashSeriesData(series: TimeSeriesPoint[]): string {
-  const dataStr = JSON.stringify(series.map(p => ({ date: p.date, value: p.value })));
+function hashSeriesData(series: SeriesPoint[]): string {
+  const dataStr = JSON.stringify(series.map(p => ({ date: p.date, value: (p as any)[Object.keys(p).find(k => k !== 'date') || ''] || 0 })));
   return createHash('sha256').update(dataStr).digest('hex').substring(0, 16);
 }
 
@@ -163,71 +165,10 @@ async function loadCachedForecast(
       return null; // Stale, recompute
     }
 
-    // Load forecast points for both terms
-    const [pointsA, pointsB] = await Promise.all([
-      prisma.forecastPoint.findMany({
-        where: {
-          forecastRunId: forecastRun.id,
-          term: 'termA',
-        },
-        orderBy: { date: 'asc' },
-      }),
-      prisma.forecastPoint.findMany({
-        where: {
-          forecastRunId: forecastRun.id,
-          term: 'termB',
-        },
-        orderBy: { date: 'asc' },
-      }),
-    ]);
-
-    // Reconstruct ForecastResult objects
-    const termA: ForecastResult = {
-      points: pointsA.map(p => ({
-        date: p.date.toISOString().split('T')[0],
-        value: p.value,
-        lower80: p.lower80,
-        upper80: p.upper80,
-        lower95: p.lower95,
-        upper95: p.upper95,
-      })),
-      model: forecastRun.modelTermA as 'ets' | 'arima' | 'naive',
-      metrics: forecastRun.metricsA as any,
-      confidenceScore: forecastRun.confidenceScoreA,
-      qualityFlags: forecastRun.qualityFlagsA as any,
-    };
-
-    const termB: ForecastResult = {
-      points: pointsB.map(p => ({
-        date: p.date.toISOString().split('T')[0],
-        value: p.value,
-        lower80: p.lower80,
-        upper80: p.upper80,
-        lower95: p.lower95,
-        upper95: p.upper95,
-      })),
-      model: forecastRun.modelTermB as 'ets' | 'arima' | 'naive',
-      metrics: forecastRun.metricsB as any,
-      confidenceScore: forecastRun.confidenceScoreB,
-      qualityFlags: forecastRun.qualityFlagsB as any,
-    };
-
-    const headToHead: HeadToHeadForecast = {
-      winnerProbability: forecastRun.winnerProbability || 50,
-      expectedMarginPoints: forecastRun.expectedMargin || 0,
-      leadChangeRisk: (forecastRun.leadChangeRisk as 'low' | 'medium' | 'high') || 'medium',
-      currentMargin: 0, // Will be computed from actual data
-      forecastHorizon: horizon,
-    };
-
-    return {
-      termA,
-      termB,
-      headToHead,
-      computedAt: forecastRun.computedAt.toISOString(),
-      dataHash,
-      horizon,
-    };
+    // Old cached forecasts don't have gap forecast data
+    // Return null to force recomputation with new gap-based approach
+    console.log('[ForecastPack] Old format cached forecast found, forcing recomputation with gap-based approach');
+    return null;
   } catch (error) {
     console.error('[ForecastPack] Error loading cached forecast:', error);
     return null;

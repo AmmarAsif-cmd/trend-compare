@@ -53,8 +53,8 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   function classifySeries(term: string): SeriesClassification {
     // Simplified classification - in production, use more sophisticated analysis
     const termSignals = signals.filter(s => s.term === term);
-    const hasSpike = termSignals.some(s => s.type === 'spike' || s.type === 'surge');
-    const hasDecline = termSignals.some(s => s.type === 'decline');
+    const hasSpike = termSignals.some(s => s.type === 'volatility_spike' || s.type === 'volume_surge');
+    const hasDecline = termSignals.some(s => s.type === 'momentum_shift' || s.type === 'sentiment_shift');
     
     if (hasSpike && hasDecline) return 'Volatile';
     if (hasSpike) return 'EventDriven';
@@ -65,7 +65,7 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   function assessSustainability(term: string): SustainabilityClassification {
     const termScore = term === termA ? scores.termA.overall : scores.termB.overall;
     const termSignals = signals.filter(s => s.term === term);
-    const hasNegativeSignals = termSignals.some(s => s.severity === 'high' && (s.type === 'decline' || s.type === 'risk'));
+    const hasNegativeSignals = termSignals.some(s => s.severity === 'high' && (s.type === 'momentum_shift' || s.type === 'sentiment_shift' || s.type === 'competitor_crossover'));
     
     if (termScore >= 70 && !hasNegativeSignals) return 'Sustainable';
     if (termScore < 50 || hasNegativeSignals) return 'AtRisk';
@@ -75,7 +75,7 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   // Helper to assess leader change risk
   function assessLeaderChangeRisk(): LeaderChangeRisk {
     const margin = Math.abs(scores.termA.overall - scores.termB.overall);
-    const volatilitySignals = signals.filter(s => s.type === 'volatility' || s.type === 'risk');
+    const volatilitySignals = signals.filter(s => s.type === 'volatility_spike' || s.type === 'anomaly_detected');
     
     if (margin < 10 && volatilitySignals.length > 2) return 'High';
     if (margin < 20 && volatilitySignals.length > 0) return 'Medium';
@@ -89,10 +89,10 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
 
   interpretations.push({
     id: `overall-${stableHash({ termA, termB, generatedAt })}`,
-    category: 'trend' as InterpretationCategory,
-    title: `${winner} is leading`,
-    summary: `${winner} has a ${margin.toFixed(1)}-point advantage over ${loser} based on multi-source analysis.`,
-    reasoning: [
+    category: 'trend_analysis',
+    term: 'comparison',
+    text: `${winner} is leading with a ${margin.toFixed(1)}-point advantage over ${loser} based on multi-source analysis.`,
+    evidence: [
       `Search interest: ${scores.termA.overall >= scores.termB.overall ? termA : termB} leads`,
       `Social buzz: ${scores.termA.breakdown.socialBuzz >= scores.termB.breakdown.socialBuzz ? termA : termB} leads`,
       `Authority: ${scores.termA.breakdown.authority >= scores.termB.breakdown.authority ? termA : termB} leads`,
@@ -114,10 +114,10 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   if (momentumMargin > 5) {
     interpretations.push({
       id: `momentum-${stableHash({ termA, termB, generatedAt })}`,
-      category: 'momentum' as InterpretationCategory,
-      title: `${momentumLeader} has stronger momentum`,
-      summary: `${momentumLeader} shows ${momentumMargin.toFixed(1)}-point higher momentum, indicating faster growth.`,
-      reasoning: [
+      category: 'growth_pattern',
+      term: momentumLeader === termA ? 'termA' : 'termB',
+      text: `${momentumLeader} has stronger momentum with ${momentumMargin.toFixed(1)}-point higher momentum, indicating faster growth.`,
+      evidence: [
         `Recent trend analysis favors ${momentumLeader}`,
         `Growth rate is ${momentumMargin > 15 ? 'significantly' : 'moderately'} higher`,
       ],
@@ -137,10 +137,10 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   if (seriesClassA !== 'Stable' || seriesClassB !== 'Stable') {
     interpretations.push({
       id: `series-pattern-${stableHash({ termA, termB, generatedAt })}`,
-      category: 'pattern' as InterpretationCategory,
-      title: `Series pattern: ${seriesClassA} vs ${seriesClassB}`,
-      summary: `${termA} shows ${seriesClassA.toLowerCase()} pattern, while ${termB} shows ${seriesClassB.toLowerCase()} pattern.`,
-      reasoning: [
+      category: 'stability_analysis',
+      term: 'comparison',
+      text: `Series pattern: ${termA} shows ${seriesClassA.toLowerCase()} pattern, while ${termB} shows ${seriesClassB.toLowerCase()} pattern.`,
+      evidence: [
         `Analysis of ${seriesLength} data points`,
         `Pattern classification based on signal detection`,
       ],
@@ -160,10 +160,10 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   if (sustainabilityA !== 'Sustainable' || sustainabilityB !== 'Sustainable') {
     interpretations.push({
       id: `sustainability-${stableHash({ termA, termB, generatedAt })}`,
-      category: 'sustainability' as InterpretationCategory,
-      title: `Sustainability: ${sustainabilityA} vs ${sustainabilityB}`,
-      summary: `${termA} is ${sustainabilityA.toLowerCase()}, while ${termB} is ${sustainabilityB.toLowerCase()}.`,
-      reasoning: [
+      category: sustainabilityA === 'AtRisk' || sustainabilityB === 'AtRisk' ? 'decline_pattern' : 'stability_analysis',
+      term: 'comparison',
+      text: `Sustainability: ${termA} is ${sustainabilityA.toLowerCase()}, while ${termB} is ${sustainabilityB.toLowerCase()}.`,
+      evidence: [
         `Based on score analysis and signal patterns`,
         `Risk assessment from detected signals`,
       ],
@@ -181,12 +181,12 @@ function generateInterpretationsInternal(input: GenerateInterpretationsInput): I
   if (changeRisk !== 'Low') {
     interpretations.push({
       id: `change-risk-${stableHash({ termA, termB, generatedAt })}`,
-      category: 'risk' as InterpretationCategory,
-      title: `Leader change risk: ${changeRisk}`,
-      summary: `The current leader position may change due to ${changeRisk.toLowerCase()} volatility.`,
-      reasoning: [
+      category: 'competitive_dynamics',
+      term: 'comparison',
+      text: `Leader change risk: ${changeRisk}. The current leader position may change due to ${changeRisk.toLowerCase()} volatility.`,
+      evidence: [
         `Margin analysis: ${margin.toFixed(1)} points`,
-        `Volatility signals detected: ${signals.filter(s => s.type === 'volatility' || s.type === 'risk').length}`,
+        `Volatility signals detected: ${signals.filter(s => s.type === 'volatility_spike' || s.type === 'anomaly_detected').length}`,
       ],
       confidence: 70,
       generatedAt,

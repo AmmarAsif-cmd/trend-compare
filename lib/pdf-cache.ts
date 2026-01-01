@@ -86,8 +86,6 @@ export async function cachePdf(
   pdfBuffer: Buffer
 ): Promise<void> {
   const { set } = await import('@/lib/cache');
-  await set(cacheKey, pdfBuffer, PDF_TTL, {
-    tags: ['pdf'],
-  });
+  await set(cacheKey, pdfBuffer, PDF_TTL);
 }
 

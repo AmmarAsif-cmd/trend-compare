@@ -35,7 +35,7 @@ export async function createCompressedResponse(
   if (acceptsGzip(request)) {
     const compressed = await compressJSON(data);
     return {
-      body: compressed,
+      body: compressed as unknown as BodyInit,
       headers: {
         'Content-Type': 'application/json',
         'Content-Encoding': 'gzip',
