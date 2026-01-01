@@ -11,8 +11,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrBuildComparison } from '@/lib/getOrBuild';
 import { fromSlug, toCanonicalSlug } from '@/lib/slug';
 import { validateTopic } from '@/lib/validateTermsServer';
-import { smoothSeries } from '@/lib/series';
+import { smoothSeries, downsampleSeries } from '@/lib/series';
 import type { SeriesPoint } from '@/lib/trends';
+import { checkETag, createCacheHeaders } from '@/lib/utils/etag';
+import { createCompressedResponse } from '@/lib/utils/compress';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 600; // 10 minutes
@@ -86,7 +88,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Smooth series
-    const series = smoothSeries(rawSeries, 4);
+    let series = smoothSeries(rawSeries, 4);
+    
+    // Downsample if too long (reduce payload size)
+    // Keep full series for calculations, but return downsampled for API response
+    const maxSeriesPoints = 200; // Reasonable limit for API responses
+    const downsampledSeries = downsampleSeries(series, maxSeriesPoints);
 
     // Calculate basic stats
     const keyA = actualTerms[0];
@@ -102,13 +109,17 @@ export async function GET(request: NextRequest) {
     const aShare = total > 0 ? (totalA / total) * 100 : 50;
     const bShare = total > 0 ? (totalB / total) * 100 : 50;
 
-    // Return core data
-    return NextResponse.json({
+    // Prepare response data (use downsampled series for smaller payload)
+    const responseData = {
       slug: canonical,
       terms: actualTerms,
       timeframe,
       geo,
-      series,
+      series: downsampledSeries, // Use downsampled series to reduce payload
+      _metadata: {
+        originalLength: series.length,
+        downsampledLength: downsampledSeries.length,
+      },
       stats: {
         termA: {
           total: totalA,
@@ -125,9 +136,23 @@ export async function GET(request: NextRequest) {
       viewCount: row.viewCount || 0,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-    }, {
+    };
+
+    // Generate ETag and check for 304 Not Modified
+    const cacheHeaders = createCacheHeaders(responseData, 600, 3600); // 10 min cache, 1 hour stale
+    const etag = (cacheHeaders as Record<string, string>)['ETag'];
+    
+    if (etag && checkETag(request, etag)) {
+      return new NextResponse(null, { status: 304, headers: cacheHeaders });
+    }
+
+    // Compress response if client supports it
+    const { body, headers: compressHeaders } = await createCompressedResponse(responseData, request);
+    
+    return new NextResponse(body, {
       headers: {
-        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600',
+        ...cacheHeaders,
+        ...compressHeaders,
       },
     });
   } catch (error) {

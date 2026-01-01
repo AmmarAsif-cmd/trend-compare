@@ -11,10 +11,53 @@ import { getOrGenerateAIInsights, prepareInsightData } from '@/lib/aiInsightsGen
 import { getGeographicBreakdown } from '@/lib/getGeographicData';
 import { predictTrend } from '@/lib/prediction-engine-enhanced';
 import { getMaxHistoricalData } from '@/lib/get-max-historical-data';
+import { computeComparisonMetrics } from '@/lib/comparison-metrics';
+import { prepareEvidenceCards } from '@/lib/prepare-evidence';
+import { getCurrentUser } from '@/lib/user-auth-helpers';
+import { recordExport } from '@/lib/dashboard-helpers';
+
+// Rate limiting: 1 PDF per user per 5 minutes
+const PDF_RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Check if user can request PDF (rate limit)
+ */
+async function checkPdfRateLimit(userId: string): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const { prisma } = await import('@/lib/db');
+  const recentJob = await prisma.pdfJob.findFirst({
+    where: {
+      userId,
+      createdAt: {
+        gte: new Date(Date.now() - PDF_RATE_LIMIT_MS),
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  if (recentJob) {
+    const retryAfter = Math.ceil((PDF_RATE_LIMIT_MS - (Date.now() - recentJob.createdAt.getTime())) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  return { allowed: true };
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Get parameters
+    // Get user for rate limiting
+    const user = await getCurrentUser();
+    if (!user || !(user as any).id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const userId = (user as any).id;
+
+    // Get parameters first (needed for cache check)
     const searchParams = request.nextUrl.searchParams;
     const slug = searchParams.get('slug');
     const timeframe = searchParams.get('timeframe') || '12m';
@@ -24,6 +67,51 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required parameter: slug' },
         { status: 400 }
+      );
+    }
+
+    // Check for existing PDF in cache or database
+    const { createPdfCacheKey, getCachedPdf } = await import('@/lib/pdf-cache');
+    const pdfCacheKey = createPdfCacheKey(slug, timeframe, geo);
+    const cachedPdf = await getCachedPdf(pdfCacheKey);
+    
+    if (cachedPdf) {
+      // Return cached PDF immediately
+      const formatTerm = (term: string) => term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const terms = slug.split('-vs-');
+      const filename = `${formatTerm(terms[0])}-vs-${formatTerm(terms[1])}-Trend-Report.pdf`;
+      
+      // Record export (async)
+      recordExport({
+        userId,
+        slug,
+        termA: terms[0],
+        termB: terms[1],
+        type: 'pdf',
+        timeframe,
+        geo,
+        fileSize: cachedPdf.length,
+      }).catch(err => console.error('[PDF] Error recording cached PDF export:', err));
+      
+      return new NextResponse(new Uint8Array(cachedPdf), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Length': cachedPdf.length.toString(),
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+
+    // Check rate limit (only if not cached)
+    const rateLimitCheck = await checkPdfRateLimit(userId);
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please wait before requesting another PDF.',
+          retryAfter: rateLimitCheck.retryAfter,
+        },
+        { status: 429 }
       );
     }
 
@@ -99,7 +187,7 @@ export async function GET(request: NextRequest) {
     // Get geographic data
     let geographicData = null;
     try {
-      geographicData = await getGeographicBreakdown(terms[0], terms[1], series);
+      geographicData = await getGeographicBreakdown(terms[0], terms[1], series, { timeframe, geo });
     } catch (error) {
       console.warn('[PDF] Error getting geographic data (continuing without):', error);
     }
@@ -137,6 +225,32 @@ export async function GET(request: NextRequest) {
     const termBScore = intelligentComparison.scores.termB.overall;
     const winner = termAScore >= termBScore ? terms[0] : terms[1];
     const loser = winner === terms[0] ? terms[1] : terms[0];
+
+    // Compute V2 metrics
+    const metrics = computeComparisonMetrics(
+      series,
+      terms[0],
+      terms[1],
+      {
+        winner,
+        loser,
+        winnerScore: Math.max(termAScore, termBScore),
+        loserScore: Math.min(termAScore, termBScore),
+        margin: intelligentComparison.verdict.margin,
+        confidence: intelligentComparison.verdict.confidence,
+      },
+      intelligentComparison.scores.termA.breakdown,
+      intelligentComparison.scores.termB.breakdown,
+      null // No previous snapshot for PDF
+    );
+
+    // Prepare evidence cards
+    const evidence = prepareEvidenceCards(
+      intelligentComparison.scores.termA.breakdown,
+      intelligentComparison.scores.termB.breakdown,
+      terms[0],
+      terms[1]
+    );
 
     const pdfData = {
       termA: terms[0],
@@ -181,6 +295,18 @@ export async function GET(request: NextRequest) {
       } : undefined,
       generatedAt: new Date().toISOString(),
       reportUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://trendarc.net'}/compare/${slug}?tf=${timeframe}${geo ? `&geo=${geo}` : ''}`,
+      // V2 additions
+      metrics,
+      evidence,
+      exportVersion: '2.0',
+      modelVersion: 'TrendArc v1.0',
+      dataFreshness: {
+        lastUpdatedAt: row.updatedAt.toISOString(),
+        source: intelligentComparison.performance.sourcesQueried.join(', '),
+      },
+      // Add series and category for chart generation
+      series: series as any,
+      category: intelligentComparison.category.category as any,
     };
 
     // Generate PDF
@@ -190,12 +316,28 @@ export async function GET(request: NextRequest) {
     const formatTerm = (term: string) => term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const filename = `${formatTerm(terms[0])}-vs-${formatTerm(terms[1])}-Trend-Report.pdf`;
 
-    // Return PDF
+    // Record export in history (async, don't wait)
+    // userId is already defined at the top of the function
+    if (userId) {
+      recordExport({
+        userId,
+        slug: row.slug,
+        termA: terms[0],
+        termB: terms[1],
+        type: 'pdf',
+        timeframe,
+        geo,
+        fileSize: pdfBuffer.length,
+      }).catch(err => console.error('[PDF] Error recording PDF export:', err));
+    }
+
+    // Return PDF (will be cached by generateComparisonPDF)
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': pdfBuffer.length.toString(),
+        'X-Cache': 'MISS',
       },
     });
   } catch (error: any) {

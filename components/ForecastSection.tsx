@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Line } from 'react-chartjs-2';
+import GapForecastChart from './GapForecastChart';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,7 +36,7 @@ interface ForecastPoint {
 
 interface ForecastResult {
   points: ForecastPoint[];
-  model: 'ets' | 'arima' | 'naive';
+  model: 'ets' | 'naive'; // ARIMA removed
   metrics: {
     mae: number;
     mape: number;
@@ -59,10 +60,40 @@ interface HeadToHeadForecast {
   forecastHorizon: number;
 }
 
+interface GapForecastResult {
+  gapForecast: {
+    forecast: number[];
+    lower: number[];
+    upper: number[];
+    modelUsed: 'holt_damped' | 'theta' | 'naive';
+    diagnostics: {
+      backtestError: number;
+      residualStd: number;
+    };
+  };
+  expectedGap: number;
+  leadChangeRisk: number;
+  expectedMarginChange: number;
+  currentGap: number;
+  reliability: {
+    shouldShow: boolean;
+    reason?: string;
+  };
+}
+
 interface ForecastPack {
-  termA: ForecastResult;
-  termB: ForecastResult;
-  headToHead: HeadToHeadForecast;
+  // New gap-based structure
+  gapForecast?: GapForecastResult;
+  gapInsights?: {
+    expectedMarginInHorizon: number;
+    leadChangeRisk: number;
+    confidenceLabel: 'low' | 'medium' | 'high';
+    confidenceScore: number;
+  };
+  // Legacy fields (deprecated, for backward compatibility)
+  termA?: ForecastResult;
+  termB?: ForecastResult;
+  headToHead?: HeadToHeadForecast;
   computedAt: string;
   horizon: number;
 }
@@ -96,10 +127,8 @@ export default function ForecastSection({
 
   const prettyTerm = (term: string) => term.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
-  // Sort series by date to ensure proper ordering
+  // Find matching keys in series (needed for gap forecast chart)
   const sortedSeries = [...series].sort((a, b) => a.date.localeCompare(b.date));
-  
-  // Find matching keys in series (same logic as forecast-pack.ts)
   const firstPoint = sortedSeries[0];
   const availableKeys = firstPoint ? Object.keys(firstPoint).filter(k => k !== 'date') : [];
   const normalizeKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -119,9 +148,121 @@ export default function ForecastSection({
   
   const termAKey = findMatchingKey(termA);
   const termBKey = findMatchingKey(termB);
+
+  // Check if we have the new gap-based forecast structure
+  const hasGapForecast = forecastPack.gapForecast && forecastPack.gapInsights;
   
-  if (!termAKey || !termBKey) {
-    // Silently return null if keys not found (data issue, not user-facing error)
+  // If we have gap forecast, render gap-based UI with chart
+  if (hasGapForecast && termAKey && termBKey) {
+    const gapForecast = forecastPack.gapForecast!;
+    const gapInsights = forecastPack.gapInsights!;
+
+    // Check reliability
+    if (!gapForecast.reliability.shouldShow) {
+      return (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg mb-6">
+          <div className="flex items-start">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-lg font-semibold text-amber-800 mb-1">
+                Forecast Not Shown
+              </h3>
+              <p className="text-amber-700">
+                Forecast not shown due to insufficient reliability.
+                {gapForecast.reliability.reason && (
+                  <span className="block mt-1 text-sm">Reason: {gapForecast.reliability.reason}</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Render gap-based forecast insights with chart
+    return (
+      <div className="mb-6 space-y-6">
+        {/* Summary Cards */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <BarChart3 className="w-6 h-6 text-blue-600" />
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">
+                Future Forecast
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                See which term is expected to lead and how stable the trend is
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Summary - User Friendly */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-5 mb-4 text-white">
+            <p className="text-sm font-medium mb-3 opacity-90">Quick Forecast Summary</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs opacity-80 mb-1">Expected Leader</p>
+                <p className="text-xl font-bold">
+                  {gapInsights.expectedMarginInHorizon > 0 ? prettyTerm(termA) : 
+                   gapInsights.expectedMarginInHorizon < 0 ? prettyTerm(termB) : 
+                   'May Tie'}
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  {Math.abs(gapInsights.expectedMarginInHorizon).toFixed(1)} point lead expected
+                </p>
+              </div>
+              <div>
+                <p className="text-xs opacity-80 mb-1">Stability</p>
+                <p className={`text-xl font-bold ${
+                  gapInsights.leadChangeRisk < 20 ? 'text-green-200' :
+                  gapInsights.leadChangeRisk < 50 ? 'text-yellow-200' :
+                  'text-red-200'
+                }`}>
+                  {gapInsights.leadChangeRisk < 20 ? 'Very Stable' :
+                   gapInsights.leadChangeRisk < 50 ? 'Moderate' :
+                   'Uncertain'}
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  {gapInsights.leadChangeRisk.toFixed(0)}% chance leader changes
+                </p>
+              </div>
+              <div>
+                <p className="text-xs opacity-80 mb-1">Forecast Reliability</p>
+                <p className={`text-xl font-bold ${
+                  gapInsights.confidenceLabel === 'high' ? 'text-green-200' :
+                  gapInsights.confidenceLabel === 'medium' ? 'text-yellow-200' :
+                  'text-red-200'
+                }`}>
+                  {gapInsights.confidenceLabel === 'high' ? 'High' :
+                   gapInsights.confidenceLabel === 'medium' ? 'Moderate' :
+                   'Low'} Confidence
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  {gapInsights.confidenceScore.toFixed(0)}% confidence score
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gap Forecast Chart */}
+        <GapForecastChart
+          gapForecast={gapForecast}
+          historicalSeries={series.map(p => ({
+            date: p.date,
+            termA: Number(p[termAKey] || 0),
+            termB: Number(p[termBKey] || 0),
+          }))}
+          termA={termA}
+          termB={termB}
+          horizon={forecastPack.horizon}
+        />
+      </div>
+    );
+  }
+
+  // Legacy code path for old structure (backward compatibility)
+  if (!forecastPack?.termA || !forecastPack?.termB || !termAKey || !termBKey) {
     return null;
   }
   
@@ -130,9 +271,9 @@ export default function ForecastSection({
   const historicalValuesA = sortedSeries.map(p => Number(p[termAKey] || 0));
   const historicalValuesB = sortedSeries.map(p => Number(p[termBKey] || 0));
 
-  const forecastDates = forecastPack.termA.points.map(p => p.date);
-  const forecastValuesA = forecastPack.termA.points.map(p => p.value);
-  const forecastValuesB = forecastPack.termB.points.map(p => p.value);
+  const forecastDates = forecastPack?.termA.points.map(p => p.date);
+  const forecastValuesA = forecastPack?.termA.points.map(p => p.value);
+  const forecastValuesB = forecastPack?.termB.points.map(p => p.value);
   
   // Get the last historical date to ensure smooth transition
   const lastHistoricalDate = historicalDates[historicalDates.length - 1];
@@ -182,14 +323,14 @@ export default function ForecastSection({
       if (forecastIdx >= 0) {
         allValuesA.push(forecastValuesA[forecastIdx]);
         allValuesB.push(forecastValuesB[forecastIdx]);
-        allLower80A.push(forecastPack.termA.points[forecastIdx].lower80);
-        allUpper80A.push(forecastPack.termA.points[forecastIdx].upper80);
-        allLower95A.push(forecastPack.termA.points[forecastIdx].lower95);
-        allUpper95A.push(forecastPack.termA.points[forecastIdx].upper95);
-        allLower80B.push(forecastPack.termB.points[forecastIdx].lower80);
-        allUpper80B.push(forecastPack.termB.points[forecastIdx].upper80);
-        allLower95B.push(forecastPack.termB.points[forecastIdx].lower95);
-        allUpper95B.push(forecastPack.termB.points[forecastIdx].upper95);
+        allLower80A.push(forecastPack?.termA.points[forecastIdx].lower80);
+        allUpper80A.push(forecastPack?.termA.points[forecastIdx].upper80);
+        allLower95A.push(forecastPack?.termA.points[forecastIdx].lower95);
+        allUpper95A.push(forecastPack?.termA.points[forecastIdx].upper95);
+        allLower80B.push(forecastPack?.termB.points[forecastIdx].lower80);
+        allUpper80B.push(forecastPack?.termB.points[forecastIdx].upper80);
+        allLower95B.push(forecastPack?.termB.points[forecastIdx].lower95);
+        allUpper95B.push(forecastPack?.termB.points[forecastIdx].upper95);
       } else {
         // Fill with null if date not found
         allValuesA.push(null);
@@ -208,12 +349,12 @@ export default function ForecastSection({
 
   // Determine if forecast should be shown prominently
   const isExperimental = 
-    forecastPack.termA.qualityFlags.seriesTooShort ||
-    forecastPack.termA.qualityFlags.tooSpiky ||
-    forecastPack.termB.qualityFlags.seriesTooShort ||
-    forecastPack.termB.qualityFlags.tooSpiky;
+    forecastPack?.termA.qualityFlags.seriesTooShort ||
+    forecastPack?.termA.qualityFlags.tooSpiky ||
+    forecastPack?.termB.qualityFlags.seriesTooShort ||
+    forecastPack?.termB.qualityFlags.tooSpiky;
 
-  const avgConfidence = (forecastPack.termA.confidenceScore + forecastPack.termB.confidenceScore) / 2;
+  const avgConfidence = (forecastPack?.termA.confidenceScore + forecastPack?.termB.confidenceScore) / 2;
   const isLowConfidence = avgConfidence < 50;
 
   // Find the split point between historical and forecast
@@ -426,7 +567,10 @@ export default function ForecastSection({
             Forecast and Reliability
           </h2>
           <p className="text-sm text-slate-600">
-            {forecastPack.horizon}-day forecast using {forecastPack.termA.model.toUpperCase()} and {forecastPack.termB.model.toUpperCase()} models
+            {forecastPack.horizon}-day forecast using {forecastPack?.termA.model.toUpperCase()} and {forecastPack?.termB.model.toUpperCase()} models
+          </p>
+          <p className="text-xs text-slate-500 mt-1 italic">
+            Forecast is directional, not exact volume.
           </p>
         </div>
         {isExperimental && (
@@ -493,11 +637,11 @@ export default function ForecastSection({
                       const index = context.dataIndex;
                       if (index >= splitIndex) {
                         const forecastIndex = index - splitIndex;
-                        if (forecastIndex >= 0 && forecastIndex < forecastPack.termA.points.length) {
+                        if (forecastPack?.termA && forecastIndex >= 0 && forecastIndex < forecastPack.termA.points.length) {
                           const isTermA = label.includes(prettyTerm(termA));
                           const point = isTermA 
                             ? forecastPack.termA.points[forecastIndex]
-                            : forecastPack.termB.points[forecastIndex];
+                            : forecastPack.termB?.points[forecastIndex];
                           
                           if (point) {
                             const interval80 = `(80%: ${point.lower80.toFixed(1)} - ${point.upper80.toFixed(1)})`;
@@ -547,6 +691,7 @@ export default function ForecastSection({
       </div>
 
       {/* Key Metrics Cards */}
+      {forecastPack?.headToHead && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Winner Probability */}
         <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-4 flex flex-col items-center text-center">
@@ -554,7 +699,7 @@ export default function ForecastSection({
             <TrendingUp className="w-5 h-5" />
           </div>
           <p className="text-3xl font-bold text-purple-800 mb-1">
-            {forecastPack.headToHead.winnerProbability.toFixed(1)}%
+            {forecastPack?.headToHead?.winnerProbability.toFixed(1)}%
           </p>
           <p className="text-sm text-purple-700 font-medium">Winner Probability</p>
           <p className="text-xs text-purple-600 mt-1">
@@ -640,6 +785,7 @@ export default function ForecastSection({
           </p>
         </div>
       </div>
+      )}
 
       {/* Trust Stats */}
       {trustStats && trustStats.totalEvaluated > 0 && (
@@ -715,29 +861,29 @@ export default function ForecastSection({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="font-semibold text-slate-800 mb-2">{prettyTerm(termA)} Model: {forecastPack.termA.model.toUpperCase()}</h4>
+            <h4 className="font-semibold text-slate-800 mb-2">{prettyTerm(termA)} Model: {forecastPack?.termA.model.toUpperCase()}</h4>
             <ul className="text-sm text-slate-600 space-y-1">
-              <li>MAE: {forecastPack.termA.metrics.mae.toFixed(2)}</li>
-              <li>MAPE: {forecastPack.termA.metrics.mape.toFixed(2)}%</li>
-              <li>80% Interval Coverage: {forecastPack.termA.metrics.intervalCoverage80.toFixed(1)}%</li>
-              <li>95% Interval Coverage: {forecastPack.termA.metrics.intervalCoverage95.toFixed(1)}%</li>
-              <li>Backtest Sample Size: {forecastPack.termA.metrics.sampleSize}</li>
-              {forecastPack.termA.qualityFlags.seriesTooShort && <li><span className="text-yellow-600">Warning: Series too short</span></li>}
-              {forecastPack.termA.qualityFlags.tooSpiky && <li><span className="text-yellow-600">Warning: Series too spiky</span></li>}
-              {forecastPack.termA.qualityFlags.eventShockLikely && <li><span className="text-yellow-600">Warning: Event shock likely</span></li>}
+              <li>MAE: {forecastPack?.termA.metrics.mae.toFixed(2)}</li>
+              <li>MAPE: {forecastPack?.termA.metrics.mape.toFixed(2)}%</li>
+              <li>80% Interval Coverage: {forecastPack?.termA.metrics.intervalCoverage80.toFixed(1)}%</li>
+              <li>95% Interval Coverage: {forecastPack?.termA.metrics.intervalCoverage95.toFixed(1)}%</li>
+              <li>Backtest Sample Size: {forecastPack?.termA.metrics.sampleSize}</li>
+              {forecastPack?.termA.qualityFlags.seriesTooShort && <li><span className="text-yellow-600">Warning: Series too short</span></li>}
+              {forecastPack?.termA.qualityFlags.tooSpiky && <li><span className="text-yellow-600">Warning: Series too spiky</span></li>}
+              {forecastPack?.termA.qualityFlags.eventShockLikely && <li><span className="text-yellow-600">Warning: Event shock likely</span></li>}
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-slate-800 mb-2">{prettyTerm(termB)} Model: {forecastPack.termB.model.toUpperCase()}</h4>
+            <h4 className="font-semibold text-slate-800 mb-2">{prettyTerm(termB)} Model: {forecastPack?.termB.model.toUpperCase()}</h4>
             <ul className="text-sm text-slate-600 space-y-1">
-              <li>MAE: {forecastPack.termB.metrics.mae.toFixed(2)}</li>
-              <li>MAPE: {forecastPack.termB.metrics.mape.toFixed(2)}%</li>
-              <li>80% Interval Coverage: {forecastPack.termB.metrics.intervalCoverage80.toFixed(1)}%</li>
-              <li>95% Interval Coverage: {forecastPack.termB.metrics.intervalCoverage95.toFixed(1)}%</li>
-              <li>Backtest Sample Size: {forecastPack.termB.metrics.sampleSize}</li>
-              {forecastPack.termB.qualityFlags.seriesTooShort && <li><span className="text-yellow-600">Warning: Series too short</span></li>}
-              {forecastPack.termB.qualityFlags.tooSpiky && <li><span className="text-yellow-600">Warning: Series too spiky</span></li>}
-              {forecastPack.termB.qualityFlags.eventShockLikely && <li><span className="text-yellow-600">Warning: Event shock likely</span></li>}
+              <li>MAE: {forecastPack?.termB.metrics.mae.toFixed(2)}</li>
+              <li>MAPE: {forecastPack?.termB.metrics.mape.toFixed(2)}%</li>
+              <li>80% Interval Coverage: {forecastPack?.termB.metrics.intervalCoverage80.toFixed(1)}%</li>
+              <li>95% Interval Coverage: {forecastPack?.termB.metrics.intervalCoverage95.toFixed(1)}%</li>
+              <li>Backtest Sample Size: {forecastPack?.termB.metrics.sampleSize}</li>
+              {forecastPack?.termB.qualityFlags.seriesTooShort && <li><span className="text-yellow-600">Warning: Series too short</span></li>}
+              {forecastPack?.termB.qualityFlags.tooSpiky && <li><span className="text-yellow-600">Warning: Series too spiky</span></li>}
+              {forecastPack?.termB.qualityFlags.eventShockLikely && <li><span className="text-yellow-600">Warning: Event shock likely</span></li>}
             </ul>
           </div>
         </div>

@@ -10,6 +10,7 @@ import type { SeriesPoint } from '../trends';
 import type { TrendArcScore } from '../trendarc-score';
 import { INSIGHT_VERSION } from './contracts/versions';
 import { stableHash } from '../cache/hash';
+import { memoize } from '@/lib/utils/memoize';
 
 export interface GenerateSignalsInput {
   termA: string;
@@ -37,9 +38,9 @@ export interface GenerateSignalsInput {
 }
 
 /**
- * Generate all signals from comparison data
+ * Generate all signals from comparison data (internal, not memoized)
  */
-export function generateSignals(input: GenerateSignalsInput): Signal[] {
+function generateSignalsInternal(input: GenerateSignalsInput): Signal[] {
   const signals: Signal[] = [];
   const now = new Date().toISOString();
   const { termA, termB, series, scores, anomalies, peaks, forecastSummary, dataSource, lastUpdatedAt } = input;
@@ -75,6 +76,16 @@ export function generateSignals(input: GenerateSignalsInput): Signal[] {
 
   return signals;
 }
+
+/**
+ * Memoized version of generateSignals
+ * Memoized with 5-minute TTL
+ */
+export const generateSignals = memoize(
+  generateSignalsInternal,
+  5 * 60 * 1000, // 5 minutes TTL
+  (input) => stableHash(input)
+);
 
 /**
  * Extract time series values for a term

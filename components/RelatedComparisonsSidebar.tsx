@@ -19,19 +19,7 @@ type RelatedComparison = {
 };
 
 /**
- * Shuffle array using Fisher-Yates algorithm
- */
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-/**
- * Get related comparisons from the same category, randomized
+ * Get related comparisons from the same category, prioritized by relevance
  */
 async function getRelatedComparisonsByCategory(
   currentSlug: string,
@@ -80,8 +68,29 @@ async function getRelatedComparisonsByCategory(
       });
     }
 
-    // Shuffle and return limited results
-    return shuffleArray(results).slice(0, limit);
+    // Sort by relevance: exact keyword matches first, then partial matches
+    const sorted = results.sort((a, b) => {
+      const aTerms = a.terms.map(t => t.toLowerCase());
+      const bTerms = b.terms.map(t => t.toLowerCase());
+      const termALower = termA.toLowerCase();
+      const termBLower = termB.toLowerCase();
+      
+      // Exact match gets highest priority
+      const aExact = aTerms.includes(termALower) || aTerms.includes(termBLower) ? 1 : 0;
+      const bExact = bTerms.includes(termALower) || bTerms.includes(termBLower) ? 1 : 0;
+      
+      if (aExact !== bExact) return bExact - aExact;
+      
+      // Partial match (contains keyword)
+      const aPartial = aTerms.some(t => t.includes(termALower) || t.includes(termBLower)) ? 1 : 0;
+      const bPartial = bTerms.some(t => t.includes(termALower) || t.includes(termBLower)) ? 1 : 0;
+      
+      if (aPartial !== bPartial) return bPartial - aPartial;
+      
+      return 0;
+    });
+    
+    return sorted.slice(0, limit);
   }
 
   // Find comparisons with the same category
@@ -118,8 +127,33 @@ async function getRelatedComparisonsByCategory(
     });
   }
 
-  // Shuffle and return limited results
-  return shuffleArray(results).slice(0, limit);
+  // Sort by relevance: prioritize comparisons with similar terms
+  const [termA, termB] = terms;
+  const sorted = results.sort((a, b) => {
+    const aTerms = a.terms.map(t => t.toLowerCase());
+    const bTerms = b.terms.map(t => t.toLowerCase());
+    const termALower = termA?.toLowerCase() || '';
+    const termBLower = termB?.toLowerCase() || '';
+    
+    // Score based on keyword matches
+    const scoreA = aTerms.reduce((score, term) => {
+      if (term === termALower || term === termBLower) return score + 10;
+      if (term.includes(termALower) || term.includes(termBLower)) return score + 5;
+      if (termALower.includes(term) || termBLower.includes(term)) return score + 3;
+      return score;
+    }, 0);
+    
+    const scoreB = bTerms.reduce((score, term) => {
+      if (term === termALower || term === termBLower) return score + 10;
+      if (term.includes(termALower) || term.includes(termBLower)) return score + 5;
+      if (termALower.includes(term) || termBLower.includes(term)) return score + 3;
+      return score;
+    }, 0);
+    
+    return scoreB - scoreA;
+  });
+  
+  return sorted.slice(0, limit);
 }
 
 // Cache related comparisons for 1 hour

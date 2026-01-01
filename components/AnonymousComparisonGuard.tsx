@@ -37,11 +37,28 @@ export default function AnonymousComparisonGuard({ children }: { children: React
 
     if (status === "unauthenticated" && isComparisonPage) {
       // Check if user has exceeded limit
+      // First check cookie (server-side source of truth), then fallback to localStorage
       if (typeof window !== "undefined") {
+        // Try to read from cookie first (synced from server)
+        const getCookie = (name: string) => {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop()?.split(';').shift();
+          return null;
+        };
+        
+        const cookieCount = getCookie('trendarc_anonymous_comparisons_client');
         const stored = localStorage.getItem(ANONYMOUS_COMPARISON_KEY);
-        const count = stored ? parseInt(stored, 10) : 0;
+        
+        // Use cookie if available (server-side truth), otherwise use localStorage
+        const count = cookieCount ? parseInt(cookieCount, 10) : (stored ? parseInt(stored, 10) : 0);
+        
+        // Sync localStorage with cookie value
+        if (cookieCount && cookieCount !== stored) {
+          localStorage.setItem(ANONYMOUS_COMPARISON_KEY, cookieCount);
+        }
 
-        console.log('[AnonymousGuard] Checking access for comparison page. Count:', count);
+        console.log('[AnonymousGuard] Checking access for comparison page. Count:', count, '(from cookie:', cookieCount, ', localStorage:', stored, ')');
 
         // Block if count >= 2 (they've already viewed 2 comparisons)
         // ANONYMOUS_LIMIT is 1, so after viewing 2, they must sign up

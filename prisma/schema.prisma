@@ -128,6 +128,8 @@ model User {
   subscriptions       Subscription[]
   trendAlerts         TrendAlert[]
   pdfJobs             PdfJob[]
+  comparisonSnapshots ComparisonSnapshot[]
+  exportHistory       ExportHistory[]
 
   @@index([email])
   @@index([subscriptionTier])
@@ -336,6 +338,31 @@ model ComparisonHistory {
   @@index([ipAddress, viewedAt])
 }
 
+model ComparisonSnapshot {
+  id            String   @id @default(cuid())
+  userId        String
+  slug          String
+  termA         String
+  termB         String
+  timeframe     String
+  geo           String
+  computedAt    DateTime @default(now())
+  marginPoints  Float
+  confidence    Float
+  volatility    Float
+  agreementIndex Float
+  winner        String
+  winnerScore   Float
+  loserScore    Float
+  category      String?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, slug, timeframe, geo])
+  @@index([slug])
+  @@index([computedAt])
+}
+
 model WarmupJob {
   id          String    @id @default(cuid())
   slug        String
@@ -405,6 +432,27 @@ model PdfJob {
   @@index([userId])
   @@index([slug])
   @@index([status])
+  @@index([createdAt])
+}
+
+model ExportHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  slug      String
+  termA     String
+  termB     String
+  type      String   // 'pdf' | 'csv' | 'json'
+  timeframe String   @default("12m")
+  geo       String   @default("")
+  fileUrl   String?  // For PDFs, the stored file URL
+  fileSize  Int?     // File size in bytes
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([slug])
+  @@index([type])
   @@index([createdAt])
 }
 

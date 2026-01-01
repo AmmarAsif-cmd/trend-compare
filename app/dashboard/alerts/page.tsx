@@ -1,14 +1,14 @@
 /**
  * Alerts Management Page
- * Premium feature - Manage trend alerts
+ * Free feature - Manage trend alerts (requires account)
  */
 
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user-auth-helpers';
-import { canAccessPremium } from '@/lib/user-auth-helpers';
 import { getUserAlerts } from '@/lib/trend-alerts';
+import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import Link from 'next/link';
-import { ArrowLeft, Bell, BellOff, Trash2, Pause, Play, TrendingUp } from 'lucide-react';
+import { Bell, TrendingUp } from 'lucide-react';
 import AlertManagementClient from '@/components/AlertManagementClient';
 
 export default async function AlertsPage() {
@@ -16,11 +16,6 @@ export default async function AlertsPage() {
 
   if (!user) {
     redirect('/login?redirect=/dashboard/alerts');
-  }
-
-  const isPremium = await canAccessPremium();
-  if (!isPremium) {
-    redirect('/pricing?feature=alerts');
   }
 
   const userId = (user as any).id;
@@ -57,16 +52,12 @@ export default async function AlertsPage() {
   };
 
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 bg-slate-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
+    <div className="flex h-screen overflow-hidden">
+      <DashboardSidebar />
+      <main className="flex-1 overflow-y-auto lg:ml-64">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          {/* Header */}
+          <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2">
@@ -75,10 +66,6 @@ export default async function AlertsPage() {
             <p className="text-lg text-slate-600">
               Get notified when your tracked comparisons change
             </p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold">
-            <Bell className="w-4 h-4" />
-            Premium
           </div>
         </div>
       </div>
@@ -125,11 +112,13 @@ export default async function AlertsPage() {
           </li>
           <li className="flex items-start gap-2">
             <span className="text-blue-600 mt-1">•</span>
-            <span>Alerts are checked based on your selected frequency (daily, weekly, or instant)</span>
+            <span>Alerts are checked based on your selected frequency (weekly or instant)</span>
           </li>
         </ul>
       </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
 

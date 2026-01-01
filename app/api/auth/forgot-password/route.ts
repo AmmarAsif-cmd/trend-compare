@@ -35,14 +35,58 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // In production, send email here
-      // For now, we'll log it (in production, use a service like SendGrid, Resend, etc.)
+      // Send password reset email
       const resetUrl = `${process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${resetToken}`;
       
-      console.log("[Password Reset] Reset link for", email, ":", resetUrl);
-      
-      // TODO: Send email with reset link
-      // await sendPasswordResetEmail(user.email, resetUrl);
+      // Try Resend first (if configured)
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #4F46E5;">Password Reset Request</h2>
+              <p>Hello,</p>
+              <p>You requested to reset your password for your TrendArc account. Click the button below to reset your password:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reset Password</a>
+              </div>
+              <p>Or copy and paste this link into your browser:</p>
+              <p style="color: #6B7280; font-size: 12px; word-break: break-all;">${resetUrl}</p>
+              <p style="color: #6B7280; font-size: 12px; margin-top: 30px;">This link will expire in 1 hour. If you didn't request this, please ignore this email.</p>
+            </div>
+          `;
+          
+          const emailText = `
+Password Reset Request
+
+You requested to reset your password for your TrendArc account.
+
+Click this link to reset your password:
+${resetUrl}
+
+This link will expire in 1 hour. If you didn't request this, please ignore this email.
+          `.trim();
+          
+          await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'TrendArc <onboarding@resend.dev>',
+            to: [user.email],
+            subject: 'Reset Your TrendArc Password',
+            text: emailText,
+            html: emailHtml,
+          });
+          
+          console.log("[Password Reset] Email sent successfully to", user.email);
+        } catch (error: any) {
+          console.error("[Password Reset] Resend error:", error);
+          // Don't throw - we still want to return success to prevent email enumeration
+        }
+      } else {
+        // Fallback: Log for development
+        console.log("[Password Reset] Reset link for", email, ":", resetUrl);
+        console.warn("[Password Reset] RESEND_API_KEY not configured. Email not sent.");
+      }
     }
 
     // Always return success message

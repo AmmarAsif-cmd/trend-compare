@@ -1,7 +1,7 @@
 /**
  * POST /api/comparisons/export/pdf
  * 
- * Premium-only PDF export with job queue system
+ * PDF export with job queue system (free for all logged-in users)
  * 
  * Requirements:
  * - No exports for free users (block server-side)

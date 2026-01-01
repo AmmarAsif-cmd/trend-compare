@@ -80,7 +80,7 @@ export async function createTrendAlert(data: {
       baselineScoreA: Number(baselineScoreA),
       baselineScoreB: Number(baselineScoreB),
       changePercent: data.changePercent ? Number(data.changePercent) : 10,
-      frequency: data.frequency || 'daily',
+      frequency: data.frequency || 'weekly',
       status: 'active',
       lastChecked: baselineDate,
       baselineDate: baselineDate,

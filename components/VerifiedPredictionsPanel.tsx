@@ -254,7 +254,7 @@ export default function VerifiedPredictionsPanel({ slug, termA, termB }: Props) 
       <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
         <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-800">
-          Forecasts are automatically evaluated against actual data using our time-series forecasting system (ETS/ARIMA models). 
+          Forecasts are automatically evaluated against actual data using our time-series forecasting system (ETS models with gap-based forecasting). 
           We track winner accuracy, interval coverage, and error metrics to continuously improve our forecasting models.
         </p>
       </div>

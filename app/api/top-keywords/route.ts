@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getRealTimeTrending } from "@/lib/real-time-trending";
 import { isValidKeyword } from "@/lib/keyword-validator";
+import { checkETag, createCacheHeaders } from '@/lib/utils/etag';
 
 /**
  * API endpoint for real-time trending keywords from Google Trends
@@ -30,11 +31,29 @@ export async function GET(request: Request) {
       }))
       .slice(0, 10); // Top 10
 
-    return NextResponse.json({
+    const responseData = {
       keywords,
       lastUpdate: new Date().toISOString(),
       source: "Google Trends (Real-Time)",
       cacheDuration: "10 minutes",
+    };
+
+    // Generate ETag and check for 304 Not Modified (only if not force refresh)
+    if (!forceRefresh) {
+      const cacheHeaders = createCacheHeaders(responseData, 600, 1800); // 10 min cache, 30 min stale
+      const etag = (cacheHeaders as Record<string, string>)['ETag'];
+      
+      if (etag && checkETag(request, etag)) {
+        return new NextResponse(null, { status: 304, headers: cacheHeaders });
+      }
+      
+      return NextResponse.json(responseData, { headers: cacheHeaders });
+    }
+    
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     console.error("[Top Keywords API] Error:", error);

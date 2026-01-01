@@ -28,7 +28,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { canAccessPremium } from '@/lib/user-auth-helpers';
 import { getInsightsPack, type GetInsightsPackInput } from '@/lib/insights/generate';
 import { getOrBuildComparison } from '@/lib/getOrBuild';
 import { runIntelligentComparison } from '@/lib/intelligent-comparison';
@@ -145,21 +144,6 @@ export async function GET(request: NextRequest) {
   const diagnosticHeaders = getDiagnosticHeaders();
   
   try {
-    // Check premium access (server-side enforcement)
-    const hasPremium = await canAccessPremium();
-    if (!hasPremium) {
-      return NextResponse.json(
-        { error: 'Premium subscription required' },
-        { 
-          status: 403,
-          headers: {
-            'Content-Type': 'application/json',
-            ...diagnosticHeaders,
-          },
-        }
-      );
-    }
-
     // Get user ID for rate limiting
     const { getCurrentUser } = await import('@/lib/user-auth-helpers');
     const user = await getCurrentUser();
@@ -581,10 +565,24 @@ export async function GET(request: NextRequest) {
         response.debug = debugInfo;
       }
 
+      // Import ETag utilities (dynamic to avoid circular deps)
+      const { checkETag, createCacheHeaders } = await import('@/lib/utils/etag');
+      
+      // Generate ETag and check for 304 Not Modified
+      const cacheHeaders = createCacheHeaders(response, 300, 1800); // 5 min cache, 30 min stale
+      const etag = (cacheHeaders as Record<string, string>)['ETag'];
+      
+      if (etag && checkETag(request, etag)) {
+        return new NextResponse(null, { 
+          status: 304, 
+          headers: { ...cacheHeaders, ...diagnosticHeaders } 
+        });
+      }
+      
       return NextResponse.json(response, {
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800',
+          ...cacheHeaders,
           ...diagnosticHeaders,
         },
       });

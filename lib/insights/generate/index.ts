@@ -7,6 +7,7 @@
  * Stage E: Build and Get InsightsPack with caching
  */
 
+// Re-export memoized versions
 export { generateSignals, type GenerateSignalsInput } from '../generateSignals';
 export { 
   generateInterpretations, 

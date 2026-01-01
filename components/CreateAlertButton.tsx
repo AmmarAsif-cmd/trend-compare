@@ -22,7 +22,7 @@ export default function CreateAlertButton({ slug, termA, termB }: Props) {
   const [alertType, setAlertType] = useState<AlertType>('score_change');
   const [changePercent, setChangePercent] = useState(10);
   const [threshold, setThreshold] = useState(70);
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'instant'>('daily');
+  const [frequency, setFrequency] = useState<'weekly' | 'instant'>('weekly');
 
   const formatTerm = (term: string) => {
     return term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -211,7 +211,6 @@ export default function CreateAlertButton({ slug, termA, termB }: Props) {
                       onChange={(e) => setFrequency(e.target.value as any)}
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                     >
-                      <option value="daily">Daily</option>
                       <option value="weekly">Weekly</option>
                       <option value="instant">Instant (as changes occur)</option>
                     </select>

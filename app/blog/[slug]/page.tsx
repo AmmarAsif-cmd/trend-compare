@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import AdSense from "@/components/AdSense";
+import type { Metadata } from "next";
+import { getBlogCanonicalUrl } from "@/lib/canonical-url";
 
 const prisma = new PrismaClient();
 
@@ -44,7 +46,7 @@ async function getRelatedPosts(category: string, currentSlug: string) {
   return posts;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
   const post = await prisma.blogPost.findUnique({
     where: { slug: resolvedParams.slug, status: "published" },
@@ -52,10 +54,29 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   if (!post) return {};
 
+  const canonicalUrl = getBlogCanonicalUrl(resolvedParams.slug);
+
   return {
     title: post.metaTitle || post.title,
     description: post.metaDescription || post.excerpt,
     keywords: post.keywords.join(", "),
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: post.metaTitle || post.title,
+      description: post.metaDescription || post.excerpt,
+      url: canonicalUrl,
+      type: "article",
+      publishedTime: post.publishedAt?.toISOString(),
+      authors: ["TrendArc"],
+      tags: post.keywords,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.metaTitle || post.title,
+      description: post.metaDescription || post.excerpt,
+    },
   };
 }
 

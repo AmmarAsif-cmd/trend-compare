@@ -1,22 +1,32 @@
 /**
  * Forecast Pack Builder
  * 
- * Orchestrates forecasting for both terms, computes head-to-head analytics,
- * and packages results for API consumption.
+ * Uses gap-based forecasting for comparisons.
+ * Forecasts the GAP (difference) between two trend indices instead of
+ * forecasting each series independently.
  */
 
 import { prisma } from '@/lib/db';
-import { forecast, type ForecastResult, type TimeSeriesPoint } from './core';
-import { computeHeadToHeadForecast, type HeadToHeadForecast } from './head-to-head';
 import { createHash } from 'crypto';
 import { calculateTrendArcScoreTimeSeries, type TrendArcScoreTimeSeries } from '@/lib/trendarc-score-time-series';
 import type { ComparisonCategory } from '@/lib/category-resolver';
 import type { SeriesPoint } from '@/lib/trends';
+import { forecastGap, getGapForecastInsights, type GapForecastResult } from './gap-forecaster';
 
 export interface ForecastPack {
-  termA: ForecastResult;
-  termB: ForecastResult;
-  headToHead: HeadToHeadForecast;
+  // Gap-based forecast (new approach)
+  gapForecast: GapForecastResult;
+  gapInsights: {
+    expectedMarginInHorizon: number;
+    leadChangeRisk: number;
+    confidenceLabel: 'low' | 'medium' | 'high';
+    confidenceScore: number;
+  };
+  // Legacy fields (deprecated, kept for backward compatibility)
+  // These will be computed from gap forecast if needed
+  termA?: any; // Deprecated
+  termB?: any; // Deprecated
+  headToHead?: any; // Deprecated
   computedAt: string; // ISO 8601
   dataHash: string;
   horizon: number;
@@ -250,30 +260,31 @@ async function saveForecastToCache(
         timeframe,
         horizon,
         dataHash,
-        modelTermA: forecastPack.termA.model,
-        modelTermB: forecastPack.termB.model,
-        confidenceScoreA: forecastPack.termA.confidenceScore,
-        confidenceScoreB: forecastPack.termB.confidenceScore,
-        metricsA: forecastPack.termA.metrics,
-        metricsB: forecastPack.termB.metrics,
-        qualityFlagsA: forecastPack.termA.qualityFlags,
-        qualityFlagsB: forecastPack.termB.qualityFlags,
-        winnerProbability: forecastPack.headToHead.winnerProbability,
-        expectedMargin: forecastPack.headToHead.expectedMarginPoints,
-        leadChangeRisk: forecastPack.headToHead.leadChangeRisk,
+        // Use gap forecast data
+        modelTermA: forecastPack.gapForecast.gapForecast.modelUsed,
+        modelTermB: 'gap', // Indicate this is a gap forecast
+        confidenceScoreA: forecastPack.gapInsights.confidenceScore,
+        confidenceScoreB: 0, // Not used for gap forecasts
+        metricsA: forecastPack.gapForecast.gapForecast.diagnostics as any,
+        metricsB: {} as any,
+        qualityFlagsA: {} as any,
+        qualityFlagsB: {} as any,
+        winnerProbability: forecastPack.gapInsights.leadChangeRisk,
+        expectedMargin: forecastPack.gapInsights.expectedMarginInHorizon,
+        leadChangeRisk: forecastPack.gapInsights.leadChangeRisk >= 50 ? 'high' : forecastPack.gapInsights.leadChangeRisk >= 30 ? 'medium' : 'low',
       },
       update: {
-        modelTermA: forecastPack.termA.model,
-        modelTermB: forecastPack.termB.model,
-        confidenceScoreA: forecastPack.termA.confidenceScore,
-        confidenceScoreB: forecastPack.termB.confidenceScore,
-        metricsA: forecastPack.termA.metrics,
-        metricsB: forecastPack.termB.metrics,
-        qualityFlagsA: forecastPack.termA.qualityFlags,
-        qualityFlagsB: forecastPack.termB.qualityFlags,
-        winnerProbability: forecastPack.headToHead.winnerProbability,
-        expectedMargin: forecastPack.headToHead.expectedMarginPoints,
-        leadChangeRisk: forecastPack.headToHead.leadChangeRisk,
+        modelTermA: forecastPack.gapForecast.gapForecast.modelUsed,
+        modelTermB: 'gap',
+        confidenceScoreA: forecastPack.gapInsights.confidenceScore,
+        confidenceScoreB: 0,
+        metricsA: forecastPack.gapForecast.gapForecast.diagnostics as any,
+        metricsB: {} as any,
+        qualityFlagsA: {} as any,
+        qualityFlagsB: {} as any,
+        winnerProbability: forecastPack.gapInsights.leadChangeRisk,
+        expectedMargin: forecastPack.gapInsights.expectedMarginInHorizon,
+        leadChangeRisk: forecastPack.gapInsights.leadChangeRisk >= 50 ? 'high' : forecastPack.gapInsights.leadChangeRisk >= 30 ? 'medium' : 'low',
         computedAt: new Date(),
       },
     });
@@ -283,29 +294,16 @@ async function saveForecastToCache(
       where: { forecastRunId: forecastRun.id },
     });
 
-    // Insert new points
-    const pointsToInsert = [
-      ...forecastPack.termA.points.map(p => ({
-        forecastRunId: forecastRun.id,
-        term: 'termA',
-        date: new Date(p.date),
-        value: p.value,
-        lower80: p.lower80,
-        upper80: p.upper80,
-        lower95: p.lower95,
-        upper95: p.upper95,
-      })),
-      ...forecastPack.termB.points.map(p => ({
-        forecastRunId: forecastRun.id,
-        term: 'termB',
-        date: new Date(p.date),
-        value: p.value,
-        lower80: p.lower80,
-        upper80: p.upper80,
-        lower95: p.lower95,
-        upper95: p.upper95,
-      })),
-    ];
+    // Note: Cache structure needs migration for gap-based forecasts
+    // For now, skip saving points if using new gap forecast structure
+    // TODO: Update database schema to support gap forecasts
+    if (!forecastPack.gapForecast) {
+      return; // Old structure, skip for now
+    }
+
+    // Insert gap forecast points (stored as termA for now, term field can indicate gap)
+    // TODO: Update schema to properly store gap forecasts
+    const pointsToInsert: any[] = []; // Skip for now until schema is updated
 
     // Insert in batches to avoid too many parameters
     const batchSize = 100;
@@ -349,37 +347,29 @@ export async function getOrComputeForecastPack(
     ];
     const dataHash = hashSeriesData(combinedSeries as any);
 
-    // Try to load from cache
-    const cached = await loadCachedForecast(comparisonId, timeframe, horizon, dataHash);
-    if (cached) {
-      console.log('[ForecastPack] Using cached forecast');
-      return cached;
-    }
+    // Skip cache for now (gap-based forecasting is new structure)
+    // TODO: Re-enable caching once schema is updated
+    // const cached = await loadCachedForecast(comparisonId, timeframe, horizon, dataHash);
+    // if (cached) {
+    //   console.log('[ForecastPack] Using cached forecast');
+    //   return cached;
+    // }
 
-    console.log('[ForecastPack] Computing new forecast');
+    console.log('[ForecastPack] Computing gap-based forecast');
 
-    // Compute forecasts for both terms in parallel
-    const [forecastA, forecastB] = await Promise.all([
-      forecast(seriesA, horizon),
-      forecast(seriesB, horizon),
-    ]);
+    // Extract value arrays for gap forecasting
+    const valuesA = seriesA.map(p => p.value);
+    const valuesB = seriesB.map(p => p.value);
 
-    // Get current values for head-to-head analysis
-    const currentValueA = seriesA[seriesA.length - 1]?.value || 0;
-    const currentValueB = seriesB[seriesB.length - 1]?.value || 0;
+    // Forecast the gap (termA - termB)
+    const gapForecast = forecastGap(valuesA, valuesB, horizon);
 
-    // Compute head-to-head analytics
-    const headToHead = computeHeadToHeadForecast(
-      forecastA,
-      forecastB,
-      currentValueA,
-      currentValueB
-    );
+    // Get insights from gap forecast
+    const gapInsights = getGapForecastInsights(gapForecast, horizon);
 
     const forecastPack: ForecastPack = {
-      termA: forecastA,
-      termB: forecastB,
-      headToHead,
+      gapForecast,
+      gapInsights,
       computedAt: new Date().toISOString(),
       dataHash,
       horizon,

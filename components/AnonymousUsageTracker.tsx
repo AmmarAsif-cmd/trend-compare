@@ -37,14 +37,23 @@ export default function AnonymousUsageTracker() {
   // Expose function to parent components - use useCallback to ensure stable reference
   useEffect(() => {
     const handleComparisonViewed = () => {
-      // Check status directly from localStorage/sessionStorage to avoid stale closures
+      // Check status directly from cookie/localStorage to avoid stale closures
       if (typeof window === "undefined") return;
       
-      // Double-check we're still unauthenticated
-      const current = parseInt(
-        localStorage.getItem(ANONYMOUS_COMPARISON_KEY) || "0",
-        10
-      );
+      // Get current count from cookie (server-side truth) or localStorage
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return null;
+      };
+      
+      const cookieCount = getCookie('trendarc_anonymous_comparisons_client');
+      const stored = localStorage.getItem(ANONYMOUS_COMPARISON_KEY);
+      const current = cookieCount ? parseInt(cookieCount, 10) : (stored ? parseInt(stored, 10) : 0);
+      
+      // Note: Server-side already incremented, so we should sync with server
+      // But if client-side is ahead, use that (shouldn't happen, but defensive)
       const newCount = current + 1;
       localStorage.setItem(ANONYMOUS_COMPARISON_KEY, newCount.toString());
       setComparisonCount(newCount);

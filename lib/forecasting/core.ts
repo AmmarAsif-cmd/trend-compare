@@ -3,7 +3,9 @@
  * 
  * Implements classical time-series forecasting methods:
  * - ETS (Error, Trend, Seasonality) / Holt-Winters
- * - ARIMA/SARIMA baseline
+ * 
+ * NOTE: ARIMA has been removed. For trend index forecasting (0-100 bounded),
+ * use the TrendIndexForecaster module which implements gap-based forecasting.
  * 
  * All methods include prediction intervals and backtesting support.
  */
@@ -24,7 +26,7 @@ export interface ForecastPoint {
 
 export interface ForecastResult {
   points: ForecastPoint[];
-  model: 'ets' | 'arima' | 'naive';
+  model: 'ets' | 'naive'; // ARIMA removed - use TrendIndexForecaster for bounded indices
   metrics: {
     mae: number; // Mean Absolute Error (from backtesting)
     mape: number; // Mean Absolute Percentage Error
@@ -203,19 +205,32 @@ function forecastETS(
   const t80 = 1.28; // 80% interval (approx)
   const t95 = 1.96; // 95% interval
 
+  // Use simple exponential smoothing on last window to avoid step artifacts
+  const lastWindowSize = Math.min(7, Math.floor(n / 3));
+  const lastWindow = values.slice(-lastWindowSize);
+  const lastWindowMean = lastWindow.reduce((a, b) => a + b, 0) / lastWindow.length;
+  const lastWindowTrend = lastWindow.length > 1 
+    ? (lastWindow[lastWindow.length - 1] - lastWindow[0]) / (lastWindow.length - 1)
+    : 0;
+
   for (let i = 0; i < horizon; i++) {
     const date = new Date(lastDate);
     date.setDate(date.getDate() + i + 1);
     
-    // Update level and trend for forecast
-    forecastLevel = forecastLevel + forecastTrend;
+    // Use smoothed forecast: start from last window mean + trend projection
+    // This avoids step artifacts from last-value carry-forward
+    const smoothedForecast = lastWindowMean + (lastWindowTrend * (i + 1));
     
-    // Add seasonality if applicable
-    let forecast = forecastLevel;
+    // Blend with ETS forecast for better accuracy
+    forecastLevel = forecastLevel + forecastTrend;
+    let etsForecast = forecastLevel;
     if (hasSeasonality && finalSeasonal.length > 0) {
       const seasonIndex = (n + i) % seasonLength;
-      forecast = forecastLevel * (finalSeasonal[seasonIndex] || 1);
+      etsForecast = forecastLevel * (finalSeasonal[seasonIndex] || 1);
     }
+    
+    // Weighted blend: 70% ETS, 30% smoothed (reduces artifacts)
+    const forecast = 0.7 * etsForecast + 0.3 * smoothedForecast;
 
     // Calculate prediction intervals
     const uncertainty = residualStd * Math.sqrt(i + 1); // Uncertainty grows with horizon
@@ -226,7 +241,7 @@ function forecastETS(
 
     points.push({
       date: date.toISOString().split('T')[0],
-      value: forecast,
+      value: Math.max(0, forecast), // Ensure non-negative
       lower80,
       upper80,
       lower95,
@@ -304,17 +319,20 @@ function fitETS(
 }
 
 /**
- * Simple ARIMA-like forecasting using differencing and autoregression
+ * ARIMA REMOVED
  * 
- * Implements ARIMA(p,d,q) where:
- * - p: autoregressive order (we use p=1 or 2)
- * - d: differencing order (we use d=1)
- * - q: moving average order (we use q=0 for simplicity)
+ * ARIMA has been removed as it was causing unrealistic mean reversion
+ * on normalized trend indices (0-100). For trend index forecasting,
+ * use TrendIndexForecaster which implements gap-based forecasting.
+ * 
+ * This function is kept as a stub for backward compatibility but should
+ * not be called. It will throw an error.
  */
 function forecastARIMA(
   series: TimeSeriesPoint[],
   horizon: number
 ): { points: ForecastPoint[]; mse: number } {
+  throw new Error('ARIMA forecasting has been removed. Use TrendIndexForecaster for bounded trend indices (0-100).');
   const values = series.map(p => p.value);
   const n = values.length;
 
@@ -466,7 +484,7 @@ function forecastARIMA(
  */
 export function walkForwardBacktest(
   series: TimeSeriesPoint[],
-  model: 'ets' | 'arima',
+  model: 'ets', // ARIMA removed
   minTrainSize: number = 14,
   validationSize: number = 7,
   stepSize: number = 7
@@ -493,9 +511,8 @@ export function walkForwardBacktest(
     const trainSeries = series.slice(0, trainEnd);
     const validationSeries = series.slice(trainEnd, trainEnd + validationSize);
 
-    // Generate forecast for validation period
-    const forecastFunc = model === 'ets' ? forecastETS : forecastARIMA;
-    const { points } = forecastFunc(trainSeries, validationSize);
+    // Generate forecast for validation period (ETS only, ARIMA removed)
+    const { points } = forecastETS(trainSeries, validationSize);
 
     // Compare forecasts to actuals
     for (let i = 0; i < Math.min(points.length, validationSeries.length); i++) {
@@ -592,13 +609,18 @@ function calculateConfidenceScore(
 /**
  * Main forecasting function
  * 
- * Runs both ETS and ARIMA models, selects best via backtesting,
- * and returns forecast with confidence metrics.
+ * Uses ETS model only (ARIMA removed).
+ * For trend index forecasting (0-100 bounded), use TrendIndexForecaster.
  */
 export async function forecast(
   series: TimeSeriesPoint[],
-  horizon: number = 28 // 4 weeks default
+  horizon: number = 8 // Reduced to 6-12 range for better reliability
 ): Promise<ForecastResult> {
+  // Clamp horizon to 6-12 range
+  const clampedHorizon = Math.max(6, Math.min(12, horizon));
+  // Use clamped horizon
+  const effectiveHorizon = clampedHorizon;
+  
   if (series.length < 7) {
     // Not enough data - return naive forecast
     const lastValue = series.length > 0 ? series[series.length - 1].value : 0;
@@ -642,18 +664,13 @@ export async function forecast(
   // Assess data quality
   const qualityFlags = assessQuality(series);
 
-  // Backtest both models
+  // Backtest ETS model (ARIMA removed)
   const etsBacktest = walkForwardBacktest(series, 'ets');
-  const arimaBacktest = walkForwardBacktest(series, 'arima');
+  const selectedModel = 'ets';
+  const selectedBacktest = etsBacktest;
 
-  // Select best model based on MAE (lower is better)
-  const useETS = etsBacktest.mae <= arimaBacktest.mae;
-  const selectedModel = useETS ? 'ets' : 'arima';
-  const selectedBacktest = useETS ? etsBacktest : arimaBacktest;
-
-  // Generate forecast with selected model
-  const forecastFunc = useETS ? forecastETS : forecastARIMA;
-  const { points } = forecastFunc(series, horizon);
+  // Generate forecast with ETS
+  const { points } = forecastETS(series, effectiveHorizon);
 
   // Validate forecast points are reasonable
   if (points.length > 0) {

@@ -24,8 +24,54 @@ import { createCacheKey } from '@/lib/cache/hash';
 import { smoothSeries } from '@/lib/series';
 import type { ForecastBundleSummary } from '@/lib/insights/contracts/forecast-bundle-summary';
 import type { AIInsights } from '@/lib/insights/contracts/ai-insights';
+import { computeComparisonMetrics } from '@/lib/comparison-metrics';
+import { calculateVolatility } from '@/lib/comparison-metrics';
+import { getCurrentUser } from '@/lib/user-auth-helpers';
+import { recordExport } from '@/lib/dashboard-helpers';
+import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+
+// Rate limiting: 10 exports per user per minute
+const EXPORT_RATE_LIMIT_MS = 60 * 1000; // 1 minute
+const EXPORT_RATE_LIMIT_COUNT = 10;
+
+/**
+ * Check if user can export (rate limit)
+ */
+async function checkExportRateLimit(userId: string): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const oneMinuteAgo = new Date(Date.now() - EXPORT_RATE_LIMIT_MS);
+  const recentExports = await prisma.exportHistory.count({
+    where: {
+      userId,
+      createdAt: {
+        gte: oneMinuteAgo,
+      },
+    },
+  });
+
+  if (recentExports >= EXPORT_RATE_LIMIT_COUNT) {
+    // Find oldest export in the window
+    const oldestExport = await prisma.exportHistory.findFirst({
+      where: {
+        userId,
+        createdAt: {
+          gte: oneMinuteAgo,
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    if (oldestExport) {
+      const retryAfter = Math.ceil((EXPORT_RATE_LIMIT_MS - (Date.now() - oldestExport.createdAt.getTime())) / 1000);
+      return { allowed: false, retryAfter };
+    }
+  }
+
+  return { allowed: true };
+}
 
 function isValidTopic(
   r: ReturnType<typeof validateTopic>,
@@ -35,6 +81,24 @@ function isValidTopic(
 
 export async function GET(request: NextRequest) {
   try {
+    // Get user for rate limiting (optional - exports work for anonymous too)
+    const user = await getCurrentUser();
+    const userId = user ? (user as any).id : null;
+
+    // Check rate limit (only for authenticated users)
+    if (userId) {
+      const rateLimitCheck = await checkExportRateLimit(userId);
+      if (!rateLimitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: 'Rate limit exceeded. Please wait before exporting again.',
+            retryAfter: rateLimitCheck.retryAfter,
+          },
+          { status: 429 }
+        );
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
     const format = searchParams.get('format') || 'json'; // 'json' or 'csv'
@@ -211,8 +275,27 @@ export async function GET(request: NextRequest) {
     const formatTerm = (term: string) => term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const filename = `${formatTerm(termA)}-vs-${formatTerm(termB)}-Trend-Data-${timeframe}${geo ? `-${geo}` : ''}`;
 
+    // userId already fetched at the top of the function
+
     if (format === 'json') {
       // JSON export: return InsightsPack directly
+      const jsonString = JSON.stringify(insightsPack, null, 2);
+      const jsonBuffer = Buffer.from(jsonString, 'utf-8');
+
+      // Record export in history (async, don't wait)
+      if (userId) {
+        recordExport({
+          userId,
+          slug: canonical,
+          termA,
+          termB,
+          type: 'json',
+          timeframe,
+          geo,
+          fileSize: jsonBuffer.length,
+        }).catch(err => console.error('[Export] Error recording JSON export:', err));
+      }
+
       return NextResponse.json(insightsPack, {
         headers: {
           'Content-Type': 'application/json',
@@ -220,47 +303,150 @@ export async function GET(request: NextRequest) {
         },
       });
     } else if (format === 'csv') {
-      // CSV export: include raw series points, Signals, Interpretations, forecast points
+      // CSV export V2: Analysis-ready format with derived metrics
       const csvRows: string[] = [];
 
-      // Header
-      csvRows.push('TrendArc Comparison Export');
-      csvRows.push(`Comparison: ${formatTerm(termA)} vs ${formatTerm(termB)}`);
-      csvRows.push(`Timeframe: ${timeframe}, Geo: ${geo || 'Worldwide'}`);
-      csvRows.push(`Exported: ${new Date().toISOString()}`);
+      // Compute metrics for derived values
+      const metrics = intelligentComparison ? computeComparisonMetrics(
+        series,
+        termA,
+        termB,
+        {
+          winner: intelligentComparison.verdict.winner,
+          loser: intelligentComparison.verdict.winner === termA ? termB : termA,
+          winnerScore: Math.max(intelligentComparison.scores.termA.overall, intelligentComparison.scores.termB.overall),
+          loserScore: Math.min(intelligentComparison.scores.termA.overall, intelligentComparison.scores.termB.overall),
+          margin: intelligentComparison.verdict.margin,
+          confidence: intelligentComparison.verdict.confidence,
+        },
+        intelligentComparison.scores.termA.breakdown,
+        intelligentComparison.scores.termB.breakdown,
+        null
+      ) : null;
+
+      // Metadata Header Section
+      csvRows.push('=== METADATA ===');
+      csvRows.push('Field,Value');
+      csvRows.push(`exportVersion,2.0`);
+      csvRows.push(`modelVersion,TrendArc v1.0`);
+      csvRows.push(`computedAt,${new Date().toISOString()}`);
+      csvRows.push(`dataFreshness,${row.updatedAt.toISOString()}`);
+      csvRows.push(`region,${geo || 'Worldwide'}`);
+      csvRows.push(`timeframe,${timeframe}`);
+      csvRows.push(`termA,${termA}`);
+      csvRows.push(`termB,${termB}`);
+      csvRows.push(`comparison,${formatTerm(termA)} vs ${formatTerm(termB)}`);
+      csvRows.push(`sources,${intelligentComparison?.performance?.sourcesQueried?.join('; ') || 'Google Trends'}`);
       csvRows.push('');
 
-      // Raw Series Points
-      csvRows.push('=== Raw Series Points ===');
-      csvRows.push('Date,' + [termA, termB].map(t => `"${formatTerm(t)}"`).join(','));
-      for (const point of series) {
+      // Summary Section
+      csvRows.push('=== SUMMARY ===');
+      csvRows.push('Metric,TermA,TermB');
+      if (intelligentComparison) {
+        csvRows.push(`Overall Score,${intelligentComparison.scores.termA.overall.toFixed(2)},${intelligentComparison.scores.termB.overall.toFixed(2)}`);
+        csvRows.push(`Search Interest,${intelligentComparison.scores.termA.breakdown.searchInterest.toFixed(2)},${intelligentComparison.scores.termB.breakdown.searchInterest.toFixed(2)}`);
+        csvRows.push(`Social Buzz,${intelligentComparison.scores.termA.breakdown.socialBuzz.toFixed(2)},${intelligentComparison.scores.termB.breakdown.socialBuzz.toFixed(2)}`);
+        csvRows.push(`Authority,${intelligentComparison.scores.termA.breakdown.authority.toFixed(2)},${intelligentComparison.scores.termB.breakdown.authority.toFixed(2)}`);
+        csvRows.push(`Momentum,${intelligentComparison.scores.termA.breakdown.momentum.toFixed(2)},${intelligentComparison.scores.termB.breakdown.momentum.toFixed(2)}`);
+        csvRows.push(`Confidence,${intelligentComparison.verdict.confidence},${intelligentComparison.verdict.confidence}`);
+        if (metrics) {
+          csvRows.push(`Volatility,${metrics.volatility.toFixed(2)},${metrics.volatility.toFixed(2)}`);
+          csvRows.push(`Agreement Index,${metrics.agreementIndex.toFixed(2)},${metrics.agreementIndex.toFixed(2)}`);
+          csvRows.push(`Stability,${metrics.stability},${metrics.stability}`);
+        }
+      }
+      csvRows.push('');
+
+      // Time Series with Derived Metrics
+      csvRows.push('=== TIME SERIES ===');
+      csvRows.push('Date,TermA_Raw,TermB_Raw,TermA_Normalized,TermB_Normalized,Momentum_A,Momentum_B,RollingAvg_A_7d,RollingAvg_B_7d,Volatility_A,Volatility_B,Gap,Confidence');
+      
+      // Calculate rolling averages and momentum
+      const windowSize = 7;
+      for (let i = 0; i < series.length; i++) {
+        const point = series[i];
         const date = point.date || '';
         const valueA = Number(point[termA] || 0);
         const valueB = Number(point[termB] || 0);
-        csvRows.push(`${date},${valueA},${valueB}`);
+        
+        // Normalize to 0-100 scale (assuming max is 100)
+        const normalizedA = valueA;
+        const normalizedB = valueB;
+        
+        // Calculate momentum (change from previous point)
+        const prevA = i > 0 ? Number(series[i - 1][termA] || 0) : valueA;
+        const prevB = i > 0 ? Number(series[i - 1][termB] || 0) : valueB;
+        const momentumA = valueA - prevA;
+        const momentumB = valueB - prevB;
+        
+        // Calculate rolling average (7-day window)
+        const windowStart = Math.max(0, i - windowSize + 1);
+        const windowData = series.slice(windowStart, i + 1);
+        const rollingAvgA = windowData.reduce((sum, p) => sum + Number(p[termA] || 0), 0) / windowData.length;
+        const rollingAvgB = windowData.reduce((sum, p) => sum + Number(p[termB] || 0), 0) / windowData.length;
+        
+        // Calculate volatility (rolling std dev over window)
+        const varianceA = windowData.reduce((sum, p) => {
+          const val = Number(p[termA] || 0);
+          return sum + Math.pow(val - rollingAvgA, 2);
+        }, 0) / windowData.length;
+        const varianceB = windowData.reduce((sum, p) => {
+          const val = Number(p[termB] || 0);
+          return sum + Math.pow(val - rollingAvgB, 2);
+        }, 0) / windowData.length;
+        const volatilityA = Math.sqrt(varianceA);
+        const volatilityB = Math.sqrt(varianceB);
+        
+        // Gap and confidence
+        const gap = Math.abs(valueA - valueB);
+        const confidence = intelligentComparison?.verdict?.confidence || 0;
+        
+        csvRows.push(`${date},${valueA.toFixed(2)},${valueB.toFixed(2)},${normalizedA.toFixed(2)},${normalizedB.toFixed(2)},${momentumA.toFixed(2)},${momentumB.toFixed(2)},${rollingAvgA.toFixed(2)},${rollingAvgB.toFixed(2)},${volatilityA.toFixed(2)},${volatilityB.toFixed(2)},${gap.toFixed(2)},${confidence}`);
       }
       csvRows.push('');
+
+      // Source Breakdown (if available)
+      if (intelligentComparison) {
+        csvRows.push('=== SOURCE BREAKDOWN ===');
+        csvRows.push('Source,TermA_Value,TermB_Value,Difference,Leader');
+        const sources = [
+          { name: 'Search Interest', termA: intelligentComparison.scores.termA.breakdown.searchInterest, termB: intelligentComparison.scores.termB.breakdown.searchInterest },
+          { name: 'Social Buzz', termA: intelligentComparison.scores.termA.breakdown.socialBuzz, termB: intelligentComparison.scores.termB.breakdown.socialBuzz },
+          { name: 'Authority', termA: intelligentComparison.scores.termA.breakdown.authority, termB: intelligentComparison.scores.termB.breakdown.authority },
+          { name: 'Momentum', termA: intelligentComparison.scores.termA.breakdown.momentum, termB: intelligentComparison.scores.termB.breakdown.momentum },
+        ];
+        for (const source of sources) {
+          const diff = source.termA - source.termB;
+          const leader = diff > 0 ? termA : diff < 0 ? termB : 'Tie';
+          csvRows.push(`${source.name},${source.termA.toFixed(2)},${source.termB.toFixed(2)},${diff.toFixed(2)},${leader}`);
+        }
+        csvRows.push('');
+      }
 
       // Signals
-      csvRows.push('=== Signals ===');
-      csvRows.push('Type,Severity,Term,Description,Confidence');
-      for (const signal of signals) {
-        csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},"${signal.description || ''}",${signal.confidence || 0}`);
+      if (signals.length > 0) {
+        csvRows.push('=== SIGNALS ===');
+        csvRows.push('Type,Severity,Term,Description,Confidence');
+        for (const signal of signals) {
+          csvRows.push(`${signal.type},${signal.severity},${signal.term || 'both'},"${signal.description || ''}",${signal.confidence || 0}`);
+        }
+        csvRows.push('');
       }
-      csvRows.push('');
 
       // Interpretations
-      csvRows.push('=== Interpretations ===');
-      csvRows.push('Category,Term,Confidence,Text,Evidence');
-      for (const interpretation of insightsPack.interpretations) {
-        const evidence = interpretation.evidence?.join('; ') || '';
-        csvRows.push(`${interpretation.category},${interpretation.term},${interpretation.confidence},"${interpretation.text || ''}","${evidence}"`);
+      if (insightsPack.interpretations.length > 0) {
+        csvRows.push('=== INTERPRETATIONS ===');
+        csvRows.push('Category,Term,Confidence,Text,Evidence');
+        for (const interpretation of insightsPack.interpretations) {
+          const evidence = interpretation.evidence?.join('; ') || '';
+          csvRows.push(`${interpretation.category},${interpretation.term},${interpretation.confidence},"${interpretation.text || ''}","${evidence}"`);
+        }
+        csvRows.push('');
       }
-      csvRows.push('');
 
       // Forecast Points
       if (insightsPack.forecasts.termA || insightsPack.forecasts.termB) {
-        csvRows.push('=== Forecast Points ===');
+        csvRows.push('=== FORECAST POINTS ===');
         csvRows.push('Term,Period,Date,Value,LowerBound,UpperBound,Confidence');
         
         if (insightsPack.forecasts.termA) {
@@ -285,13 +471,22 @@ export async function GET(request: NextRequest) {
         csvRows.push('');
       }
 
-      // Summary Statistics
-      csvRows.push('=== Summary Statistics ===');
-      csvRows.push(`Term,Overall Score,Search Interest,Social Buzz,Authority,Momentum`);
-      csvRows.push(`${termA},${scores.termA.overall},${scores.termA.breakdown.searchInterest},${scores.termA.breakdown.socialBuzz},${scores.termA.breakdown.authority},${scores.termA.breakdown.momentum}`);
-      csvRows.push(`${termB},${scores.termB.overall},${scores.termB.breakdown.searchInterest},${scores.termB.breakdown.socialBuzz},${scores.termB.breakdown.authority},${scores.termB.breakdown.momentum}`);
-
       const csv = csvRows.join('\n');
+      const csvBuffer = Buffer.from(csv, 'utf-8');
+
+      // Record export in history (async, don't wait)
+      if (userId) {
+        recordExport({
+          userId,
+          slug: canonical,
+          termA,
+          termB,
+          type: 'csv',
+          timeframe,
+          geo,
+          fileSize: csvBuffer.length,
+        }).catch(err => console.error('[Export] Error recording CSV export:', err));
+      }
 
       return new NextResponse(csv, {
         headers: {

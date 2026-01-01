@@ -34,3 +34,29 @@ export function nonZeroRatio(series: SeriesPoint[]): number {
   }
   return nz / series.length;
 }
+
+/**
+ * Downsample series to reduce payload size
+ * Keeps every Nth point, with smart sampling to preserve important points
+ */
+export function downsampleSeries(series: SeriesPoint[], maxPoints: number = 200): SeriesPoint[] {
+  if (!series?.length || series.length <= maxPoints) return series;
+  
+  const step = Math.ceil(series.length / maxPoints);
+  const downsampled: SeriesPoint[] = [];
+  
+  // Always include first and last points
+  downsampled.push(series[0]);
+  
+  // Sample every Nth point
+  for (let i = step; i < series.length - 1; i += step) {
+    downsampled.push(series[i]);
+  }
+  
+  // Always include last point
+  if (series.length > 1) {
+    downsampled.push(series[series.length - 1]);
+  }
+  
+  return downsampled;
+}

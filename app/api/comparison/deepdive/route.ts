@@ -152,7 +152,8 @@ export async function GET(request: NextRequest) {
     const geographicData = await getGeographicBreakdown(
       actualTerms[0],
       actualTerms[1],
-      series
+      series,
+      { timeframe, geo }
     );
 
     // Build breakdown tables
