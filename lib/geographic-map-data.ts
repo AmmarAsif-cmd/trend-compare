@@ -19,6 +19,10 @@ export interface MapDataPoint {
 // Export for use in map-data-joiner
 export const COUNTRY_CODES: Record<string, string> = {
   'United States': 'US',
+  'United States of America': 'US',
+  'USA': 'US',
+  'U.S.A.': 'US',
+  'U.S.': 'US',
   'United Kingdom': 'GB',
   'Canada': 'CA',
   'Australia': 'AU',
@@ -291,8 +295,34 @@ export function transformGeoDataForMap(
   ];
 
   for (const region of allRegions) {
-    const countryCode = COUNTRY_CODES[region.country] || null;
-    if (!countryCode) continue; // Skip if we don't have a code
+    // Try exact match first
+    let countryCode = COUNTRY_CODES[region.country] || null;
+    
+    // If not found, try normalizing the country name
+    if (!countryCode) {
+      const normalized = region.country.trim();
+      // Try common variations
+      if (normalized === 'United States of America' || normalized === 'USA' || normalized === 'U.S.A.' || normalized === 'U.S.') {
+        countryCode = 'US';
+      } else {
+        // Try case-insensitive match
+        const lowerCountry = normalized.toLowerCase();
+        for (const [name, code] of Object.entries(COUNTRY_CODES)) {
+          if (name.toLowerCase() === lowerCountry) {
+            countryCode = code;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (!countryCode) {
+      // Debug: Log when we can't find a code
+      if (region.country.includes('United States') || region.country === 'USA') {
+        console.warn('[geographic-map-data] Could not find country code for:', region.country);
+      }
+      continue; // Skip if we don't have a code
+    }
 
     const margin = Math.abs(region.termA_value - region.termB_value);
     const winner: 'termA' | 'termB' | 'tie' =

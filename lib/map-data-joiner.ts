@@ -48,11 +48,6 @@ export function extractCountryCode(feature: GeoFeature): string | null {
     return props.iso_a2.toUpperCase();
   }
   
-  // Try iso_a2 (lowercase underscore)
-  if (props.iso_a2 && typeof props.iso_a2 === 'string' && props.iso_a2.length === 2 && props.iso_a2 !== '-99') {
-    return props.iso_a2.toUpperCase();
-  }
-  
   // Try to get from ISO_A3 and convert (some maps only have ISO_A3)
   const iso3 = props.ISO_A3 || props.iso_a3;
   if (iso3 && typeof iso3 === 'string' && iso3.length === 3) {
@@ -62,15 +57,42 @@ export function extractCountryCode(feature: GeoFeature): string | null {
   
   // Try to match by name (world-atlas uses NAME property)
   const name = props.NAME || props.NAME_LONG || props.NAME_EN || props.ADMIN || props.name;
+  
+  // Debug: Log for USA specifically
+  if (name && (name.includes('United States') || name === 'USA' || name === 'U.S.A.')) {
+    console.log('[map-data-joiner] USA feature found:', {
+      ISO_A2: props.ISO_A2,
+      ISO_A2_EH: props.ISO_A2_EH,
+      iso_a2: props.iso_a2,
+      ISO_A3: props.ISO_A3,
+      iso_a3: props.iso_a3,
+      NAME: props.NAME,
+      NAME_LONG: props.NAME_LONG,
+      NAME_EN: props.NAME_EN,
+      ADMIN: props.ADMIN,
+      name: props.name,
+    });
+  }
   if (name && typeof name === 'string') {
-    const code = COUNTRY_CODES[name];
+    const normalizedName = name.trim();
+    
+    // Try exact match first
+    const code = COUNTRY_CODES[normalizedName];
     if (code) return code;
     
     // Try common name variations
     const nameVariations = [
-      name,
-      name.replace(/\s+/g, ' '), // Normalize spaces
+      normalizedName,
+      normalizedName.replace(/\s+/g, ' '), // Normalize spaces
+      normalizedName.replace(/\./g, ''), // Remove periods
+      normalizedName.toUpperCase(), // Uppercase
+      normalizedName.toLowerCase(), // Lowercase
     ];
+    
+    // Special handling for United States variations
+    if (normalizedName.includes('United States') || normalizedName === 'USA' || normalizedName === 'U.S.A.' || normalizedName === 'U.S.') {
+      return 'US';
+    }
     
     for (const nameVar of nameVariations) {
       const code = COUNTRY_CODES[nameVar];
@@ -230,10 +252,31 @@ export function joinMapDataWithFeature(
   dataLookup: Map<string, MapDataPoint>
 ): MapDataPoint | null {
   const countryCode = extractCountryCode(feature);
-  if (!countryCode) return null;
+  if (!countryCode) {
+    // Debug: Log when we can't extract a code
+    const name = feature.properties.NAME || feature.properties.NAME_LONG || feature.properties.NAME_EN;
+    if (name && (name.includes('United States') || name === 'USA')) {
+      console.warn('[map-data-joiner] Could not extract country code for USA feature:', {
+        name,
+        properties: Object.keys(feature.properties),
+      });
+    }
+    return null;
+  }
   
   // Try exact match (uppercase)
   const code = countryCode.toUpperCase();
-  return dataLookup.get(code) || null;
+  const result = dataLookup.get(code);
+  
+  // Debug: Log when USA is not found
+  if (!result && code === 'US') {
+    console.warn('[map-data-joiner] USA code extracted but not found in data lookup:', {
+      code,
+      availableCodes: Array.from(dataLookup.keys()).slice(0, 10),
+      hasUS: dataLookup.has('US'),
+    });
+  }
+  
+  return result || null;
 }
 

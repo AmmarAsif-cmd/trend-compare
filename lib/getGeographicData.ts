@@ -196,7 +196,16 @@ async function fetchInterestByRegion(
         : Number(item.value ?? 0);
       
       // Try to get country name from geoCode mapping or use geoName if available
-      const countryName = item.geoName || GEO_CODE_TO_COUNTRY[geoCode] || CODE_TO_COUNTRY[geoCode];
+      let countryName = item.geoName || GEO_CODE_TO_COUNTRY[geoCode] || CODE_TO_COUNTRY[geoCode];
+      
+      // Normalize country name variations
+      if (countryName) {
+        // Normalize common variations
+        const normalizedName = countryName.trim();
+        if (normalizedName === 'United States of America' || normalizedName === 'USA' || normalizedName === 'U.S.A.' || normalizedName === 'U.S.') {
+          countryName = 'United States';
+        }
+      }
       
       if (countryName && value > 0) {
         result.set(countryName, value);
