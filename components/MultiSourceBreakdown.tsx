@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart3, TrendingUp } from 'lucide-react';
+import ScoreBreakdownTooltip from './ScoreBreakdownTooltip';
 
 type SourceScore = {
   name: string;
@@ -16,6 +17,18 @@ type Props = {
   scoreB: number;
   sources: SourceScore[];
   category: string;
+  breakdownA?: {
+    searchInterest: number;
+    socialBuzz: number;
+    authority: number;
+    momentum: number;
+  };
+  breakdownB?: {
+    searchInterest: number;
+    socialBuzz: number;
+    authority: number;
+    momentum: number;
+  };
 };
 
 export default function MultiSourceBreakdown({
@@ -24,7 +37,9 @@ export default function MultiSourceBreakdown({
   scoreA,
   scoreB,
   sources,
-  category
+  category,
+  breakdownA,
+  breakdownB,
 }: Props) {
   const formatTerm = (term: string) => {
     return term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -61,12 +76,32 @@ export default function MultiSourceBreakdown({
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200">
         <div className="text-center">
           <div className="text-xs sm:text-sm text-slate-600 mb-1 truncate">{formatTerm(termA)}</div>
-          <div className="text-2xl sm:text-3xl font-bold text-blue-600">{scoreA}</div>
+          <div className="flex items-center justify-center gap-2">
+            <div className="text-2xl sm:text-3xl font-bold text-blue-600">{scoreA}</div>
+            {breakdownA && (
+              <ScoreBreakdownTooltip
+                overallScore={scoreA}
+                breakdown={breakdownA}
+                category={category}
+                termName={formatTerm(termA)}
+              />
+            )}
+          </div>
           <div className="text-xs text-slate-500 mt-1">TrendArc Score</div>
         </div>
         <div className="text-center">
           <div className="text-xs sm:text-sm text-slate-600 mb-1 truncate">{formatTerm(termB)}</div>
-          <div className="text-2xl sm:text-3xl font-bold text-purple-600">{scoreB}</div>
+          <div className="flex items-center justify-center gap-2">
+            <div className="text-2xl sm:text-3xl font-bold text-purple-600">{scoreB}</div>
+            {breakdownB && (
+              <ScoreBreakdownTooltip
+                overallScore={scoreB}
+                breakdown={breakdownB}
+                category={category}
+                termName={formatTerm(termB)}
+              />
+            )}
+          </div>
           <div className="text-xs text-slate-500 mt-1">TrendArc Score</div>
         </div>
       </div>

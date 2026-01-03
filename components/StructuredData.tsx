@@ -45,7 +45,7 @@ export default function StructuredData({
     "@graph": [
       {
         "@type": "Article",
-        "@id": `https://trendarc.com/compare/${slug}#article`,
+        "@id": `https://trendarc.net/compare/${slug}#article`,
         headline: `${prettyTerm(termA)} vs ${prettyTerm(termB)} Trend Comparison`,
         description: `Live comparison of ${prettyTerm(termA)} and ${prettyTerm(
           termB
@@ -57,12 +57,12 @@ export default function StructuredData({
         author: {
           "@type": "Organization",
           name: "TrendArc",
-          url: "https://trendarc.com",
+          url: "https://trendarc.net",
         },
         publisher: {
           "@type": "Organization",
           name: "TrendArc",
-          url: "https://trendarc.com",
+          url: "https://trendarc.net",
           logo: {
             "@type": "ImageObject",
             url: "https://trendarc.com/logo.png",
@@ -130,7 +130,7 @@ export default function StructuredData({
               "@type": "ListItem",
               position: 1,
               name: "Home",
-              item: "https://trendarc.com",
+              item: "https://trendarc.net",
             },
             {
               "@type": "ListItem",

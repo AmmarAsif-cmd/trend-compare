@@ -28,52 +28,63 @@ export default async function TopThisWeekServer({ limit = 6 }: Props) {
     );
   }
 
+  const prettySlug = (slug: string) => {
+    return slug
+      .replace(/-vs-/g, " vs ")
+      .split(/[- ]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   return (
     <section>
-      <h2 className="text-xl sm:text-2xl font-bold mb-4 text-slate-900 flex items-center gap-2">
-        <span className="w-1.5 h-6 bg-gradient-to-b from-green-500 to-teal-600 rounded-full" />
-        Trending Comparisons This Week
+      <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-5 text-slate-900 flex items-center gap-2">
+        <span className="w-1.5 h-5 sm:h-6 bg-gradient-to-b from-green-500 to-teal-600 rounded-full" />
+        <span>Trending This Week</span>
       </h2>
-      <div className="grid gap-3 sm:gap-4">
+      <div className="space-y-2.5 sm:space-y-3">
         {items.map((it, idx) => (
           <Link
             key={it.slug}
             href={`/compare/${it.slug}`}
-            className="group flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-xl border-2 border-slate-200 bg-white hover:border-green-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 p-3 sm:p-4 gap-2 sm:gap-0"
+            className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white hover:border-green-400 hover:shadow-md transition-all duration-200 p-3 sm:p-3.5"
           >
             {/* Rank badge */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md flex-shrink-0">
-                {idx + 1}
-              </div>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-sm flex-shrink-0">
+              {idx + 1}
+            </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-green-600 transition-colors truncate">
-                  {it.slug.replace(/-vs-/g, " vs ").replace(/-/g, " ")}
-                </div>
+            {/* Content */}
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-sm sm:text-base text-slate-900 group-hover:text-green-600 transition-colors line-clamp-1">
+                {prettySlug(it.slug)}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-slate-500 font-medium">{it.count} views</span>
                 {(it.tf || it.geo) && (
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-1">
-                    {it.tf && (
-                      <span className="text-xs text-slate-500 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded">
-                        {it.tf}
-                      </span>
-                    )}
-                    {it.geo && (
-                      <span className="text-xs text-slate-500 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded">
-                        {it.geo}
-                      </span>
-                    )}
-                  </div>
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <div className="flex items-center gap-1.5">
+                      {it.tf && (
+                        <span className="text-xs text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
+                          {it.tf}
+                        </span>
+                      )}
+                      {it.geo && (
+                        <span className="text-xs text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
+                          {it.geo}
+                        </span>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-3 flex-shrink-0">
-              <span className="text-xs text-slate-500 whitespace-nowrap">{it.count} views</span>
-              <svg className="w-4 h-4 text-green-600 group-hover:translate-x-1 transition-transform flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
+            {/* Arrow */}
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-hover:text-green-600 group-hover:translate-x-0.5 transition-all flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </Link>
         ))}
       </div>

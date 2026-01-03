@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ADMIN_ROUTES } from "@/lib/admin-config";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 type ServiceStatus = {
   name: string;
@@ -785,32 +786,29 @@ export default function EnhancedSystemDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-8 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <AdminLayout
+      title="System Dashboard"
+      description="Real-time monitoring and debugging for TrendArc"
+    >
+      <div className="space-y-6">
+        {/* Overall Health Card */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">System Dashboard</h1>
-              <p className="mt-2 text-indigo-100">
-                Real-time monitoring and debugging for TrendArc
-              </p>
+              <p className="text-indigo-100 text-sm font-medium mb-1">Overall Health</p>
+              <p className="text-4xl font-bold">{overallHealth.toFixed(0)}%</p>
             </div>
             <div className="text-right">
-              <div className="text-sm text-indigo-100">Overall Health</div>
-              <div className="text-4xl font-bold">{overallHealth.toFixed(0)}%</div>
-              <div className="text-sm text-indigo-100">
-                {healthyCount}/{totalCount} services
-              </div>
+              <p className="text-indigo-100 text-sm">
+                {healthyCount}/{totalCount} services healthy
+              </p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* System Info Bar */}
-      {systemInfo && (
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        {/* System Info Bar */}
+        {systemInfo && (
+          <div className="bg-white border border-gray-200 rounded-lg shadow p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Uptime:</span>
@@ -830,11 +828,8 @@ export default function EnhancedSystemDashboard() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Bar */}
         <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
           <div className="flex gap-3 flex-wrap">
@@ -1239,6 +1234,6 @@ export default function EnhancedSystemDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 type KeywordPair = {
   id: string;
@@ -348,46 +349,37 @@ export default function AdminKeywordsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Keyword Management</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Manage comparison keyword pairs for seeding</p>
-          </div>
-          <div className="flex gap-2 sm:gap-3 flex-wrap">
-            <button
-              onClick={handleImportSeed}
-              disabled={importing}
-              className="flex-1 sm:flex-none bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base"
-            >
-              {importing ? "Importing..." : "📥 Import"}
-            </button>
-            <button
-              onClick={handleSeedComparisons}
-              disabled={seeding || stats.approved === 0}
-              className="flex-1 sm:flex-none bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base"
-              title={stats.approved === 0 ? "No approved keywords to seed" : "Create comparisons from approved keywords"}
-            >
-              {seeding ? "Seeding..." : "🌱 Seed"}
-            </button>
-            <button
-              onClick={() => {
-                setShowModal(true);
-                setEditingId(null);
-                setFormData({ termA: "", termB: "", category: "tech", notes: "", tags: "" });
-                setQualityResult(null);
-              }}
-              className="flex-1 sm:flex-none bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base"
-            >
-              + Add
-            </button>
-          </div>
+    <AdminLayout
+      title="Keyword Management"
+      description="Import, manage, and seed keyword comparisons"
+    >
+      <div className="space-y-6">
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          >
+            + Add Keyword
+          </button>
+          <button
+            onClick={handleImportSeed}
+            disabled={importing}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {importing ? "Importing..." : "📥 Import Seed Keywords"}
+          </button>
+          <button
+            onClick={handleSeedComparisons}
+            disabled={seeding}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {seeding ? "Seeding..." : "🌱 Seed Comparisons"}
+          </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-gray-600 text-sm">Total</div>
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -407,7 +399,7 @@ export default function AdminKeywordsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-6">
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -714,6 +706,6 @@ export default function AdminKeywordsPage() {
           </div>
         )}
       </div>
-    </div>
+    </AdminLayout>
   );
 }

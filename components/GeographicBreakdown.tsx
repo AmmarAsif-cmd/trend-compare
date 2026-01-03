@@ -1,11 +1,19 @@
 /**
  * Geographic Breakdown Component
  * Shows which regions prefer which term
+ * Includes map visualization + table
  * FREE - No API costs, uses PyTrends data
  */
 
+'use client';
+
+import { lazy, Suspense } from 'react';
 import { Globe, MapPin } from "lucide-react";
 import type { GeographicBreakdown as GeoData } from "@/lib/getGeographicData";
+import { transformGeoDataForMap } from "@/lib/geographic-map-data";
+
+// Lazy load the map component
+const GeographicMap = lazy(() => import('./GeographicMap'));
 
 type GeographicBreakdownProps = {
   geoData: GeoData;
@@ -26,14 +34,46 @@ export default function GeographicBreakdown({
   termA,
   termB,
 }: GeographicBreakdownProps) {
+  // Log for debugging
+  console.log('[GeographicBreakdown] Rendering with data:', {
+    hasGeoData: !!geoData,
+    termA_dominance: geoData?.termA_dominance?.length || 0,
+    termB_dominance: geoData?.termB_dominance?.length || 0,
+    competitive: geoData?.competitive_regions?.length || 0,
+    geoDataKeys: geoData ? Object.keys(geoData) : null,
+  });
+
+  // Show a message if data is empty instead of returning null
   if (
     !geoData ||
     (geoData.termA_dominance.length === 0 &&
       geoData.termB_dominance.length === 0 &&
       geoData.competitive_regions.length === 0)
   ) {
-    return null;
+    console.log('[GeographicBreakdown] No geographic data available');
+    return (
+      <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-4 sm:p-6">
+        <div className="mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2 mb-2">
+            <Globe className="w-5 h-5 text-indigo-600" />
+            Regional Interest
+          </h3>
+          <p className="text-sm text-slate-600">
+            Geographic data is not available for this comparison at this time.
+          </p>
+        </div>
+      </div>
+    );
   }
+
+  const mapData = transformGeoDataForMap(geoData);
+  
+  // Log map data for debugging
+  console.log('[GeographicBreakdown] Map data:', {
+    mapDataLength: mapData.length,
+    hasMapData: mapData.length > 0,
+    firstFew: mapData.slice(0, 3),
+  });
 
   return (
     <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-4 sm:p-6">
@@ -47,6 +87,21 @@ export default function GeographicBreakdown({
         </p>
       </div>
 
+      {/* Map Visualization */}
+      {mapData.length > 0 ? (
+        <div className="mb-6">
+          <Suspense fallback={<div className="bg-slate-50 rounded-lg p-8 text-center text-slate-500">Loading map...</div>}>
+            <GeographicMap mapData={mapData} termA={termA} termB={termB} />
+          </Suspense>
+        </div>
+      ) : (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <p className="text-sm text-amber-800">
+            Map visualization is not available. This may be because country codes could not be matched to the map data.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Term A Dominance */}
         {geoData.termA_dominance.length > 0 && (
@@ -56,7 +111,7 @@ export default function GeographicBreakdown({
               {prettyTerm(termA)} Dominates
             </h4>
             <div className="space-y-3">
-              {geoData.termA_dominance.slice(0, 5).map((region, index) => (
+              {geoData.termA_dominance.slice(0, 10).map((region, index) => (
                 <div key={index} className="relative">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -96,7 +151,7 @@ export default function GeographicBreakdown({
               {prettyTerm(termB)} Dominates
             </h4>
             <div className="space-y-3">
-              {geoData.termB_dominance.slice(0, 5).map((region, index) => (
+              {geoData.termB_dominance.slice(0, 10).map((region, index) => (
                 <div key={index} className="relative">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -136,7 +191,7 @@ export default function GeographicBreakdown({
               Most Competitive
             </h4>
             <div className="space-y-3">
-              {geoData.competitive_regions.slice(0, 5).map((region, index) => (
+              {geoData.competitive_regions.slice(0, 10).map((region, index) => (
                 <div key={index} className="bg-amber-50 rounded-lg p-3 border border-amber-200">
                   <div className="flex items-center gap-2 mb-2">
                     <MapPin className="w-3 h-3 text-amber-600" />

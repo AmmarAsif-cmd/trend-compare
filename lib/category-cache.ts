@@ -77,11 +77,13 @@ export async function cacheKeywordCategory(
     await prisma.keywordCategory.upsert({
       where: { keyword: normalized },
       create: {
+        id: crypto.randomUUID(),
         keyword: normalized,
         category,
         confidence,
         source,
         reasoning: reasoning || `Detected as ${category}`,
+        updatedAt: new Date(),
       },
       update: {
         category,

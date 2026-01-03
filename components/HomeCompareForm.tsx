@@ -162,6 +162,10 @@ export default function HomeCompareForm() {
       return;
     }
 
+    // Always allow navigation - we track views on the comparison page
+    // Anonymous users can view comparisons, and we'll show signup modal after viewing
+    // No blocking here - let them proceed to view the comparison
+    
     // Keep loading state while navigating
     router.push(`/compare/${slug}`);
   }

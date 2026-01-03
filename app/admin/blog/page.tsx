@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ADMIN_ROUTES } from "@/lib/admin-config";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 type BlogPost = {
   id: string;
@@ -52,16 +53,6 @@ export default function AdminBlogDashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    if (!confirm("Are you sure you want to logout?")) return;
-
-    try {
-      await fetch(ADMIN_ROUTES.api.logout, { method: "POST" });
-      router.push(ADMIN_ROUTES.login);
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
-  };
 
   useEffect(() => {
     fetchPosts();
@@ -170,48 +161,42 @@ export default function AdminBlogDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Blog Admin Dashboard</h1>
-            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
-              Review and publish AI-generated blog posts
-            </p>
-          </div>
-          <div className="flex gap-2 sm:gap-3 flex-wrap">
-            <Link
-              href="/admin/system"
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              title="System Dashboard - Monitoring & Debugging"
-            >
-              🔧 System
-            </Link>
-            <Link
-              href="/admin/keywords"
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-              title="Keyword Management - Import & Seed Comparisons"
-            >
-              🔑 Keywords
-            </Link>
-            <Link
-              href="/admin/blog/new"
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              ✏️ New Post
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              🚪 Logout
-            </button>
-          </div>
+    <AdminLayout
+      title="Blog Dashboard"
+      description="Review and publish AI-generated blog posts"
+    >
+      <div className="space-y-6">
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <Link
+            href="/admin/blog/new"
+            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            ✏️ New Post
+          </Link>
+          <button
+            onClick={generatePosts}
+            disabled={generating}
+            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {generating ? "Generating..." : "🤖 Generate 5 New Posts"}
+          </button>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <option value="all">All Posts</option>
+            <option value="pending_review">Pending Review</option>
+            <option value="approved">Approved</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -265,30 +250,6 @@ export default function AdminBlogDashboard() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <button
-            onClick={generatePosts}
-            disabled={generating}
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {generating ? "Generating..." : "🤖 Generate 5 New Posts"}
-          </button>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <option value="all">All Posts</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="approved">Approved</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-            <option value="rejected">Rejected</option>
-          </select>
         </div>
 
         {/* Posts Table */}
@@ -413,6 +374,6 @@ export default function AdminBlogDashboard() {
           </div>
         )}
       </div>
-    </div>
+    </AdminLayout>
   );
 }

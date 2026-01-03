@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import TopLoadingBar from "@/components/TopLoadingBar";
+import CookieConsent from "@/components/CookieConsent";
+import ConsentManagementPlatform from "@/components/ConsentManagementPlatform";
+import AnonymousUsageTracker from "@/components/AnonymousUsageTracker";
+import AnonymousComparisonGuard from "@/components/AnonymousComparisonGuard";
+import OAuthCallbackHandler from "@/components/OAuthCallbackHandler";
+import { Providers } from "@/components/providers";
 import { BRAND, TAGLINE } from "@/lib/brand";
 import Script from "next/script";
 import { Suspense } from "react";
@@ -57,12 +63,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 text-slate-900 antialiased flex flex-col">
-        <Suspense fallback={null}>
-          <TopLoadingBar />
-        </Suspense>
-        <SiteHeader />
-        <div className="flex-1">{children}</div>
-        <footer className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700/50">
+        <Providers>
+          <Suspense fallback={null}>
+            <TopLoadingBar />
+          </Suspense>
+          <ConsentManagementPlatform />
+          <SiteHeader />
+          <AnonymousUsageTracker />
+          <OAuthCallbackHandler />
+          <AnonymousComparisonGuard>
+            <div className="flex-1">{children}</div>
+          </AnonymousComparisonGuard>
+          <CookieConsent />
+          <footer className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700/50">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAzNGMwIDIuMjA5LTEuNzkxIDQtNCA0cy00LTEuNzkxLTQtNCAxLjc5MS00IDQtNCA0IDEuNzkxIDQgNHptMTAtMTBjMCAyLjIwOS0xLjc5MSA0LTQgNHMtNC0xLjc5MS00LTQgMS43OTEtNCA0LTQgNCAxLjc5MSA0IDR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDMiLz48L2c+PC9zdmc+')] opacity-20" />
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <div className="grid md:grid-cols-4 gap-8 mb-8">
@@ -132,12 +145,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `,
           }}
         />*/}
-        {/* Set GA id in a small bootstrap before ga-init uses it */}
-        <Script id="ga-id" strategy="afterInteractive">
-          {`window.GA_MEASUREMENT_ID='${process.env.NEXT_PUBLIC_GA_ID || ""}';`}
-        </Script>
-        <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID || ""}`} strategy="afterInteractive" />
-        <Script src="/ga-init.js" strategy="afterInteractive" />
+          {/* Set GA id in a small bootstrap before ga-init uses it */}
+          <Script id="ga-id" strategy="afterInteractive">
+            {`window.GA_MEASUREMENT_ID='${process.env.NEXT_PUBLIC_GA_ID || ""}';`}
+          </Script>
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID || ""}`} strategy="afterInteractive" />
+          <Script src="/ga-init.js" strategy="afterInteractive" />
+        </Providers>
       </body>
     </html>
   );
