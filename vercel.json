@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/jobs/warmup-forecasts",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/check-alerts",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

@@ -13,7 +13,17 @@ export default function BrowseByCategory({ categories, hybridData }: Props) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || "movies");
 
   const activeCategoryData = categories.find((c) => c.id === activeCategory);
-  const comparisons = hybridData[activeCategory] || [];
+  const rawComparisons = hybridData[activeCategory] || [];
+  
+  // Filter out duplicates by slug to ensure unique keys
+  const seenSlugs = new Set<string>();
+  const comparisons = rawComparisons.filter((comparison) => {
+    if (seenSlugs.has(comparison.slug)) {
+      return false;
+    }
+    seenSlugs.add(comparison.slug);
+    return true;
+  });
 
   return (
     <section>
@@ -61,8 +71,8 @@ export default function BrowseByCategory({ categories, hybridData }: Props) {
             </div>
           </div>
 
-          {/* Comparisons Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Comparisons Grid - Show more comparisons */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {comparisons.map((comparison, idx) => (
               <Link
                 key={comparison.slug}

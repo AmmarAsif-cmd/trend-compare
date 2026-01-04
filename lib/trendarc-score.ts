@@ -4,6 +4,12 @@
  */
 
 import type { ComparisonCategory } from './category-resolver';
+import {
+  normalizeYouTubeViews,
+  normalizeWikipediaPageviews,
+  normalizeMomentum,
+  hasLowCoverage,
+} from './metric-normalization';
 
 export type SourceMetrics = {
   googleTrends?: {
@@ -77,7 +83,7 @@ export type ComparisonVerdict = {
 // Category-specific weights for each metric
 // Google Trends (searchInterest) is always the primary factor to ensure consistency
 // with chart and AI insights which are based on search trends
-const CATEGORY_WEIGHTS: Record<ComparisonCategory, {
+export const CATEGORY_WEIGHTS: Record<ComparisonCategory, {
   searchInterest: number;
   socialBuzz: number;
   authority: number;
@@ -136,96 +142,94 @@ export function calculateTrendArcScore(
   if (metrics.googleTrends && typeof metrics.googleTrends.avgInterest === 'number') {
     searchInterest = metrics.googleTrends.avgInterest;
     sources.push('Google Trends');
+    console.log('[TrendArcScore] Google Trends searchInterest:', searchInterest);
   } else {
     // If googleTrends is missing, this is a critical error
-    console.error('[TrendArcScore] Missing googleTrends in metrics:', metrics);
+    console.error('[TrendArcScore] ❌ Missing googleTrends in metrics:', JSON.stringify(metrics, null, 2));
     // Use default 50, but log the error
   }
 
   // Social Buzz (YouTube + Spotify + Wikipedia)
   const socialScores: number[] = [];
+  const socialWeights: number[] = []; // Track weights for weighted average
   
   if (metrics.youtube) {
-    // Improved YouTube scoring:
-    // - Use logarithmic scale for views (handles both small and huge numbers)
-    // - Video count also matters (more videos = more presence)
-    // - Engagement rate is important but shouldn't dominate
-    
     const avgViews = metrics.youtube.avgViews || 0;
     const videoCount = metrics.youtube.videoCount || 0;
     const engagement = metrics.youtube.engagement || 0;
     
-    // Only calculate YouTube score if we have meaningful data
-    // Skip if all values are 0 (no data or API failure)
-    if (avgViews > 0 || videoCount > 0) {
-      // View score: logarithmic scale, 0-50 points
-      // 1k views = ~10, 10k = ~20, 100k = ~30, 1M = ~40, 10M+ = 50
-      let viewScore = 0;
-      if (avgViews > 0) {
-        const logViews = Math.log10(Math.max(1, avgViews));
-        viewScore = Math.min(50, (logViews / 7) * 50); // log10(10M) ≈ 7
-      }
+    // Check for low coverage
+    const lowCoverage = hasLowCoverage(metrics.youtube, ['avgViews', 'videoCount']);
+    
+    if (!lowCoverage && (avgViews > 0 || videoCount > 0)) {
+      // Use improved normalization
+      const viewScore = normalizeYouTubeViews(avgViews);
       
-      // Video count bonus: 0-20 points (more videos = more presence)
-      // 1 video = 5, 10 videos = 10, 50+ videos = 20
+      // Video count bonus: 0-20 points
       const videoCountScore = Math.min(20, Math.log10(Math.max(1, videoCount + 1)) * 10);
       
-      // Engagement score: 0-30 points (5% engagement = 30, which is very high)
+      // Engagement score: 0-30 points
       const engagementScore = Math.min(30, engagement * 600);
       
-      const ytScore = viewScore + videoCountScore + engagementScore;
+      // Combine: views (0-100) + video count (0-20) + engagement (0-30)
+      // Normalize to 0-100 by taking weighted average
+      const ytScore = (viewScore * 0.6) + (videoCountScore * 0.2) + (engagementScore * 0.2);
       
-      // Only add if score is meaningful (> 0)
       if (ytScore > 0) {
         socialScores.push(ytScore);
+        socialWeights.push(1.0); // Full weight
         sources.push('YouTube');
-        console.log('[TrendArcScore] YouTube contribution:', {
+        console.log('[TrendArcScore] YouTube contribution (normalized):', {
           avgViews: avgViews.toLocaleString(),
-          videoCount,
-          engagement: (engagement * 100).toFixed(2) + '%',
-          viewScore: Math.round(viewScore),
+          normalizedViewScore: Math.round(viewScore),
           videoCountScore: Math.round(videoCountScore),
           engagementScore: Math.round(engagementScore),
           totalYtScore: Math.round(ytScore),
         });
-      } else {
-        console.warn('[TrendArcScore] ⚠️ YouTube data exists but score is 0 (no meaningful engagement)');
       }
-    } else {
-      console.warn('[TrendArcScore] ⚠️ YouTube data exists but all values are 0 - skipping YouTube contribution');
+    } else if (lowCoverage) {
+      console.warn('[TrendArcScore] ⚠️ YouTube has low coverage - reducing weight');
     }
   }
 
   if (metrics.spotify) {
-    // Spotify popularity is already 0-100
-    // Only add if meaningful (> 0)
-    if (metrics.spotify.popularity > 0) {
+    const lowCoverage = hasLowCoverage(metrics.spotify, ['popularity']);
+    if (!lowCoverage && metrics.spotify.popularity > 0) {
+      // Spotify popularity is already 0-100, but ensure it's meaningful
       socialScores.push(metrics.spotify.popularity);
+      socialWeights.push(1.0);
       sources.push('Spotify');
       console.log('[TrendArcScore] Spotify contribution:', metrics.spotify.popularity);
+    } else if (lowCoverage) {
+      console.warn('[TrendArcScore] ⚠️ Spotify has low coverage - reducing weight');
     }
   }
 
   if (metrics.wikipedia) {
-    // Wikipedia pageviews: 0-100 scale
-    // Higher pageviews = more interest
-    if (metrics.wikipedia.avgPageviews > 0) {
-      // Normalize pageviews to 0-100 scale
-      // 1k/day = ~20, 10k/day = ~40, 100k/day = ~60, 1M/day = ~80, 10M+/day = 100
-      const logPageviews = Math.log10(Math.max(1, metrics.wikipedia.avgPageviews));
-      const wikiScore = Math.min(100, (logPageviews / 7) * 100);
+    const lowCoverage = hasLowCoverage(metrics.wikipedia, ['avgPageviews']);
+    if (!lowCoverage && metrics.wikipedia.avgPageviews > 0) {
+      const wikiScore = normalizeWikipediaPageviews(metrics.wikipedia.avgPageviews);
       socialScores.push(wikiScore);
+      socialWeights.push(1.0);
       sources.push('Wikipedia');
-      console.log('[TrendArcScore] Wikipedia contribution:', {
+      console.log('[TrendArcScore] Wikipedia contribution (normalized):', {
         avgPageviews: metrics.wikipedia.avgPageviews.toLocaleString(),
         score: Math.round(wikiScore),
       });
+    } else if (lowCoverage) {
+      console.warn('[TrendArcScore] ⚠️ Wikipedia has low coverage - reducing weight');
     }
   }
 
   if (socialScores.length > 0) {
-    socialBuzz = socialScores.reduce((a, b) => a + b, 0) / socialScores.length;
-    console.log('[TrendArcScore] Social buzz calculated:', {
+    // Weighted average (all weights are 1.0 for now, but structure allows for future weighting)
+    const totalWeight = socialWeights.reduce((a, b) => a + b, 0);
+    if (totalWeight > 0) {
+      socialBuzz = socialScores.reduce((sum, score, idx) => sum + score * socialWeights[idx], 0) / totalWeight;
+    } else {
+      socialBuzz = socialScores.reduce((a, b) => a + b, 0) / socialScores.length;
+    }
+    console.log('[TrendArcScore] Social buzz calculated (normalized):', {
       scores: socialScores.map(s => Math.round(s)),
       average: Math.round(socialBuzz),
       sources: sources.filter(s => ['YouTube', 'Spotify', 'Wikipedia'].includes(s)),
@@ -237,22 +241,34 @@ export function calculateTrendArcScore(
   // Authority (TMDB ratings, Best Buy reviews, Steam reviews, expert sources)
   const authorityScores: number[] = [];
 
-  if (metrics.tmdb) {
+  if (metrics.tmdb && metrics.tmdb.rating > 0) {
     authorityScores.push(metrics.tmdb.rating * 10);
     sources.push('TMDB');
   }
 
-  if (metrics.bestbuy) {
+  if (metrics.bestbuy && metrics.bestbuy.rating > 0) {
     // Convert 0-5 rating to 0-100 scale
     const bestbuyScore = (metrics.bestbuy.rating / 5) * 100;
     authorityScores.push(bestbuyScore);
     sources.push('Best Buy');
   }
 
-  if (metrics.steam) {
+  if (metrics.steam && metrics.steam.reviewScore > 0) {
     // Steam review score is already 0-100 (percentage positive)
+    // Only add if we have meaningful data (reviewScore > 0)
     authorityScores.push(metrics.steam.reviewScore);
     sources.push('Steam');
+    console.log('[TrendArcScore] Steam authority contribution:', {
+      reviewScore: metrics.steam.reviewScore,
+      totalReviews: metrics.steam.totalReviews,
+      currentPlayers: metrics.steam.currentPlayers,
+    });
+  } else if (metrics.steam) {
+    // Steam data exists but reviewScore is 0 - log warning
+    console.warn('[TrendArcScore] ⚠️ Steam data exists but reviewScore is 0:', {
+      totalReviews: metrics.steam.totalReviews,
+      currentPlayers: metrics.steam.currentPlayers,
+    });
   }
   
   if (metrics.omdb) {
@@ -261,17 +277,30 @@ export function calculateTrendArcScore(
       (metrics.omdb.rottenTomatoes || 0) +
       (metrics.omdb.metascore || 0)
     ) / 3;
-    authorityScores.push(avgRating);
-    sources.push('OMDb');
+    if (avgRating > 0) {
+      authorityScores.push(avgRating);
+      sources.push('OMDb');
+    }
   }
 
   if (authorityScores.length > 0) {
     authority = authorityScores.reduce((a, b) => a + b, 0) / authorityScores.length;
+    console.log('[TrendArcScore] Authority calculated:', {
+      scores: authorityScores.map(s => Math.round(s)),
+      average: Math.round(authority),
+      sources: sources.filter(s => ['TMDB', 'Steam', 'Best Buy', 'OMDb'].includes(s)),
+    });
+  } else {
+    console.warn('[TrendArcScore] ⚠️ No valid authority sources available, authority defaults to 50');
   }
 
   // Momentum (trend direction)
-  if (metrics.googleTrends) {
-    momentum = 50 + (metrics.googleTrends.momentum / 2); // Convert -100,100 to 0-100
+  if (metrics.googleTrends && typeof metrics.googleTrends.momentum === 'number') {
+    momentum = normalizeMomentum(metrics.googleTrends.momentum);
+    console.log('[TrendArcScore] Momentum (normalized):', {
+      raw: metrics.googleTrends.momentum,
+      normalized: Math.round(momentum),
+    });
   }
 
   // Calculate weighted overall score
@@ -281,8 +310,32 @@ export function calculateTrendArcScore(
     authority * weights.authority +
     momentum * weights.momentum
   );
+  
+  // Log calculation for debugging
+  console.log('[TrendArcScore] 📊 Score calculation:', {
+    category: validCategory,
+    components: {
+      searchInterest: Math.round(searchInterest),
+      socialBuzz: Math.round(socialBuzz),
+      authority: Math.round(authority),
+      momentum: Math.round(momentum),
+    },
+    weights: {
+      searchInterest: weights.searchInterest,
+      socialBuzz: weights.socialBuzz,
+      authority: weights.authority,
+      momentum: weights.momentum,
+    },
+    weightedSum: searchInterest * weights.searchInterest + socialBuzz * weights.socialBuzz + authority * weights.authority + momentum * weights.momentum,
+    overall: Math.max(0, Math.min(100, overall)),
+    sources: sources.length,
+  });
 
   // Calculate confidence based on number of sources
+  // NOTE: This is a preliminary confidence value. The final confidence used in the UI
+  // is computed by computeComparisonMetrics() using a continuous calculation based on
+  // multiple factors (agreementIndex, volatility, dataPoints, sourceCount, margin, etc).
+  // This value is primarily used as a placeholder until computeComparisonMetrics runs.
   const confidence = Math.min(95, 40 + sources.length * 15);
 
   // Generate explanation

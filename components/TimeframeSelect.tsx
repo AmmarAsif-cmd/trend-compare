@@ -22,26 +22,29 @@ export default function TimeframeSelect() {
     const next = e.target.value;
     const params = new URLSearchParams(sp.toString());
     params.set("tf", next);
-    // preserve any other params (like geo later), update only tf
     startTransition(() => {
       router.replace(`?${params.toString()}`, { scroll: false });
     });
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
-      <label className="text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">Timeframe:</label>
-      <select
-        className="w-full sm:w-auto border-2 border-slate-300 rounded-lg px-3 py-2 sm:px-2 sm:py-1.5 text-sm sm:text-base bg-white text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
-        value={current}
-        onChange={onChange}
-        disabled={isPending}
-        aria-label="Select timeframe"
-      >
-        {OPTIONS.map(o => (
-          <option key={o.v} value={o.v}>{o.label}</option>
-        ))}
-      </select>
+    <div className="flex items-center gap-2 min-w-0">
+      <label className="text-xs text-gray-500 font-medium whitespace-nowrap flex-shrink-0">Timeframe:</label>
+      <div className="relative w-[140px] flex-shrink-0">
+        <select
+          className="w-full h-9 border-2 border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed truncate"
+          value={current}
+          onChange={onChange}
+          disabled={isPending}
+          aria-label="Select timeframe"
+        >
+          {OPTIONS.map(o => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

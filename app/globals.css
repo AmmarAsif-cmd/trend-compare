@@ -53,6 +53,22 @@ body {
   line-height: 1.6;
 }
 
+/* Prevent body scrolling when dashboard layout is active */
+html:has([data-dashboard-layout]) {
+  overflow: hidden;
+  height: 100%;
+}
+
+html:has([data-dashboard-layout]) body {
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Hide footer on dashboard pages */
+html:has([data-dashboard-layout]) footer {
+  display: none;
+}
+
 /* Mobile-specific improvements */
 @media (max-width: 640px) {
   /* Ensure readable text on mobile */

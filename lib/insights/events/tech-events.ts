@@ -11,6 +11,7 @@ export interface TechEvent {
   category: 'product-launch' | 'announcement' | 'update' | 'news' | 'conference';
   company: string;
   impact: 'high' | 'medium' | 'low';
+  url?: string; // Optional URL for news articles or external sources
 }
 
 /**

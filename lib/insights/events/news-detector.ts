@@ -120,6 +120,7 @@ export function newsToEvent(article: NewsArticle, keywords: string[]): TechEvent
     category,
     company,
     impact,
+    url: article.url, // Include the article URL
   };
 }
 

@@ -116,6 +116,22 @@ export default function DataSources() {
             Product ratings and availability data for electronics and consumer tech
           </p>
         </div>
+
+        {/* Wikipedia */}
+        <div className="group flex flex-col items-center text-center p-5 bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl border-2 border-slate-300 hover:border-slate-400 transition-all hover:shadow-lg">
+          <div className="w-16 h-16 mb-4 bg-white rounded-2xl flex items-center justify-center border-2 border-slate-400 shadow-md group-hover:scale-110 transition-transform">
+            {/* Wikipedia globe icon */}
+            <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#000" strokeWidth="1.5" fill="none"/>
+              <path d="M8 12c0-2 1.5-3.5 4-3.5s4 1.5 4 3.5M8 12c0 2 1.5 3.5 4 3.5s4-1.5 4-3.5" stroke="#000" strokeWidth="1.5" fill="none"/>
+              <path d="M12 8v8M8 12h8" stroke="#000" strokeWidth="1.5"/>
+            </svg>
+          </div>
+          <h4 className="font-bold text-base text-slate-900 mb-2">Wikipedia</h4>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Historical events and context from the world's largest encyclopedia
+          </p>
+        </div>
       </div>
 
       {/* Smart Analysis Note */}
@@ -149,7 +165,7 @@ export default function DataSources() {
         </span>
         <span className="flex items-center gap-2">
           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          Updated hourly
+          Updated regularly
         </span>
       </div>
     </div>

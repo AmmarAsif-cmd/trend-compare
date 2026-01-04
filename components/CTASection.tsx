@@ -27,7 +27,7 @@ export default function CTASection() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 text-white px-5 py-2 rounded-full text-sm font-bold mb-8 shadow-lg">
               <Sparkles className="w-4 h-4 animate-pulse" />
-              <span>Trusted by 50,000+ professionals worldwide</span>
+              <span>Trusted trend intelligence platform</span>
             </div>
 
             {/* Heading */}
@@ -39,7 +39,7 @@ export default function CTASection() {
             </h2>
 
             <p className="text-lg sm:text-xl text-white mb-12 max-w-3xl mx-auto leading-relaxed">
-              Join thousands of professionals using TrendArc to compare trends, discover insights, and stay ahead with real-time data analysis powered by AI.
+              Compare trends, discover insights, and stay ahead with multi-source data analysis powered by AI. All features are free to use.
             </p>
 
             {/* CTA Buttons */}
@@ -67,8 +67,8 @@ export default function CTASection() {
                 <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Zap className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="font-bold text-white mb-2">Real-Time Data</h3>
-                <p className="text-sm text-white/80">Live updates every hour with the latest trends</p>
+                <h3 className="font-bold text-white mb-2">Regular Updates</h3>
+                <p className="text-sm text-white/80">Data refreshes every 4 hours with the latest trends</p>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all">
@@ -91,7 +91,7 @@ export default function CTASection() {
             {/* Trust signals */}
             <div className="mt-12 pt-8 border-t border-white/20">
               <p className="text-sm text-white/70">
-                ✓ No credit card required  •  ✓ 100% Free forever  •  ✓ Access all features instantly
+                ✓ Access all features instantly
               </p>
             </div>
           </div>

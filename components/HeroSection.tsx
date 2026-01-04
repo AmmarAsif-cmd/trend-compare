@@ -1,6 +1,6 @@
 import HomeCompareForm from "@/components/HomeCompareForm";
-import Link from "next/link";
-import DynamicHeroChart from "@/components/DynamicHeroChart";
+import DynamicHeroChartServer from "@/components/DynamicHeroChartServer";
+import HeroKeywordsServer from "@/components/HeroKeywordsServer";
 
 export default function HeroSection() {
   return (
@@ -42,63 +42,11 @@ export default function HeroSection() {
               <div className="absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
               <HomeCompareForm />
             </div>
-            <div className="mt-4 sm:mt-5 text-sm text-slate-600">
-              <p className="font-medium mb-3 text-slate-700">Popular comparisons across all categories:</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center max-w-3xl mx-auto">
-                <Link
-                  href="/compare/chatgpt-vs-gemini"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  🤖 ChatGPT vs Gemini
-                </Link>
-                <Link
-                  href="/compare/iphone-vs-samsung"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  📱 iPhone vs Samsung
-                </Link>
-                <Link
-                  href="/compare/spotify-vs-apple-music"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  🎵 Spotify vs Apple Music
-                </Link>
-                <Link
-                  href="/compare/netflix-vs-disney-plus"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  🎬 Netflix vs Disney+
-                </Link>
-                <Link
-                  href="/compare/fortnite-vs-minecraft"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  🎮 Fortnite vs Minecraft
-                </Link>
-                <Link
-                  href="/compare/react-vs-vue"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  💻 React vs Vue
-                </Link>
-                <Link
-                  href="/compare/taylor-swift-vs-beyonce"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  🎤 Taylor Swift vs Beyoncé
-                </Link>
-                <Link
-                  href="/compare/tesla-vs-bmw"
-                  className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors"
-                >
-                  🚗 Tesla vs BMW
-                </Link>
-              </div>
-            </div>
+            <HeroKeywordsServer />
           </div>
 
-          {/* Dynamic chart preview */}
-          <DynamicHeroChart />
+          {/* Dynamic chart preview - rotates daily */}
+          <DynamicHeroChartServer />
 
           {/* Small FAQ anchor if you ever want to scroll link to here */}
           <div id="faq" className="mt-10" />

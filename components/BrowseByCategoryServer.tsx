@@ -3,22 +3,23 @@ import { CATEGORY_DATA, getHybridComparisons } from "@/lib/categoryComparisons";
 import BrowseByCategory from "./BrowseByCategory";
 import { unstable_cache } from "next/cache";
 
-// Cache the hybrid data for 1 hour
+// Cache the hybrid data with time-based key that changes every 4 hours
+// This ensures comparisons rotate regularly
 const getCachedHybridData = unstable_cache(
   async () => {
     const hybridData: Record<string, Array<{ slug: string; title: string; trending?: boolean }>> = {};
 
-    // Fetch hybrid comparisons for each category
+    // Fetch hybrid comparisons for each category (10 per category for better variety)
     for (const category of CATEGORY_DATA) {
-      const comparisons = await getHybridComparisons(category.id, 4);
+      const comparisons = await getHybridComparisons(category.id, 10);
       hybridData[category.id] = comparisons;
     }
 
     return hybridData;
   },
-  ['browse-by-category'],
+  ['browse-by-category-time'],
   {
-    revalidate: 3600, // Revalidate every hour
+    revalidate: 14400, // Revalidate every 4 hours (matches time-based seed rotation)
     tags: ['category-comparisons']
   }
 );
