@@ -90,8 +90,10 @@ Vercel will auto-detect Next.js, but verify:
 - **Framework Preset**: Next.js
 - **Build Command**: `npm run build` (default)
 - **Output Directory**: `.next` (default)
-- **Install Command**: `npm install` (default)
+- **Install Command**: `npm install` (default - uses `.npmrc` for legacy peer deps)
 - **Node Version**: 20.x (recommended)
+
+**Note**: The project includes a `.npmrc` file with `legacy-peer-deps=true` to handle peer dependency conflicts (React 19 with packages that declare React 18 support). This is automatically used by Vercel during builds.
 
 ### 4. Cron Jobs Configuration
 
