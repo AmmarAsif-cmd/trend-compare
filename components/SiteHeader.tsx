@@ -12,6 +12,11 @@ function isActive(pathname: string, href: string) {
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  
+  // Hide header on dashboard and admin pages
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/admin')) {
+    return null;
+  }
   const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 

@@ -52,14 +52,12 @@ export default async function AlertsPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden" data-dashboard-layout>
       <DashboardSidebar />
-      <main className="flex-1 overflow-y-auto lg:ml-64">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <main className="flex-1 overflow-y-auto lg:ml-64 bg-slate-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
           {/* Header */}
           <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2">
               Trend Alerts
             </h1>
@@ -67,8 +65,6 @@ export default async function AlertsPage() {
               Get notified when your tracked comparisons change
             </p>
           </div>
-        </div>
-      </div>
 
       {/* Alerts List */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">

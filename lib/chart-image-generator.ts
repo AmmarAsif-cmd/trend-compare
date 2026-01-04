@@ -175,16 +175,34 @@ export async function generateScoreChartImage(
     await page.setViewport({ width, height: height + 100, deviceScaleFactor });
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    // Wait for chart to be ready
-    await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 5000 });
+    // Wait for chart to render - increase timeout and add additional wait
+    await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 10000 });
+    
+    // Additional wait to ensure chart is fully rendered
+    await page.waitForTimeout(1000);
 
-    // Take screenshot
-    const imageBuffer = await page.screenshot({
+    // Take screenshot of the canvas element specifically
+    const canvas = await page.$('#chart');
+    if (!canvas) {
+      throw new Error('Chart canvas not found');
+    }
+    
+    const imageBuffer = await canvas.screenshot({
       type: 'png',
-      clip: { x: 0, y: 0, width, height: height + 100 },
     }) as Buffer;
 
     await browser.close();
+
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.error('[ChartImageGenerator] Screenshot returned empty buffer');
+      return null;
+    }
+
+    console.log('[ChartImageGenerator] Chart image generated successfully', {
+      bufferSize: imageBuffer.length,
+      width,
+      height,
+    });
 
     return imageBuffer;
   } catch (error) {
@@ -321,14 +339,31 @@ export async function generateForecastChartImage(
     await page.setViewport({ width, height: height + 100, deviceScaleFactor });
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 5000 });
+    await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 10000 });
+    
+    // Additional wait to ensure chart is fully rendered
+    await page.waitForTimeout(1000);
 
-    const imageBuffer = await page.screenshot({
+    // Take screenshot of the canvas element specifically
+    const canvas = await page.$('#chart');
+    if (!canvas) {
+      throw new Error('Forecast chart canvas not found');
+    }
+    
+    const imageBuffer = await canvas.screenshot({
       type: 'png',
-      clip: { x: 0, y: 0, width, height: height + 100 },
     }) as Buffer;
 
     await browser.close();
+
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.error('[ChartImageGenerator] Forecast screenshot returned empty buffer');
+      return null;
+    }
+
+    console.log('[ChartImageGenerator] Forecast chart image generated successfully', {
+      bufferSize: imageBuffer.length,
+    });
 
     return imageBuffer;
   } catch (error) {

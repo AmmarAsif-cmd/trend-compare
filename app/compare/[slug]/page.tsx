@@ -33,7 +33,6 @@ import AIPrediction from "@/components/AI/AIPrediction";
 import ComparisonViewTracker from "@/components/ComparisonViewTracker";
 import HistoricalTimeline from "@/components/HistoricalTimeline";
 import SearchBreakdown from "@/components/SearchBreakdown";
-import PeakEventCitations from "@/components/PeakEventCitations";
 import ComparisonPoll from "@/components/ComparisonPoll";
 import ForecastSection from "@/components/ForecastSection";
 import { getOrComputeForecastPack } from "@/lib/forecasting/forecast-pack";
@@ -481,6 +480,55 @@ export default async function ComparePage({
     }).catch(() => null),
   ]);
 
+  // Generate real peak explanations using Peak Explanation Engine (with caching)
+  let realPeakExplanations: { termA?: any; termB?: any } | null = null;
+  try {
+    const { explainPeakWithCache } = await import('@/lib/peak-explanation-engine');
+    
+    // Find top peak for each term
+    const topPeakA = peakEvents
+      .filter(p => p.term === actualTerms[0])
+      .sort((a, b) => b.value - a.value)[0];
+    
+    const topPeakB = peakEvents
+      .filter(p => p.term === actualTerms[1])
+      .sort((a, b) => b.value - a.value)[0];
+
+    const [peakExplanationA, peakExplanationB] = await Promise.all([
+      topPeakA ? explainPeakWithCache({
+        keywords: [actualTerms[0], actualTerms[0].replace(/-/g, ' ')],
+        peakDate: topPeakA.date,
+        peakValue: topPeakA.value,
+        category: verdictData?.category || 'general',
+        windowDays: 7,
+        minRelevance: 25,
+      }).catch(err => {
+        console.warn('[Peak Explanation] Error for termA:', err);
+        return null;
+      }) : Promise.resolve(null),
+      topPeakB ? explainPeakWithCache({
+        keywords: [actualTerms[1], actualTerms[1].replace(/-/g, ' ')],
+        peakDate: topPeakB.date,
+        peakValue: topPeakB.value,
+        category: verdictData?.category || 'general',
+        windowDays: 7,
+        minRelevance: 25,
+      }).catch(err => {
+        console.warn('[Peak Explanation] Error for termB:', err);
+        return null;
+      }) : Promise.resolve(null),
+    ]);
+
+    if (peakExplanationA || peakExplanationB) {
+      realPeakExplanations = {
+        termA: peakExplanationA,
+        termB: peakExplanationB,
+      };
+    }
+  } catch (error) {
+    console.warn('[Peak Explanations] Error generating real peak explanations:', error);
+  }
+
   // Deep dive sections will be loaded lazily via /api/comparison/deepdive-lazy
   // This includes: geographicData, aiInsights, forecastPack
   const geographicData = null; // Lazy-loaded
@@ -504,7 +552,7 @@ export default async function ComparePage({
     ? await getLatestSnapshot(canonical || slug, timeframe || '12m', geo || '')
     : null;
 
-  // Compute comparison metrics
+  // Compute comparison metrics (this recalculates confidence from real data)
   const metrics = computeComparisonMetrics(
     series as any[],
     actualTerms[0],
@@ -515,12 +563,15 @@ export default async function ComparePage({
       winnerScore: verdictData.winnerScore,
       loserScore: verdictData.loserScore,
       margin: verdictData.margin,
-      confidence: verdictData.confidence,
+      confidence: verdictData.confidence, // This will be recalculated in computeComparisonMetrics
     },
     intelligentComparison?.scores?.termA?.breakdown || {},
     intelligentComparison?.scores?.termB?.breakdown || {},
     previousSnapshot
   );
+
+  // Update verdictData with the computed confidence (from real data)
+  verdictData.confidence = metrics.confidence;
 
   // Prepare evidence cards
   const evidenceCards = prepareEvidenceCards(
@@ -830,6 +881,15 @@ export default async function ComparePage({
           />
         )}
 
+        {/* Real Peak Explanations with Citations */}
+        {realPeakExplanations && (realPeakExplanations.termA || realPeakExplanations.termB) && (
+          <AIPeakExplanations
+            peakExplanations={realPeakExplanations}
+            termA={actualTerms[0]}
+            termB={actualTerms[1]}
+          />
+        )}
+
         {/* Geographic Breakdown - now lazy-loaded via LazyDeepDive */}
 
         {/* Context behind sudden changes, Why This Comparison Matters, and Historical Timeline - now lazy-loaded via LazyDeepDive */}
@@ -851,14 +911,6 @@ export default async function ComparePage({
             />
           )}
 
-          {/* Peak Event Citations */}
-          {peakEvents && peakEvents.length > 0 && (
-            <PeakEventCitations
-              peaks={peakEvents}
-              termA={actualTerms[0]}
-              termB={actualTerms[1]}
-            />
-          )}
 
 
           {/* Related Comparisons - Main content area only */}

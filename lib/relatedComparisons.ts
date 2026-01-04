@@ -111,12 +111,23 @@ export async function getRelatedComparisons(opts: {
   // Combine all strategies
   const allPatterns = [...sameKeywordPatterns, ...relatedPatterns];
 
+  // Build query - be more flexible
+  const whereClause: any = {
+    slug: { not: slug },
+  };
+
+  // Add category filter if available
+  if (Object.keys(categoryFilter).length > 0) {
+    Object.assign(whereClause, categoryFilter);
+  }
+
+  // Add slug pattern matching if we have patterns
+  if (allPatterns.length > 0) {
+    whereClause.OR = allPatterns.map((p) => ({ slug: { contains: p } }));
+  }
+
   const rows = await prisma.comparison.findMany({
-    where: {
-      slug: { not: slug },
-      ...(Object.keys(categoryFilter).length > 0 ? categoryFilter : {}),
-      OR: allPatterns.length > 0 ? allPatterns.map((p) => ({ slug: { contains: p } })) : undefined,
-    },
+    where: whereClause,
     orderBy: { createdAt: "desc" },
     take: limit * 5, // Get more for better scoring
     select: {
@@ -126,6 +137,41 @@ export async function getRelatedComparisons(opts: {
       category: true,
     },
   });
+
+  // If no results found, try a more relaxed query (any recent comparisons)
+  if (rows.length === 0) {
+    console.log(`[RelatedComparisons] No matches found for "${slug}", falling back to recent comparisons`);
+    const fallbackRows = await prisma.comparison.findMany({
+      where: {
+        slug: { not: slug },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit * 2,
+      select: {
+        slug: true,
+        timeframe: true,
+        geo: true,
+        category: true,
+      },
+    });
+    
+    // Use fallback results
+    const fallbackResults: RelatedComparison[] = [];
+    for (const row of fallbackRows) {
+      if (!row.slug) continue;
+      const t = fromSlug(row.slug);
+      if (t.length !== 2) continue;
+      
+      fallbackResults.push({
+        slug: row.slug,
+        terms: t,
+        timeframe: row.timeframe ?? "12m",
+        geo: row.geo ?? "",
+      });
+    }
+    
+    return fallbackResults.slice(0, limit);
+  }
 
   const seen = new Set<string>();
   const scoredResults: Array<{ comp: RelatedComparison; score: number }> = [];

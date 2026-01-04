@@ -1,7 +1,7 @@
 /**
  * PDF Generation Utility for Comparison Reports
  * Professional, executive-ready PDF reports
- * Uses Puppeteer to generate professional PDF reports
+ * Rebuilt for clean, premium output
  */
 
 import puppeteer from 'puppeteer';
@@ -64,10 +64,7 @@ export type ComparisonPDFData = {
     whyThisMatters: string;
     keyDifferences: string;
     volatilityAnalysis: string;
-    peakExplanations?: {
-      termA?: string;
-      termB?: string;
-    };
+    peakExplanations?: Array<{ term: string; peakDate: string; text: string }> | { termA?: string; termB?: string };
     practicalImplications?: Record<string, string>;
     prediction?: string;
   } | null;
@@ -97,7 +94,6 @@ export type ComparisonPDFData = {
   };
   generatedAt: string;
   reportUrl: string;
-  // V2 additions
   metrics?: {
     gapChangePoints: number;
     confidenceChange: number;
@@ -122,33 +118,201 @@ export type ComparisonPDFData = {
     lastUpdatedAt: string;
     source: string;
   };
-  // Series data for chart generation
   series?: SeriesPoint[];
   category?: ComparisonCategory;
 };
 
 /**
+ * Format category name for display
+ */
+function formatCategory(category: string): string {
+  return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
+/**
+ * Format timeframe for display
+ */
+function formatTimeframe(timeframe: string): string {
+  const map: Record<string, string> = {
+    '7d': '7 Days',
+    '30d': '30 Days',
+    '12m': '12 Months',
+    '5y': '5 Years',
+  };
+  return map[timeframe] || timeframe.toUpperCase();
+}
+
+/**
+ * Format region for display
+ */
+function formatRegion(geo: string): string {
+  if (!geo || geo.trim() === '') return 'Worldwide';
+  return geo;
+}
+
+/**
+ * Check if a metric is meaningful (not neutral)
+ */
+function isMeaningfulMetric(valueA: number, valueB: number, threshold: number = 0.5): boolean {
+  return Math.abs(valueA - valueB) >= threshold && (valueA >= 10 || valueB >= 10);
+}
+
+/**
+ * Generate safe peak explanation (no speculation)
+ */
+function generateSafePeakExplanation(peakDate?: string): string {
+  if (peakDate) {
+    const date = new Date(peakDate);
+    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `A spike occurred on ${formattedDate}. TrendArc cannot confirm the exact cause without verified external event data.`;
+  }
+  return 'A spike occurred during this period. TrendArc cannot confirm the exact cause without verified external event data.';
+}
+
+/**
+ * Format confidence with context and explanation
+ */
+function formatConfidence(confidence: number, agreementIndex?: number, volatility?: number): { label: string; explanation: string } {
+  let level: string;
+  if (confidence >= 75) {
+    level = 'High';
+  } else if (confidence >= 60) {
+    level = 'Moderate';
+  } else {
+    level = 'Low';
+  }
+  
+  const explanationParts: string[] = [];
+  if (agreementIndex !== undefined && agreementIndex < 60) {
+    explanationParts.push('mixed signals across sources');
+  }
+  if (volatility !== undefined && volatility > 0.3) {
+    explanationParts.push('moderate volatility');
+  }
+  if (explanationParts.length === 0) {
+    explanationParts.push('data quality considerations');
+  }
+  
+  return {
+    label: `${level} (${confidence}%)`,
+    explanation: `This confidence reflects ${explanationParts.join(' and ')}.`,
+  };
+}
+
+/**
+ * Rewrite evidence interpretation to be more analytical and less robotic
+ */
+function rewriteEvidenceInterpretation(
+  source: string,
+  leader: string,
+  magnitude: number,
+  termA: string,
+  termB: string,
+  original: string
+): string {
+  // If original is already good, use it
+  if (original && !original.toLowerCase().includes('leads by') && !original.toLowerCase().includes('points')) {
+    return original;
+  }
+  
+  // Rewrite based on source and magnitude
+  const isStrong = magnitude >= 20;
+  const isModerate = magnitude >= 10;
+  
+  if (source.toLowerCase().includes('google trends') || source.toLowerCase().includes('search')) {
+    if (isStrong) {
+      return `Search interest strongly favors ${leader}, indicating significantly higher global attention during the selected period.`;
+    } else if (isModerate) {
+      return `Search interest favors ${leader}, showing higher relative attention in search queries.`;
+    } else {
+      return `Search interest shows a slight preference for ${leader}.`;
+    }
+  } else if (source.toLowerCase().includes('youtube') || source.toLowerCase().includes('social')) {
+    if (isStrong) {
+      return `Social engagement significantly favors ${leader}, reflecting stronger audience interest and interaction.`;
+    } else if (isModerate) {
+      return `Social engagement favors ${leader}, indicating higher audience engagement levels.`;
+    } else {
+      return `Social engagement shows a slight preference for ${leader}.`;
+    }
+  } else if (source.toLowerCase().includes('authority') || source.toLowerCase().includes('wikipedia')) {
+    if (isStrong) {
+      return `Authority metrics strongly favor ${leader}, suggesting greater established presence and recognition.`;
+    } else if (isModerate) {
+      return `Authority metrics favor ${leader}, indicating stronger established presence.`;
+    } else {
+      return `Authority metrics show a slight preference for ${leader}.`;
+    }
+  }
+  
+  // Fallback to a generic but analytical interpretation
+  if (isStrong) {
+    return `This metric strongly favors ${leader}, indicating a significant difference in market position.`;
+  } else if (isModerate) {
+    return `This metric favors ${leader}, showing a meaningful difference.`;
+  } else {
+    return `This metric shows a slight preference for ${leader}.`;
+  }
+}
+
+/**
+ * Generate geographic insight paragraph
+ */
+function generateGeographicInsight(
+  countries: Array<{ name: string; termAValue: number; termBValue: number }>,
+  termA: string,
+  termB: string
+): string {
+  if (!countries || countries.length === 0) {
+    return '';
+  }
+  
+  const termAStrong = countries.filter(c => c.termAValue > c.termBValue && c.termAValue >= 50).length;
+  const termBStrong = countries.filter(c => c.termBValue > c.termAValue && c.termBValue >= 50).length;
+  
+  if (termAStrong > termBStrong && termAStrong >= 3) {
+    return `${termA} shows stronger relative interest in several key markets, while ${termB} maintains broader global presence.`;
+  } else if (termBStrong > termAStrong && termBStrong >= 3) {
+    return `${termB} shows stronger relative interest in several key markets, while ${termA} maintains broader global presence.`;
+  } else {
+    return `Regional interest patterns vary significantly, with both terms showing strength in different geographic markets.`;
+  }
+}
+
+/**
+ * Format geographic value (handle zeros)
+ */
+function formatGeographicValue(value: number): string {
+  if (value < 5) {
+    return '<5';
+  }
+  return value.toFixed(1);
+}
+
+/**
  * Generate HTML content for PDF
- * Professional, executive-ready format
+ * Clean, professional, executive-ready format
  */
 function generatePDFHTML(
   data: ComparisonPDFData,
   scoreChartImageBase64?: string,
   forecastChartImageBase64?: string
 ): string {
+  // Format all terms properly - NEVER use slugs
   const termAFormatted = formatTermForPDF(data.termA);
   const termBFormatted = formatTermForPDF(data.termB);
+  const winnerFormatted = formatTermForPDF(data.verdict.winner);
+  const loserFormatted = formatTermForPDF(data.verdict.loser);
+  
   const date = new Date(data.generatedAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
-  const winnerFormatted = formatTermForPDF(data.verdict.winner);
-  const loserFormatted = formatTermForPDF(data.verdict.loser);
-
   // Filter evidence to only meaningful values
   const validEvidence = data.evidence ? filterValidEvidence(data.evidence) : [];
+  const topEvidence = validEvidence.slice(0, 5);
 
   // Check if forecast should be shown
   const forecastGuardrail = data.predictions && data.metrics ? shouldShowForecast({
@@ -157,66 +321,6 @@ function generatePDFHTML(
     disagreementFlag: data.metrics.agreementIndex < 60,
     agreementIndex: data.metrics.agreementIndex,
   }) : { shouldShow: false, reason: 'No forecast data available' };
-
-  // Get top 2 peak explanations (max 2) - rewrite to remove speculation
-  const peakExplanations: Array<{ term: string; date: string; explanation: string }> = [];
-  if (data.aiInsights?.peakExplanations) {
-    // Extract dates and rewrite explanations to be evidence-based
-    const rewritePeakExplanation = (text: string): string => {
-      if (!text || text.trim().length === 0) {
-        return 'A spike occurred during this period. This usually indicates a news or event-driven surge. TrendArc cannot confirm the exact cause without external event data.';
-      }
-      
-      // Remove speculative language like "likely", "probably", "may have"
-      let rewritten = text
-        .replace(/\b(likely|probably|may have|might have|could have|possibly|perhaps|might|may|could)\b/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      // If we have no external evidence, say so clearly
-      if (rewritten.length < 20 || rewritten.toLowerCase().includes('unknown') || rewritten.toLowerCase().includes('no data')) {
-        return 'A spike occurred during this period. This usually indicates a news or event-driven surge. TrendArc cannot confirm the exact cause without external event data.';
-      }
-      
-      // Make it evidence-based - start with factual statement
-      if (!rewritten.toLowerCase().includes('spike') && !rewritten.toLowerCase().includes('surge') && !rewritten.toLowerCase().includes('occurred')) {
-        rewritten = `A spike occurred during this period. ${rewritten}`;
-      }
-      
-      return rewritten;
-    };
-    
-    // Handle both old format (object with termA/termB) and new format (array)
-    if (Array.isArray(data.aiInsights.peakExplanations)) {
-      // New format: array of peak explanations
-      for (const peak of data.aiInsights.peakExplanations.slice(0, 2)) {
-        const term = peak.term === 'termA' ? termAFormatted : termBFormatted;
-        const date = peak.peakDate ? new Date(peak.peakDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent period';
-        peakExplanations.push({
-          term,
-          date,
-          explanation: rewritePeakExplanation(peak.text || ''),
-        });
-      }
-    } else {
-      // Old format: object with termA and termB properties
-      const oldFormat = data.aiInsights.peakExplanations as any;
-      if (oldFormat.termA) {
-        peakExplanations.push({ 
-          term: termAFormatted, 
-          date: 'Recent period',
-          explanation: rewritePeakExplanation(oldFormat.termA)
-        });
-      }
-      if (oldFormat.termB && peakExplanations.length < 2) {
-        peakExplanations.push({ 
-          term: termBFormatted, 
-          date: 'Recent period',
-          explanation: rewritePeakExplanation(oldFormat.termB)
-        });
-      }
-    }
-  }
 
   // Generate "What changed" bullets (max 3)
   const whatChanged: string[] = [];
@@ -236,25 +340,85 @@ function generatePDFHTML(
   }
   const whatChangedBullets = whatChanged.slice(0, 3);
 
-  // Generate "Why this matters" (2-3 sentences)
+  // Generate "Why this matters" (safe, non-speculative, analytical)
   const whyThisMatters = data.aiInsights?.whyThisMatters || 
-    `This comparison reveals the relative market position between ${termAFormatted} and ${termBFormatted}. The ${data.metrics?.stability || 'current'} trend pattern suggests ${data.verdict.confidence >= 70 ? 'strong' : 'moderate'} confidence in the observed differences.`;
+    `This comparison reveals the relative market position between ${termAFormatted} and ${termBFormatted}. The ${data.metrics?.stability || 'current'} trend pattern indicates ${data.verdict.confidence >= 70 ? 'strong' : data.verdict.confidence >= 60 ? 'moderate' : 'variable'} confidence in the observed differences, reflecting the consistency of signals across multiple data sources.`;
 
-  // Generate practical use cases
-  const useCases: string[] = [];
-  if (data.verdict.category === 'technology' || data.verdict.category === 'products') {
-    useCases.push('Product positioning and market strategy');
-    useCases.push('Competitive analysis and benchmarking');
-    useCases.push('Investment and resource allocation decisions');
-  } else if (data.verdict.category === 'entertainment' || data.verdict.category === 'media') {
-    useCases.push('Content strategy and audience targeting');
-    useCases.push('Marketing campaign planning');
-    useCases.push('Trend monitoring and opportunity identification');
-  } else {
-    useCases.push('Strategic decision-making');
-    useCases.push('Market trend analysis');
-    useCases.push('Competitive intelligence');
+  // Build score breakdown rows (exclude neutral metrics)
+  const scoreRows: string[] = [];
+  scoreRows.push(`
+    <tr class="winner-row">
+      <td><strong>Overall Score</strong></td>
+      <td><strong>${data.scores.termA.overall.toFixed(1)}</strong></td>
+      <td>${data.scores.termB.overall.toFixed(1)}</td>
+      <td><strong>${(data.scores.termA.overall - data.scores.termB.overall).toFixed(1)}</strong></td>
+    </tr>
+    <tr>
+      <td>Search Interest</td>
+      <td>${data.scores.termA.breakdown.searchInterest.toFixed(1)}</td>
+      <td>${data.scores.termB.breakdown.searchInterest.toFixed(1)}</td>
+      <td>${(data.scores.termA.breakdown.searchInterest - data.scores.termB.breakdown.searchInterest).toFixed(1)}</td>
+    </tr>
+  `);
+
+  // Only add social buzz if meaningful
+  if (isMeaningfulMetric(data.scores.termA.breakdown.socialBuzz, data.scores.termB.breakdown.socialBuzz)) {
+    scoreRows.push(`
+    <tr>
+      <td>Social Buzz</td>
+      <td>${data.scores.termA.breakdown.socialBuzz.toFixed(1)}</td>
+      <td>${data.scores.termB.breakdown.socialBuzz.toFixed(1)}</td>
+      <td>${(data.scores.termA.breakdown.socialBuzz - data.scores.termB.breakdown.socialBuzz).toFixed(1)}</td>
+    </tr>
+    `);
   }
+
+  // Only add authority if meaningful
+  if (isMeaningfulMetric(data.scores.termA.breakdown.authority, data.scores.termB.breakdown.authority)) {
+    scoreRows.push(`
+    <tr>
+      <td>Authority</td>
+      <td>${data.scores.termA.breakdown.authority.toFixed(1)}</td>
+      <td>${data.scores.termB.breakdown.authority.toFixed(1)}</td>
+      <td>${(data.scores.termA.breakdown.authority - data.scores.termB.breakdown.authority).toFixed(1)}</td>
+    </tr>
+    `);
+  }
+
+  scoreRows.push(`
+    <tr>
+      <td>Momentum</td>
+      <td>${data.scores.termA.breakdown.momentum.toFixed(1)}</td>
+      <td>${data.scores.termB.breakdown.momentum.toFixed(1)}</td>
+      <td>${(data.scores.termA.breakdown.momentum - data.scores.termB.breakdown.momentum).toFixed(1)}</td>
+    </tr>
+  `);
+
+  const hasExcludedMetrics = !isMeaningfulMetric(data.scores.termA.breakdown.socialBuzz, data.scores.termB.breakdown.socialBuzz) ||
+    !isMeaningfulMetric(data.scores.termA.breakdown.authority, data.scores.termB.breakdown.authority);
+
+  // Geographic data (top 8-10, formatted)
+  const topGeographicCountries = data.geographicData?.countries?.slice(0, 10) || [];
+  const geographicRows = topGeographicCountries.map(country => {
+    const leader = country.termAValue >= country.termBValue ? termAFormatted : termBFormatted;
+    return `
+      <tr>
+        <td><strong>${country.name}</strong></td>
+        <td>${formatGeographicValue(country.termAValue)}</td>
+        <td>${formatGeographicValue(country.termBValue)}</td>
+        <td>${leader}</td>
+      </tr>
+    `;
+  }).join('') || '';
+  
+  const geographicInsight = generateGeographicInsight(topGeographicCountries, termAFormatted, termBFormatted);
+  
+  // Format confidence with context
+  const confidenceInfo = formatConfidence(
+    data.verdict.confidence,
+    data.metrics?.agreementIndex,
+    data.metrics?.volatility
+  );
 
   return `
 <!DOCTYPE html>
@@ -264,8 +428,6 @@ function generatePDFHTML(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${termAFormatted} vs ${termBFormatted} - Trend Comparison Report</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
     * {
       margin: 0;
       padding: 0;
@@ -273,42 +435,45 @@ function generatePDFHTML(
     }
     
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
       color: #1a1a1a;
       line-height: 1.6;
       background: #ffffff;
       font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     
     .page {
-      padding: 30mm 25mm;
-      page-break-after: always;
-      min-height: 297mm;
+      padding: 20mm 25mm;
+      page-break-after: auto;
       position: relative;
+      background: #ffffff;
+      min-height: 297mm;
     }
     
-    .page-number {
-      display: none; /* Replaced by page-footer */
+    .page:not(:last-child) {
+      page-break-after: always;
     }
     
     /* Cover Page */
     .cover-page {
-      min-height: 297mm;
+      height: 297mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 40mm 35mm;
+      padding: 30mm 25mm;
       background: #ffffff;
-      border: 1px solid #e5e7eb;
-      position: relative;
+      border-bottom: 4px solid #2563eb;
+      page-break-after: always;
     }
     
     .cover-logo {
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 1px;
       color: #2563eb;
-      margin-bottom: 20px;
+      margin-bottom: 40px;
     }
     
     .cover-title {
@@ -319,24 +484,23 @@ function generatePDFHTML(
     }
     
     .cover-title h1 {
-      font-size: 42px;
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 20px;
-      letter-spacing: -1px;
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 16px;
       color: #1a1a1a;
     }
     
     .cover-subtitle {
-      font-size: 18px;
-      font-weight: 500;
-      color: #4b5563;
+      font-size: 20px;
+      font-weight: 400;
+      color: #6b7280;
       margin-bottom: 40px;
     }
     
     .cover-meta {
-      font-size: 14px;
-      color: #6b7280;
+      font-size: 13px;
+      color: #4b5563;
       line-height: 2;
       border-top: 1px solid #e5e7eb;
       padding-top: 20px;
@@ -345,7 +509,7 @@ function generatePDFHTML(
     .cover-meta-item {
       display: flex;
       justify-content: space-between;
-      padding: 6px 0;
+      padding: 4px 0;
     }
     
     .cover-meta-label {
@@ -356,95 +520,71 @@ function generatePDFHTML(
     /* Page Headers */
     .page-header {
       border-bottom: 2px solid #2563eb;
-      padding-bottom: 12px;
-      margin-bottom: 24px;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .page-header h2 {
       font-size: 22px;
       font-weight: 700;
       color: #1a1a1a;
-      letter-spacing: -0.3px;
       margin: 0;
     }
     
-    /* Sections */
-    .section {
-      margin-bottom: 28px;
-      page-break-inside: avoid;
-    }
-    
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e5e7eb;
+    .page-header-right {
+      font-size: 11px;
+      color: #9ca3af;
+      font-weight: 400;
     }
     
     /* Executive Summary */
     .verdict-sentence {
-      font-size: 20px;
-      font-weight: 600;
-      color: #1a1a1a;
-      line-height: 1.5;
-      margin-bottom: 32px;
+      font-size: 17px;
+      font-weight: 500;
+      line-height: 1.7;
+      margin-bottom: 28px;
       padding: 24px;
-      background: #ffffff;
-      border: 2px solid #2563eb;
-      border-radius: 8px;
-      text-align: center;
-    }
-    
-    .winner-card {
-      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-      border: 2px solid #2563eb;
-      border-radius: 12px;
-      padding: 28px;
-      margin-bottom: 32px;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
-    }
-    
-    .winner-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-    
-    .winner-name {
-      font-size: 20px;
-      font-weight: 700;
+      background: #f8fafc;
+      border-left: 4px solid #2563eb;
       color: #1a1a1a;
+      border-radius: 6px;
     }
     
-    .winner-margin {
-      font-size: 16px;
-      font-weight: 600;
-      color: #2563eb;
-    }
-    
-    .winner-stats {
+    .kpi-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
-      margin-top: 16px;
+      margin-bottom: 24px;
     }
     
-    .winner-stat {
+    .kpi-card {
+      background: #ffffff;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
       text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
     
-    .winner-stat-label {
+    .kpi-label {
       font-size: 11px;
       color: #6b7280;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 4px;
+      margin-bottom: 8px;
+      font-weight: 600;
     }
     
-    .winner-stat-value {
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .kpi-value-small {
       font-size: 20px;
       font-weight: 700;
       color: #1a1a1a;
@@ -453,10 +593,11 @@ function generatePDFHTML(
     .bullet-list {
       list-style: none;
       padding: 0;
+      margin: 16px 0;
     }
     
     .bullet-list li {
-      padding: 8px 0;
+      padding: 6px 0;
       padding-left: 20px;
       position: relative;
       font-size: 13px;
@@ -470,31 +611,33 @@ function generatePDFHTML(
       left: 0;
       color: #2563eb;
       font-weight: bold;
+      font-size: 16px;
     }
     
     .why-matters {
       background: #f8fafc;
       padding: 16px;
       border-radius: 6px;
-      margin-top: 20px;
+      margin-top: 16px;
       font-size: 13px;
-      line-height: 1.7;
+      line-height: 1.6;
       color: #374151;
+      border-left: 3px solid #2563eb;
     }
     
-    /* Trust & Method */
+    /* Trust Snapshot */
     .trust-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     
     .trust-card {
       background: #ffffff;
       border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 16px;
+      border-radius: 8px;
+      padding: 20px;
     }
     
     .trust-card-label {
@@ -503,37 +646,46 @@ function generatePDFHTML(
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 8px;
+      font-weight: 600;
     }
     
     .trust-card-value {
-      font-size: 24px;
+      font-size: 32px;
       font-weight: 700;
       color: #1a1a1a;
     }
     
+    .trust-card-value-small {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
     .methodology {
-      background: #f8fafc;
+      background: #fef3c7;
       padding: 16px;
       border-radius: 6px;
       font-size: 12px;
-      line-height: 1.7;
-      color: #4b5563;
+      line-height: 1.6;
+      color: #78350f;
       margin-top: 20px;
+      border-left: 3px solid #f59e0b;
     }
     
-    /* Evidence Table */
-    .evidence-table {
+    /* Tables */
+    .data-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 12px;
+      margin-top: 20px;
+      font-size: 12px;
     }
     
-    .evidence-table thead {
+    .data-table thead {
       background: #f8fafc;
     }
     
-    .evidence-table th {
-      padding: 10px 12px;
+    .data-table th {
+      padding: 14px 12px;
       text-align: left;
       font-weight: 600;
       font-size: 11px;
@@ -543,80 +695,69 @@ function generatePDFHTML(
       border-bottom: 2px solid #e5e7eb;
     }
     
-    .evidence-table td {
-      padding: 12px;
+    .data-table td {
+      padding: 14px 12px;
       border-bottom: 1px solid #f3f4f6;
-      font-size: 13px;
+      font-size: 12px;
       color: #374151;
+      line-height: 1.5;
     }
     
-    .evidence-table tbody tr:last-child td {
-      border-bottom: none;
+    .data-table tbody tr:nth-child(even) {
+      background: #fafbfc;
     }
     
-    /* Score Breakdown */
-    .score-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-    }
-    
-    .score-table thead {
-      background: #f8fafc;
-    }
-    
-    .score-table th {
-      padding: 10px 12px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 11px;
-      color: #374151;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .score-table td {
-      padding: 12px;
-      border-bottom: 1px solid #f3f4f6;
-      font-size: 13px;
-      color: #374151;
-    }
-    
-    .score-table tbody tr.winner-row {
+    .data-table tbody tr.winner-row {
       background: #eff6ff;
+      font-weight: 600;
     }
     
-    .score-table tbody tr:last-child td {
+    .data-table tbody tr:last-child td {
       border-bottom: none;
     }
     
-    /* Chart Placeholder */
-    .chart-placeholder {
-      background: #f8fafc;
+    /* Charts */
+    .chart-container {
+      background: #ffffff;
       border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 60px 20px;
-      text-align: center;
-      margin-top: 16px;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      page-break-inside: avoid;
     }
     
-    .chart-placeholder-text {
-      color: #9ca3af;
-      font-size: 13px;
+    .chart-container img {
+      width: 100%;
+      height: auto;
+      display: block;
     }
     
     .chart-caption {
       margin-top: 12px;
       font-size: 12px;
       color: #6b7280;
-      line-height: 1.6;
+      line-height: 1.5;
+    }
+    
+    .chart-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 40px 20px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .chart-error-text {
+      color: #991b1b;
+      font-size: 13px;
+      font-weight: 500;
     }
     
     /* Forecast */
     .forecast-note {
-      background: #fef3c7;
-      border: 1px solid #fbbf24;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
       border-radius: 6px;
       padding: 16px;
       margin-top: 16px;
@@ -624,140 +765,39 @@ function generatePDFHTML(
     
     .forecast-note-title {
       font-weight: 600;
-      color: #92400e;
+      color: #374151;
       margin-bottom: 8px;
+      font-size: 13px;
     }
     
     .forecast-note-text {
       font-size: 12px;
-      color: #78350f;
+      color: #6b7280;
       line-height: 1.6;
     }
     
-    /* Geographic Table */
-    .geo-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-    }
-    
-    .geo-table thead {
-      background: #f8fafc;
-    }
-    
-    .geo-table th {
-      padding: 10px 12px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 11px;
-      color: #374151;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .geo-table td {
-      padding: 12px;
-      border-bottom: 1px solid #f3f4f6;
-      font-size: 13px;
-      color: #374151;
-    }
-    
-    .geo-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .geo-summary {
-      margin-top: 16px;
-      font-size: 12px;
-      line-height: 1.7;
-      color: #4b5563;
-    }
-    
-    /* Peak Explanations */
-    .peak-item {
-      background: #f8fafc;
-      border-left: 3px solid #2563eb;
-      padding: 16px;
-      margin-bottom: 16px;
-      border-radius: 4px;
-    }
-    
-    .peak-item-title {
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 8px;
-    }
-    
-    .peak-item-text {
-      font-size: 12px;
-      line-height: 1.7;
-      color: #374151;
-    }
-    
-    /* Use Cases */
-    .use-case-list {
-      list-style: none;
-      padding: 0;
-    }
-    
-    .use-case-list li {
-      padding: 10px 0;
-      padding-left: 24px;
-      position: relative;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #374151;
-      border-bottom: 1px solid #f3f4f6;
-    }
-    
-    .use-case-list li:last-child {
-      border-bottom: none;
-    }
-    
-    .use-case-list li:before {
-      content: "•";
+    /* Page Footer */
+    .page-footer {
       position: absolute;
-      left: 0;
-      color: #2563eb;
-      font-weight: bold;
-      font-size: 16px;
+      bottom: 20mm;
+      left: 25mm;
+      right: 25mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #9ca3af;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 8px;
     }
     
-    /* Appendix */
-    .appendix-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-    }
-    
-    .appendix-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid #f3f4f6;
-      font-size: 12px;
-    }
-    
-    .appendix-table td:first-child {
-      font-weight: 600;
-      color: #374151;
-      width: 40%;
-    }
-    
-    .appendix-table td:last-child {
+    .page-footer-left {
+      font-weight: 500;
       color: #6b7280;
     }
     
-    .appendix-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .legal-footer {
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-      font-size: 11px;
+    .page-footer-right {
       color: #9ca3af;
-      text-align: center;
     }
     
     @media print {
@@ -780,15 +820,15 @@ function generatePDFHTML(
     <div class="cover-meta">
       <div class="cover-meta-item">
         <span class="cover-meta-label">Timeframe:</span>
-        <span>${data.timeframe.toUpperCase()}</span>
+        <span>${formatTimeframe(data.timeframe)}</span>
       </div>
       <div class="cover-meta-item">
         <span class="cover-meta-label">Region:</span>
-        <span>${data.geo || 'Worldwide'}</span>
+        <span>${formatRegion(data.geo)}</span>
       </div>
       <div class="cover-meta-item">
         <span class="cover-meta-label">Category:</span>
-        <span>${data.verdict.category.charAt(0).toUpperCase() + data.verdict.category.slice(1)}</span>
+        <span>${formatCategory(data.verdict.category)}</span>
       </div>
       <div class="cover-meta-item">
         <span class="cover-meta-label">Generated:</span>
@@ -800,78 +840,65 @@ function generatePDFHTML(
   <!-- PAGE 2: EXECUTIVE SUMMARY -->
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 2</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 2 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Executive Summary</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Executive Summary</h2>
     </div>
     
     <div class="verdict-sentence">
-      ${data.verdict.headline || `${winnerFormatted} leads ${loserFormatted} with a ${data.verdict.margin.toFixed(1)}-point advantage and ${data.verdict.confidence}% confidence.`}
+      ${data.verdict.headline || `${winnerFormatted} demonstrates a ${data.verdict.margin.toFixed(1)}-point advantage over ${loserFormatted}, with ${confidenceInfo.label.toLowerCase()} overall confidence.`}
     </div>
     
-    <div class="winner-card">
-      <div class="winner-card-header">
-        <div class="winner-name">${winnerFormatted}</div>
-        <div class="winner-margin">+${data.verdict.margin.toFixed(1)} points</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Winner</div>
+        <div class="kpi-value-small">${winnerFormatted}</div>
       </div>
-      <div class="winner-stats">
-        <div class="winner-stat">
-          <div class="winner-stat-label">Winner Score</div>
-          <div class="winner-stat-value">${data.verdict.winnerScore.toFixed(1)}</div>
-        </div>
-        <div class="winner-stat">
-          <div class="winner-stat-label">Margin</div>
-          <div class="winner-stat-value">${data.verdict.margin.toFixed(1)}</div>
-        </div>
-        <div class="winner-stat">
-          <div class="winner-stat-label">Confidence</div>
-          <div class="winner-stat-value">${data.verdict.confidence}%</div>
-        </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Margin</div>
+        <div class="kpi-value">${data.verdict.margin.toFixed(1)}</div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Overall Confidence</div>
+        <div class="kpi-value-small" style="font-size: 18px;">${confidenceInfo.label}</div>
       </div>
+    </div>
+    
+    <div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 6px; font-size: 12px; color: #4b5563; line-height: 1.6; border-left: 3px solid #2563eb;">
+      ${confidenceInfo.explanation}
     </div>
     
     ${whatChangedBullets.length > 0 ? `
     <div class="section">
-      <div class="section-title">What Changed Recently</div>
+      <div style="font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 12px;">What Changed Recently</div>
       <ul class="bullet-list">
         ${whatChangedBullets.map(bullet => `<li>${bullet}</li>`).join('')}
       </ul>
     </div>
     ` : ''}
     
-    <div class="section">
-      <div class="section-title">Why This Matters</div>
-      <div class="why-matters">
-        ${whyThisMatters}
-      </div>
+    <div style="margin-top: 32px; padding: 20px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb;">
+      <div style="font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 12px;">Why This Matters</div>
+      <div style="font-size: 13px; line-height: 1.7; color: #374151;">${whyThisMatters}</div>
     </div>
   </div>
 
-  <!-- PAGE 3: TRUST & METHOD SNAPSHOT -->
+  <!-- PAGE 3: TRUST SNAPSHOT -->
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 3</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 3 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Trust & Method Snapshot</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Trust Snapshot</h2>
     </div>
     
     <div class="trust-grid">
       <div class="trust-card">
-        <div class="trust-card-label">Confidence Score</div>
-        <div class="trust-card-value">${data.verdict.confidence}%</div>
+        <div class="trust-card-label">Overall Confidence</div>
+        <div class="trust-card-value-small" style="font-size: 24px;">${confidenceInfo.label}</div>
       </div>
       <div class="trust-card">
         <div class="trust-card-label">Source Agreement</div>
@@ -879,11 +906,11 @@ function generatePDFHTML(
       </div>
       <div class="trust-card">
         <div class="trust-card-label">Data Freshness</div>
-        <div class="trust-card-value" style="font-size: 14px;">${data.dataFreshness ? new Date(data.dataFreshness.lastUpdatedAt).toLocaleDateString() : new Date(data.generatedAt).toLocaleDateString()}</div>
+        <div class="trust-card-value-small">${data.dataFreshness ? new Date(data.dataFreshness.lastUpdatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : new Date(data.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
       </div>
       <div class="trust-card">
         <div class="trust-card-label">Forecast Available</div>
-        <div class="trust-card-value" style="font-size: 14px;">${forecastGuardrail.shouldShow ? 'Yes' : 'No'}</div>
+        <div class="trust-card-value-small">${forecastGuardrail.shouldShow ? 'Yes' : 'No'}</div>
       </div>
     </div>
     
@@ -895,19 +922,15 @@ function generatePDFHTML(
   <!-- PAGE 4: KEY EVIDENCE -->
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 4</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 4 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Key Evidence</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Key Evidence</h2>
     </div>
     
-    ${validEvidence.length > 0 ? `
-    <table class="evidence-table">
+    ${topEvidence.length > 0 ? `
+    <table class="data-table">
       <thead>
         <tr>
           <th>Metric</th>
@@ -917,57 +940,43 @@ function generatePDFHTML(
         </tr>
       </thead>
       <tbody>
-        ${validEvidence.map(ev => {
+        ${topEvidence.map(ev => {
           const leader = ev.direction === 'termA' ? termAFormatted : ev.direction === 'termB' ? termBFormatted : 'Tie';
+          const rewrittenInterpretation = rewriteEvidenceInterpretation(
+            ev.source,
+            leader,
+            ev.magnitude,
+            termAFormatted,
+            termBFormatted,
+            ev.interpretation
+          );
           return `
         <tr>
           <td><strong>${ev.source}</strong></td>
           <td>${leader}</td>
           <td>${ev.magnitude.toFixed(1)} points</td>
-          <td>${ev.interpretation}</td>
+          <td>${rewrittenInterpretation}</td>
         </tr>
         `;
         }).join('')}
       </tbody>
     </table>
-    ${(() => {
-      const neutralCount = [
-        data.scores.termA.breakdown.socialBuzz,
-        data.scores.termB.breakdown.socialBuzz,
-        data.scores.termA.breakdown.authority,
-        data.scores.termB.breakdown.authority,
-      ].filter((score, idx) => {
-        const isSocialBuzz = idx < 2;
-        const termAVal = isSocialBuzz ? data.scores.termA.breakdown.socialBuzz : data.scores.termA.breakdown.authority;
-        const termBVal = isSocialBuzz ? data.scores.termB.breakdown.socialBuzz : data.scores.termB.breakdown.authority;
-        return Math.abs(termAVal - termBVal) < 0.5 && (termAVal < 10 || termBVal < 10);
-      }).length;
-      
-      if (neutralCount > 0) {
-        return `<p style="margin-top: 16px; font-size: 12px; color: #6b7280; font-style: italic;">Some sources show neutral signals in this period.</p>`;
-      }
-      return '';
-    })()}
     ` : `
-    <p style="color: #6b7280; font-size: 13px;">Limited evidence available for this comparison.</p>
+    <p style="color: #6b7280; font-size: 13px; margin-top: 20px;">Limited evidence available for this comparison.</p>
     `}
   </div>
 
   <!-- PAGE 5: SCORE BREAKDOWN -->
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 5</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 5 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Score Breakdown</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Score Breakdown</h2>
     </div>
     
-    <table class="score-table">
+    <table class="data-table">
       <thead>
         <tr>
           <th>Metric</th>
@@ -977,152 +986,82 @@ function generatePDFHTML(
         </tr>
       </thead>
       <tbody>
-        <tr class="${data.verdict.winner === data.termA ? 'winner-row' : ''}">
-          <td><strong>Overall Score</strong></td>
-          <td><strong>${data.scores.termA.overall.toFixed(1)}</strong></td>
-          <td>${data.scores.termB.overall.toFixed(1)}</td>
-          <td><strong>${(data.scores.termA.overall - data.scores.termB.overall).toFixed(1)}</strong></td>
-        </tr>
-        <tr class="${data.verdict.winner === data.termA ? 'winner-row' : ''}">
-          <td>Search Interest</td>
-          <td>${data.scores.termA.breakdown.searchInterest.toFixed(1)}</td>
-          <td>${data.scores.termB.breakdown.searchInterest.toFixed(1)}</td>
-          <td>${(data.scores.termA.breakdown.searchInterest - data.scores.termB.breakdown.searchInterest).toFixed(1)}</td>
-        </tr>
-    ${(() => {
-      const socialBuzzDiff = Math.abs(data.scores.termA.breakdown.socialBuzz - data.scores.termB.breakdown.socialBuzz);
-      const socialBuzzNeutral = socialBuzzDiff < 0.5 && 
-        (data.scores.termA.breakdown.socialBuzz < 10 || data.scores.termB.breakdown.socialBuzz < 10);
-      
-      if (socialBuzzNeutral) {
-        return ''; // Skip neutral/low coverage rows
-      }
-      return `
-    <tr class="${data.verdict.winner === data.termA ? 'winner-row' : ''}">
-      <td>Social Buzz</td>
-      <td>${data.scores.termA.breakdown.socialBuzz.toFixed(1)}</td>
-      <td>${data.scores.termB.breakdown.socialBuzz.toFixed(1)}</td>
-      <td>${(data.scores.termA.breakdown.socialBuzz - data.scores.termB.breakdown.socialBuzz).toFixed(1)}</td>
-    </tr>`;
-    })()}
-    ${(() => {
-      const authorityDiff = Math.abs(data.scores.termA.breakdown.authority - data.scores.termB.breakdown.authority);
-      const authorityNeutral = authorityDiff < 0.5 && 
-        (data.scores.termA.breakdown.authority < 10 || data.scores.termB.breakdown.authority < 10);
-      
-      if (authorityNeutral) {
-        return ''; // Skip neutral/low coverage rows
-      }
-      return `
-    <tr class="${data.verdict.winner === data.termA ? 'winner-row' : ''}">
-      <td>Authority</td>
-      <td>${data.scores.termA.breakdown.authority.toFixed(1)}</td>
-      <td>${data.scores.termB.breakdown.authority.toFixed(1)}</td>
-      <td>${(data.scores.termA.breakdown.authority - data.scores.termB.breakdown.authority).toFixed(1)}</td>
-    </tr>`;
-    })()}
-        <tr class="${data.verdict.winner === data.termA ? 'winner-row' : ''}">
-          <td>Momentum</td>
-          <td>${data.scores.termA.breakdown.momentum.toFixed(1)}</td>
-          <td>${data.scores.termB.breakdown.momentum.toFixed(1)}</td>
-          <td>${(data.scores.termA.breakdown.momentum - data.scores.termB.breakdown.momentum).toFixed(1)}</td>
-        </tr>
+        ${scoreRows.join('')}
       </tbody>
     </table>
-    ${(() => {
-      const socialBuzzDiff = Math.abs(data.scores.termA.breakdown.socialBuzz - data.scores.termB.breakdown.socialBuzz);
-      const socialBuzzNeutral = socialBuzzDiff < 0.5 && 
-        (data.scores.termA.breakdown.socialBuzz < 10 || data.scores.termB.breakdown.socialBuzz < 10);
-      const authorityDiff = Math.abs(data.scores.termA.breakdown.authority - data.scores.termB.breakdown.authority);
-      const authorityNeutral = authorityDiff < 0.5 && 
-        (data.scores.termA.breakdown.authority < 10 || data.scores.termB.breakdown.authority < 10);
-      
-      if (socialBuzzNeutral || authorityNeutral) {
-        return `<p style="margin-top: 16px; font-size: 12px; color: #6b7280; font-style: italic;">Some sources show neutral signals in this period.</p>`;
-      }
-      return '';
-    })()}
+    ${hasExcludedMetrics ? `
+    <p style="margin-top: 16px; font-size: 12px; color: #6b7280; font-style: italic;">Some metrics were excluded due to neutral signals or insufficient data during this period.</p>
+    ` : ''}
   </div>
 
   <!-- PAGE 6: TREND OVER TIME -->
+  ${scoreChartImageBase64 ? `
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 6</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 6 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Trend Over Time</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Trend Over Time</h2>
     </div>
     
-    ${scoreChartImageBase64 ? `
-    <div style="text-align: center; margin: 20px 0;">
-      <img src="data:image/png;base64,${scoreChartImageBase64}" alt="Score Over Time Chart" style="max-width: 100%; height: auto; border: 1px solid #e5e7eb; border-radius: 6px;" />
+    <div class="chart-container">
+      <img src="data:image/png;base64,${scoreChartImageBase64}" alt="Trend Over Time Chart" style="max-width: 100%; height: auto; display: block;" />
     </div>
-    <div class="chart-caption" style="margin-top: 12px; font-size: 12px; color: #6b7280; line-height: 1.6;">
+    <div class="chart-caption">
       ${data.metrics?.stability === 'stable' 
         ? `The trend demonstrates stability with consistent patterns over the selected timeframe.` 
         : data.metrics?.stability === 'hype' 
         ? `The trend shows significant volatility, suggesting event-driven spikes.` 
         : `The trend shows moderate variation over time.`}
     </div>
-    ` : `
-    <div class="chart-placeholder">
-      <div class="chart-placeholder-text">Chart generation unavailable</div>
-    </div>
-    `}
-  </div>
-
-  <!-- PAGE 7: FORECAST -->
-  <div class="page">
-    <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 7</span>
-      <span>${date}</span>
-    </div>
-    <div class="page-header">
-      <div class="page-header-left">
-        <h2>Forecast</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
-    </div>
     
     ${forecastGuardrail.shouldShow && data.predictions && forecastChartImageBase64 ? `
-    <div style="text-align: center; margin: 20px 0;">
-      <img src="data:image/png;base64,${forecastChartImageBase64}" alt="Forecast Chart" style="max-width: 100%; height: auto; border: 1px solid #e5e7eb; border-radius: 6px;" />
+    <div class="page-header" style="margin-top: 30px;">
+      <h2>Forecast</h2>
     </div>
-    <div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 6px; font-size: 12px; color: #4b5563; line-height: 1.6;">
+    <div class="chart-container">
+      <img src="data:image/png;base64,${forecastChartImageBase64}" alt="Forecast Chart" />
+    </div>
+    <div style="margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 6px; font-size: 12px; color: #166534; line-height: 1.6; border-left: 3px solid #22c55e;">
       <strong>Forecast Summary:</strong> Based on ${data.predictions.historicalDataPoints || 0} historical data points. ${data.predictions.predictionsA ? `${termAFormatted}: ${data.predictions.predictionsA.trend === 'rising' ? 'Rising' : data.predictions.predictionsA.trend === 'falling' ? 'Falling' : 'Stable'} trend (${data.predictions.predictionsA.confidence.toFixed(0)}% confidence). ` : ''}${data.predictions.predictionsB ? `${termBFormatted}: ${data.predictions.predictionsB.trend === 'rising' ? 'Rising' : data.predictions.predictionsB.trend === 'falling' ? 'Falling' : 'Stable'} trend (${data.predictions.predictionsB.confidence.toFixed(0)}% confidence). ` : ''}Forecasts are directional indicators, not exact volume predictions.
     </div>
-    ` : `
-    <div class="forecast-note" style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin-top: 16px;">
-      <div class="forecast-note-title" style="font-weight: 600; color: #374151; margin-bottom: 8px;">Forecast Not Shown</div>
-      <div class="forecast-note-text" style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+    ` : forecastGuardrail.shouldShow ? `
+    <div class="forecast-note">
+      <div class="forecast-note-title">Forecast Not Shown</div>
+      <div class="forecast-note-text">
         ${forecastGuardrail.reason || 'Forecasts are shown only when reliability is sufficient. High volatility or low source agreement reduces forecast reliability.'}
       </div>
     </div>
-    `}
+    ` : ''}
   </div>
-
-  <!-- PAGE 8: GEOGRAPHIC INSIGHTS -->
+  ` : `
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 8</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 6 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Geographic Insights</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Trend Over Time</h2>
+    </div>
+    <div class="chart-error">
+      <div class="chart-error-text">Chart unavailable due to rendering error. Data is available but visual representation could not be generated.</div>
+    </div>
+  </div>
+  `}
+
+  <!-- PAGE 7: GEOGRAPHIC INSIGHTS -->
+  ${data.geographicData && data.geographicData.countries && data.geographicData.countries.length > 0 ? `
+  <div class="page">
+    <div class="page-footer">
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 7 • ${date}</div>
+    </div>
+    <div class="page-header">
+      <h2>Geographic Insights</h2>
     </div>
     
-    ${data.geographicData && data.geographicData.countries && data.geographicData.countries.length > 0 ? `
-    <table class="geo-table">
+    <table class="data-table">
       <thead>
         <tr>
           <th>Country</th>
@@ -1132,129 +1071,73 @@ function generatePDFHTML(
         </tr>
       </thead>
       <tbody>
-        ${data.geographicData.countries.slice(0, 12).map(country => {
-          const leader = country.termAValue >= country.termBValue ? termAFormatted : termBFormatted;
-          return `
-        <tr>
-          <td><strong>${country.name}</strong></td>
-          <td>${country.termAValue.toFixed(1)}</td>
-          <td>${country.termBValue.toFixed(1)}</td>
-          <td>${leader}</td>
-        </tr>
-        `;
-        }).join('')}
+        ${geographicRows}
       </tbody>
     </table>
-    <div class="geo-summary">
-      Regional data reflects relative interest from Google Trends. Higher values indicate stronger relative interest in that region. The top regions demonstrate clear preferences, while competitive regions show closer margins.
+    ${geographicInsight ? `
+    <div style="margin-top: 20px; padding: 16px; background: #f8fafc; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #374151; border-left: 3px solid #2563eb;">
+      ${geographicInsight}
     </div>
     ` : `
-    <p style="color: #6b7280; font-size: 13px;">Geographic data is unavailable for this comparison.</p>
+    <p style="margin-top: 16px; font-size: 12px; color: #6b7280; line-height: 1.6;">Regional data reflects relative interest from Google Trends. Higher values indicate stronger relative interest in that region.</p>
     `}
   </div>
+  ` : ''}
 
-  <!-- PAGE 9: CONTEXT BEHIND MAJOR PEAKS -->
+  <!-- PAGE 8: APPENDIX -->
   <div class="page">
     <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 9</span>
-      <span>${date}</span>
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 8 • ${date}</div>
     </div>
     <div class="page-header">
-      <div class="page-header-left">
-        <h2>Context Behind Major Peaks</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
+      <h2>Appendix</h2>
     </div>
     
-    ${peakExplanations.length > 0 ? peakExplanations.slice(0, 2).map(peak => `
-    <div class="peak-item">
-      <div class="peak-item-title">${peak.term} - ${peak.date}</div>
-      <div class="peak-item-text">${peak.explanation}</div>
-    </div>
-    `).join('') : `
-    <p style="color: #6b7280; font-size: 13px;">No significant peak events identified in this timeframe.</p>
-    `}
-  </div>
-
-  <!-- PAGE 10: HOW TO USE THIS INSIGHT -->
-  <div class="page">
-    <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 10</span>
-      <span>${date}</span>
-    </div>
-    <div class="page-header">
-      <div class="page-header-left">
-        <h2>How to Use This Insight</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
-    </div>
-    
-    <ul class="use-case-list">
-      ${useCases.map(useCase => `<li>${useCase}</li>`).join('')}
-    </ul>
-  </div>
-
-  <!-- PAGE 11: APPENDIX -->
-  <div class="page">
-    <div class="page-footer">
-      <span>TrendArc Report</span>
-      <span>Page 11</span>
-      <span>${date}</span>
-    </div>
-    <div class="page-header">
-      <div class="page-header-left">
-        <h2>Appendix</h2>
-      </div>
-      <div class="page-header-right">${data.slug}</div>
-    </div>
-    
-    <table class="appendix-table">
+    <table class="data-table">
       <tbody>
         <tr>
-          <td>Sources</td>
+          <td style="width: 30%; font-weight: 600; color: #374151;">Sources</td>
           <td>${data.verdict.sources.join(', ')}</td>
         </tr>
         <tr>
-          <td>Model Version</td>
+          <td style="font-weight: 600; color: #374151;">Model Version</td>
           <td>${data.modelVersion || 'TrendArc v1.0'}</td>
         </tr>
         <tr>
-          <td>Export Version</td>
+          <td style="font-weight: 600; color: #374151;">Export Version</td>
           <td>${data.exportVersion || '2.0'}</td>
         </tr>
         <tr>
-          <td>Computed At</td>
+          <td style="font-weight: 600; color: #374151;">Computed At</td>
           <td>${new Date(data.generatedAt).toISOString()}</td>
         </tr>
         <tr>
-          <td>Data Freshness</td>
+          <td style="font-weight: 600; color: #374151;">Data Freshness</td>
           <td>${data.dataFreshness ? new Date(data.dataFreshness.lastUpdatedAt).toISOString() : new Date(data.generatedAt).toISOString()}</td>
         </tr>
         <tr>
-          <td>Region</td>
-          <td>${data.geo || 'Worldwide'}</td>
+          <td style="font-weight: 600; color: #374151;">Region</td>
+          <td>${formatRegion(data.geo)}</td>
         </tr>
         <tr>
-          <td>Timeframe</td>
-          <td>${data.timeframe}</td>
+          <td style="font-weight: 600; color: #374151;">Timeframe</td>
+          <td>${formatTimeframe(data.timeframe)}</td>
         </tr>
         <tr>
-          <td>Terms</td>
-          <td>${data.termA} vs ${data.termB}</td>
+          <td style="font-weight: 600; color: #374151;">Terms</td>
+          <td>${termAFormatted} vs ${termBFormatted}</td>
         </tr>
         <tr>
-          <td>Live Report</td>
+          <td style="font-weight: 600; color: #374151;">Live Report</td>
           <td><a href="${data.reportUrl}" style="color: #2563eb; text-decoration: none;">${data.reportUrl}</a></td>
         </tr>
       </tbody>
     </table>
     
-    <div class="legal-footer">
+    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; line-height: 1.6;">
       <p>This report was generated on ${date}</p>
-      <p>Report ID: ${data.slug}</p>
-      <p style="margin-top: 16px;">© ${new Date().getFullYear()} TrendArc. All rights reserved.</p>
+      <p style="margin-top: 8px;">© ${new Date().getFullYear()} TrendArc. All rights reserved.</p>
       <p style="margin-top: 8px;">This report is for informational purposes only. Data accuracy is not guaranteed.</p>
     </div>
   </div>
@@ -1290,29 +1173,58 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
     
     if (data.series && data.series.length > 0) {
       try {
-        // Generate or get cached score chart image
+        // Generate score chart image - try cache first, then generate directly if needed
         const chartCacheKey = createScoreChartCacheKey(
           data.slug,
           data.timeframe,
           data.geo
         );
         
-        const scoreChartImage = await getOrGenerateChartImage(
-          () => generateScoreChartImage(
+        console.log('[PDF Generator] Generating score chart image...', {
+          slug: data.slug,
+          seriesLength: data.series.length,
+          termA: data.termA,
+          termB: data.termB,
+        });
+        
+        let scoreChartImage: Buffer | null = null;
+        
+        // Try to get from cache or generate
+        try {
+          scoreChartImage = await getOrGenerateChartImage(
+            () => generateScoreChartImage(
+              data.series!,
+              data.termA,
+              data.termB,
+              data.category || 'general',
+              { width: 800, height: 400, deviceScaleFactor: 2 }
+            ),
+            chartCacheKey
+          );
+        } catch (cacheError) {
+          console.warn('[PDF Generator] Cache/generation failed, trying direct generation:', cacheError);
+          // Fallback: generate directly without cache
+          scoreChartImage = await generateScoreChartImage(
             data.series!,
             data.termA,
             data.termB,
             data.category || 'general',
             { width: 800, height: 400, deviceScaleFactor: 2 }
-          ),
-          chartCacheKey
-        );
+          );
+        }
         
-        if (scoreChartImage) {
+        if (scoreChartImage && scoreChartImage.length > 0) {
           scoreChartImageBase64 = scoreChartImage.toString('base64');
+          console.log('[PDF Generator] ✅ Score chart generated successfully', {
+            imageSize: scoreChartImage.length,
+            base64Length: scoreChartImageBase64.length,
+          });
+        } else {
+          console.error('[PDF Generator] ❌ Score chart generation returned null or empty buffer');
         }
       } catch (error) {
-        console.warn('[PDF Generator] Error generating score chart image:', error);
+        console.error('[PDF Generator] ❌ Error generating score chart image:', error);
+        // Don't fail the PDF generation if chart fails, but log the error
       }
       
       // Generate forecast chart image if forecast should be shown
@@ -1325,7 +1237,7 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
       
       if (forecastGuardrail.shouldShow && data.predictions?.predictionsA) {
         try {
-          // Generate or get cached forecast chart for termA
+          // Generate forecast chart image - try cache first, then generate directly if needed
           const forecastCacheKey = createForecastChartCacheKey(
             data.slug,
             data.termA,
@@ -1340,21 +1252,45 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
             upperBound: p.value * 1.1,
           }));
           
-          const forecastChartImage = await getOrGenerateChartImage(
-            () => generateForecastChartImage(
+          console.log('[PDF Generator] Generating forecast chart image...', {
+            slug: data.slug,
+            forecastPoints: forecastPoints.length,
+          });
+          
+          let forecastChartImage: Buffer | null = null;
+          
+          // Try to get from cache or generate
+          try {
+            forecastChartImage = await getOrGenerateChartImage(
+              () => generateForecastChartImage(
+                data.series!,
+                forecastPoints,
+                data.termA,
+                { width: 800, height: 400, deviceScaleFactor: 2 }
+              ),
+              forecastCacheKey
+            );
+          } catch (cacheError) {
+            console.warn('[PDF Generator] Forecast cache/generation failed, trying direct generation:', cacheError);
+            // Fallback: generate directly without cache
+            forecastChartImage = await generateForecastChartImage(
               data.series!,
               forecastPoints,
               data.termA,
               { width: 800, height: 400, deviceScaleFactor: 2 }
-            ),
-            forecastCacheKey
-          );
+            );
+          }
           
-          if (forecastChartImage) {
+          if (forecastChartImage && forecastChartImage.length > 0) {
             forecastChartImageBase64 = forecastChartImage.toString('base64');
+            console.log('[PDF Generator] ✅ Forecast chart generated successfully', {
+              imageSize: forecastChartImage.length,
+            });
+          } else {
+            console.warn('[PDF Generator] ⚠️ Forecast chart generation returned null or empty buffer');
           }
         } catch (error) {
-          console.warn('[PDF Generator] Error generating forecast chart image:', error);
+          console.error('[PDF Generator] ❌ Error generating forecast chart image:', error);
         }
       }
     }
@@ -1368,6 +1304,7 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--disable-gpu',
+        '--font-render-hinting=none',
       ],
     });
 
@@ -1381,7 +1318,7 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
       waitUntil: 'networkidle0',
     });
 
-    // Generate PDF
+    // Generate PDF with minimal margins to maximize content area
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -1391,6 +1328,7 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
         bottom: '0mm',
         left: '0mm',
       },
+      preferCSSPageSize: false,
     });
 
     const pdfBuffer = Buffer.from(pdf);

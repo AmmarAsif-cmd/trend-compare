@@ -38,6 +38,9 @@ const OFFICIAL_NAMES: Record<string, string> = {
   'azure': 'Azure',
   'gcp': 'GCP',
   'google cloud': 'Google Cloud',
+  'google-cloud': 'Google Cloud',
+  'google cloud platform': 'Google Cloud',
+  'google-cloud-platform': 'Google Cloud',
   
   // Entertainment
   'taylor swift': 'Taylor Swift',
@@ -100,8 +103,22 @@ export function formatTerm(term: string): string {
     }
   }
   
-  // If term contains hyphens (slug format), split and format each part
+  // If term contains hyphens (slug format), check if the whole hyphenated term is known first
   if (term.includes('-')) {
+    const hyphenatedLower = normalized.replace(/-/g, '-');
+    if (OFFICIAL_NAMES[hyphenatedLower]) {
+      return OFFICIAL_NAMES[hyphenatedLower];
+    }
+    
+    // Check if hyphenated version exists (e.g., "google-cloud")
+    const hyphenatedKey = Object.keys(OFFICIAL_NAMES).find(key => 
+      key.includes('-') && normalized === key
+    );
+    if (hyphenatedKey) {
+      return OFFICIAL_NAMES[hyphenatedKey];
+    }
+    
+    // Otherwise, split and format each part
     return term
       .split('-')
       .map(word => {

@@ -133,6 +133,7 @@ function unifyEvents(
       confidence: 'high', // Curated events are high confidence
       sources: ['tech-db'],
       category: event.category,
+      urls: event.url ? [event.url] : undefined, // Include URL if available
       verified: false,
     });
   }
@@ -173,6 +174,7 @@ function unifyEvents(
       confidence: 'medium', // News varies in reliability
       sources: ['newsapi'],
       category: event.category,
+      urls: event.url ? [event.url] : undefined, // Include URL if available
       verified: false,
     });
   }

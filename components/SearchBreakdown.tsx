@@ -24,7 +24,59 @@ type QuarterData = {
 };
 
 export default function SearchBreakdown({ series, termA, termB }: SearchBreakdownProps) {
-  if (series.length < 12) return null; // Need enough data
+  if (!series || series.length < 12) return null; // Need enough data
+
+  // Find matching keys in the series (handle normalized/slugified variations)
+  const firstPoint = series[0];
+  if (!firstPoint || typeof firstPoint !== 'object') {
+    console.warn('[SearchBreakdown] Invalid series data');
+    return null;
+  }
+  
+  const availableKeys = Object.keys(firstPoint).filter(k => k !== 'date');
+  const normalizeKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Find matching keys for termA and termB
+  const termAKey = availableKeys.find(k => {
+    const normalizedK = normalizeKey(k);
+    const normalizedTerm = normalizeKey(termA);
+    return (
+      k === termA ||
+      k.toLowerCase() === termA.toLowerCase() ||
+      normalizedK === normalizedTerm ||
+      k.toLowerCase().replace(/\s+/g, '-') === termA.toLowerCase() ||
+      k.toLowerCase().replace(/-/g, ' ') === termA.toLowerCase()
+    );
+  }) || availableKeys[0];
+  
+  const termBKey = availableKeys.find(k => {
+    const normalizedK = normalizeKey(k);
+    const normalizedTerm = normalizeKey(termB);
+    return (
+      (k === termB ||
+      k.toLowerCase() === termB.toLowerCase() ||
+      normalizedK === normalizedTerm ||
+      k.toLowerCase().replace(/\s+/g, '-') === termB.toLowerCase() ||
+      k.toLowerCase().replace(/-/g, ' ') === termB.toLowerCase()) &&
+      k !== termAKey
+    );
+  }) || availableKeys[1] || availableKeys[0];
+
+  if (!termAKey || !termBKey) {
+    console.warn('[SearchBreakdown] Could not find matching keys', { termA, termB, availableKeys, termAKey, termBKey });
+    return null;
+  }
+
+  // Debug: Log key matching for troubleshooting
+  if (termAKey !== termA || termBKey !== termB) {
+    console.log('[SearchBreakdown] Key matching:', {
+      termA,
+      termB,
+      termAKey,
+      termBKey,
+      availableKeys,
+    });
+  }
 
   // Calculate quarterly averages
   const quarters: QuarterData[] = [];
@@ -36,10 +88,10 @@ export default function SearchBreakdown({ series, termA, termB }: SearchBreakdow
     const quarterData = series.slice(start, end);
 
     const avgA =
-      quarterData.reduce((sum, point) => sum + (Number(point[termA]) || 0), 0) /
+      quarterData.reduce((sum, point) => sum + (Number(point[termAKey]) || 0), 0) /
       quarterData.length;
     const avgB =
-      quarterData.reduce((sum, point) => sum + (Number(point[termB]) || 0), 0) /
+      quarterData.reduce((sum, point) => sum + (Number(point[termBKey]) || 0), 0) /
       quarterData.length;
 
     const startDate = new Date(quarterData[0].date);

@@ -229,6 +229,7 @@ async function fetchInterestByRegion(
 /**
  * Get geographic breakdown data from Google Trends
  * Fetches real regional interest data for both terms and compares them
+ * Uses caching to avoid repeated API calls
  */
 
 export async function getGeographicBreakdown(
@@ -237,78 +238,99 @@ export async function getGeographicBreakdown(
   series: Array<{ date: string; [key: string]: any }>,
   options?: { timeframe?: string; geo?: string }
 ): Promise<GeographicBreakdown> {
+  // Create cache key based on terms, timeframe, and geo
+  const timeframe = options?.timeframe || '12m';
+  const geo = options?.geo || '';
+  const cacheKey = `geographic:${termA}:${termB}:${timeframe}:${geo}`;
+  
+  // Use cache with getOrSet for request coalescing
   try {
-    console.log(`[GeographicData] Starting geographic breakdown for "${termA}" vs "${termB}"`);
+    const { getCache, getOrSet } = await import('./cache');
+    const cache = getCache();
     
-    // Fetch geographic data for both terms in parallel
-    const [geoDataA, geoDataB] = await Promise.all([
-      fetchInterestByRegion(termA, options),
-      fetchInterestByRegion(termB, options),
-    ]);
+    return await getOrSet(
+      cacheKey,
+      4 * 60 * 60, // 4 hours TTL (geographic data changes slowly)
+      async () => {
+        console.log(`[GeographicData] 🔍 Cache MISS for ${cacheKey}, fetching from Google Trends...`);
+        console.log(`[GeographicData] Starting geographic breakdown for "${termA}" vs "${termB}"`);
+        
+        // Fetch geographic data for both terms in parallel
+        const [geoDataA, geoDataB] = await Promise.all([
+          fetchInterestByRegion(termA, options),
+          fetchInterestByRegion(termB, options),
+        ]);
 
-    console.log(`[GeographicData] Fetched data - TermA: ${geoDataA.size} countries, TermB: ${geoDataB.size} countries`);
+        console.log(`[GeographicData] Fetched data - TermA: ${geoDataA.size} countries, TermB: ${geoDataB.size} countries`);
 
-    // Get all countries that have data for at least one term
-    const allCountries = new Set<string>([
-      ...Array.from(geoDataA.keys()),
-      ...Array.from(geoDataB.keys()),
-    ]);
+        // Get all countries that have data for at least one term
+        const allCountries = new Set<string>([
+          ...Array.from(geoDataA.keys()),
+          ...Array.from(geoDataB.keys()),
+        ]);
 
-    if (allCountries.size === 0) {
-      // No geographic data available
-      console.warn(`[GeographicData] ⚠️ No geographic data available for "${termA}" vs "${termB}"`);
-      console.log(`[GeographicData] TermA data size: ${geoDataA.size}, TermB data size: ${geoDataB.size}`);
-      return {
-        termA_dominance: [],
-        termB_dominance: [],
-        competitive_regions: [],
-      };
-    }
+        if (allCountries.size === 0) {
+          // No geographic data available
+          console.warn(`[GeographicData] ⚠️ No geographic data available for "${termA}" vs "${termB}"`);
+          console.log(`[GeographicData] TermA data size: ${geoDataA.size}, TermB data size: ${geoDataB.size}`);
+          return {
+            termA_dominance: [],
+            termB_dominance: [],
+            competitive_regions: [],
+          };
+        }
 
-    // Build regional data by comparing both terms
-    const regionalData: RegionalData[] = Array.from(allCountries).map((country) => {
-      const valueA = geoDataA.get(country) || 0;
-      const valueB = geoDataB.get(country) || 0;
+        // Build regional data by comparing both terms
+        const regionalData: RegionalData[] = Array.from(allCountries).map((country) => {
+          const valueA = geoDataA.get(country) || 0;
+          const valueB = geoDataB.get(country) || 0;
 
-      const leader = valueA > valueB ? termA : termB;
-      const advantage = Math.abs(valueA - valueB);
+          const leader = valueA > valueB ? termA : termB;
+          const advantage = Math.abs(valueA - valueB);
 
-      return {
-        country,
-        termA_value: valueA,
-        termB_value: valueB,
-        leader,
-        advantage,
-      };
-    });
+          return {
+            country,
+            termA_value: valueA,
+            termB_value: valueB,
+            leader,
+            advantage,
+          };
+        });
 
-    // Categorize regions
-    const breakdown: GeographicBreakdown = {
-      termA_dominance: [],
-      termB_dominance: [],
-      competitive_regions: [],
-    };
+        // Categorize regions
+        const breakdown: GeographicBreakdown = {
+          termA_dominance: [],
+          termB_dominance: [],
+          competitive_regions: [],
+        };
 
-    regionalData.forEach((region) => {
-      // Mark as competitive if advantage is very small (< 10 points)
-      // Countries with advantage >= 10 go to dominance lists
-      if (region.advantage < 10) {
-        breakdown.competitive_regions.push(region);
-      } else if (region.leader === termA) {
-        breakdown.termA_dominance.push(region);
-      } else {
-        breakdown.termB_dominance.push(region);
+        regionalData.forEach((region) => {
+          // Mark as competitive if advantage is very small (< 10 points)
+          // Countries with advantage >= 10 go to dominance lists
+          if (region.advantage < 10) {
+            breakdown.competitive_regions.push(region);
+          } else if (region.leader === termA) {
+            breakdown.termA_dominance.push(region);
+          } else {
+            breakdown.termB_dominance.push(region);
+          }
+        });
+
+        // Sort by advantage (descending for dominance, ascending for competitive)
+        breakdown.termA_dominance.sort((a, b) => b.advantage - a.advantage);
+        breakdown.termB_dominance.sort((a, b) => b.advantage - a.advantage);
+        breakdown.competitive_regions.sort((a, b) => a.advantage - b.advantage);
+
+        console.log(`[GeographicData] ✅ Breakdown complete - TermA dominance: ${breakdown.termA_dominance.length}, TermB dominance: ${breakdown.termB_dominance.length}, Competitive: ${breakdown.competitive_regions.length}`);
+        console.log(`[GeographicData] 💾 Caching breakdown for ${cacheKey}`);
+
+        return breakdown;
+      },
+      {
+        staleTtlSeconds: 24 * 60 * 60, // 24 hours stale TTL
+        tags: [`geographic:${termA}`, `geographic:${termB}`, `timeframe:${timeframe}`],
       }
-    });
-
-    // Sort by advantage (descending for dominance, ascending for competitive)
-    breakdown.termA_dominance.sort((a, b) => b.advantage - a.advantage);
-    breakdown.termB_dominance.sort((a, b) => b.advantage - a.advantage);
-    breakdown.competitive_regions.sort((a, b) => a.advantage - b.advantage);
-
-    console.log(`[GeographicData] ✅ Breakdown complete - TermA dominance: ${breakdown.termA_dominance.length}, TermB dominance: ${breakdown.termB_dominance.length}, Competitive: ${breakdown.competitive_regions.length}`);
-
-    return breakdown;
+    );
   } catch (error: any) {
     console.error('[GeographicData] ❌ Error getting geographic breakdown:', error?.message || error);
     console.error('[GeographicData] Error stack:', error?.stack);

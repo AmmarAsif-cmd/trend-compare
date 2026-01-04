@@ -159,9 +159,9 @@ async function loadCachedForecast(
       return null;
     }
 
-    // Check if forecast is still fresh (within 24 hours)
+    // Check if forecast is still fresh (within 48 hours - forecasts don't change that quickly)
     const ageHours = (Date.now() - forecastRun.computedAt.getTime()) / (1000 * 60 * 60);
-    if (ageHours > 24) {
+    if (ageHours > 48) {
       return null; // Stale, recompute
     }
 

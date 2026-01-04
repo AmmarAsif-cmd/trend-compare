@@ -16,16 +16,29 @@ export default async function RelatedComparisons({
   terms: string[];
   category?: string | null;
 }) {
-  if (!Array.isArray(terms) || terms.length !== 2) return null;
+  if (!Array.isArray(terms) || terms.length !== 2) {
+    console.warn('[RelatedComparisons] Invalid terms:', terms);
+    return null;
+  }
 
-  const related = await getRelatedComparisons({
-    slug: currentSlug,
-    terms,
-    limit: 8,
-    category,
-  });
+  let related: any[] = [];
+  try {
+    related = await getRelatedComparisons({
+      slug: currentSlug,
+      terms,
+      limit: 8,
+      category,
+    });
+    console.log(`[RelatedComparisons] Found ${related.length} related comparisons for "${currentSlug}"`);
+  } catch (error) {
+    console.error('[RelatedComparisons] Error fetching related comparisons:', error);
+    // Don't return null on error, try to show something
+  }
 
-  if (!related.length) return null;
+  if (!related.length) {
+    console.log(`[RelatedComparisons] No related comparisons found for "${currentSlug}"`);
+    return null;
+  }
 
   return (
     <section className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 via-white to-blue-50 shadow-xl p-5 sm:p-6 print:hidden">

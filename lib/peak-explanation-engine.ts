@@ -56,47 +56,86 @@ export async function explainPeak(options: PeakExplanationOptions): Promise<Peak
   console.log(`[PeakExplanation] 🔍 Explaining peak for "${keywords.join(', ')}" on ${targetDate.toISOString().split('T')[0]} (value: ${peakValue}/100)`);
 
   try {
-    // Step 1: Get best event from multi-source detection
-    const event = await getBestEventExplanation(targetDate, keywords, windowDays);
+    // Step 1: Get ALL events from multi-source detection (not just best)
+    const allEvents = await detectEventsMultiSource(targetDate, keywords, windowDays);
+    
+    console.log(`[PeakExplanation] Found ${allEvents.length} total events from all sources`);
 
-    if (!event) {
-      console.log(`[PeakExplanation] ✗ No events found from APIs`);
+    if (allEvents.length === 0) {
+      console.log(`[PeakExplanation] ✗ No events found from any API`);
       return generateFallbackExplanation(keywords, peakDate, peakValue, category);
     }
 
-    // Step 2: Calculate relevance score
-    const relevanceScores = keywords.map(kw => calculateEventRelevance(event, kw));
-    const maxRelevance = Math.max(...relevanceScores);
-    const avgRelevance = relevanceScores.reduce((a, b) => a + b, 0) / relevanceScores.length;
+    // Step 2: Calculate relevance for all events and find best match
+    let bestEvent: UnifiedEvent | null = null;
+    let maxRelevance = 0;
+    
+    for (const event of allEvents) {
+      const relevanceScores = keywords.map(kw => calculateEventRelevance(event, kw));
+      const eventRelevance = Math.max(...relevanceScores);
+      
+      if (eventRelevance > maxRelevance) {
+        maxRelevance = eventRelevance;
+        bestEvent = event;
+      }
+    }
 
-    console.log(`[PeakExplanation] Event relevance: ${maxRelevance}/100 (avg: ${avgRelevance.toFixed(1)})`);
+    if (!bestEvent) {
+      console.log(`[PeakExplanation] ✗ Could not determine best event`);
+      return generateFallbackExplanation(keywords, peakDate, peakValue, category);
+    }
 
-    // Step 3: Check if relevance is sufficient
+    console.log(`[PeakExplanation] Best event: "${bestEvent.title}" (relevance: ${maxRelevance}/100, sources: ${bestEvent.sources.length}, verified: ${bestEvent.verified})`);
+
+    // Step 3: Check if relevance is sufficient (lowered threshold for better detection)
     if (maxRelevance < minRelevance) {
-      console.log(`[PeakExplanation] ✗ Event relevance too low (${maxRelevance} < ${minRelevance})`);
-      return generateFallbackExplanation(keywords, peakDate, peakValue, category);
+      console.log(`[PeakExplanation] ⚠️ Event relevance low (${maxRelevance} < ${minRelevance}), but using it anyway with lower confidence`);
+      // Continue anyway, but with lower confidence
     }
 
-    // Step 4: Build citations from event sources
-    const citations = buildCitations(event, keywords);
+    // Step 4: Build comprehensive citations from event sources (ALWAYS generate citations)
+    const citations = buildCitations(bestEvent, keywords);
+    
+    console.log(`[PeakExplanation] Built ${citations.length} citations`);
 
-    // Step 5: Generate explanation text
-    const explanation = generateExplanationText(event, keywords, peakValue, targetDate);
+    // Step 5: Generate detailed explanation text (with optional AI enhancement)
+    let explanation = generateExplanationText(bestEvent, keywords, peakValue, targetDate);
+    
+    // Try to enhance with AI if API key is available (optional, doesn't block)
+    if (process.env.ANTHROPIC_API_KEY && bestEvent.description) {
+      try {
+        const enhanced = await enhanceExplanationWithAI(
+          explanation,
+          bestEvent,
+          keywords[0],
+          peakValue,
+          targetDate
+        );
+        if (enhanced) {
+          explanation = enhanced;
+        }
+      } catch (error) {
+        console.warn('[PeakExplanation] AI enhancement failed, using base explanation:', error);
+        // Continue with base explanation
+      }
+    }
 
     // Step 6: Calculate confidence based on:
     // - Relevance score (40%)
     // - Number of sources (30%)
     // - Verification status (30%)
-    const confidence = calculateConfidence(maxRelevance, event.sources.length, event.verified);
+    const confidence = calculateConfidence(maxRelevance, bestEvent.sources.length, bestEvent.verified);
+
+    console.log(`[PeakExplanation] ✅ Generated explanation with ${citations.length} citations, confidence: ${confidence}%`);
 
     return {
       explanation,
       confidence,
       citations,
-      event,
+      event: bestEvent,
       relevanceScore: maxRelevance,
-      sources: event.sources,
-      verified: event.verified || false,
+      sources: bestEvent.sources,
+      verified: bestEvent.verified || false,
     };
 
   } catch (error) {
@@ -106,7 +145,52 @@ export async function explainPeak(options: PeakExplanationOptions): Promise<Peak
 }
 
 /**
- * Generate explanation text from event
+ * Cached version of explainPeak - uses cache to avoid recalculating same peaks
+ * Historical events never change, so we can cache forever!
+ */
+export async function explainPeakWithCache(options: PeakExplanationOptions): Promise<PeakExplanation | null> {
+  const { keywords, peakDate, peakValue, category } = options;
+  const targetDate = new Date(peakDate);
+  const primaryKeyword = keywords[0] || '';
+  
+  // Create cache key: keyword:YYYY-MM-DD
+  const dateStr = targetDate.toISOString().split('T')[0];
+  const normalizedKeyword = primaryKeyword.toLowerCase().trim().replace(/\s+/g, '-');
+  const cacheKey = `peak-explanation:${normalizedKeyword}:${dateStr}`;
+  
+  // Try cache first (using unified cache system)
+  try {
+    const { getCache, getOrSet } = await import('./cache');
+    const cache = getCache();
+    
+    // Use getOrSet for request coalescing and stale-while-revalidate
+    const explanation = await getOrSet(
+      cacheKey,
+      30 * 24 * 60 * 60, // 30 days TTL (historical events don't change)
+      async () => {
+        console.log(`[PeakExplanation] 🔍 Cache MISS for ${cacheKey}, generating...`);
+        return await explainPeak(options);
+      },
+      {
+        staleTtlSeconds: 90 * 24 * 60 * 60, // 90 days stale TTL
+        tags: [`peak:${normalizedKeyword}`, `date:${dateStr}`],
+      }
+    );
+    
+    if (explanation) {
+      console.log(`[PeakExplanation] ✅ Using explanation for ${cacheKey}`);
+    }
+    
+    return explanation;
+  } catch (error) {
+    console.warn('[PeakExplanation] Cache error, falling back to direct call:', error);
+    // Fallback to direct call if cache fails
+    return explainPeak(options);
+  }
+}
+
+/**
+ * Generate explanation text from event with detailed information
  */
 function generateExplanationText(
   event: UnifiedEvent,
@@ -133,36 +217,46 @@ function generateExplanationText(
     magnitudeDesc = 'moderate';
   }
 
-  // Build explanation
-  let explanation = `This ${magnitudeDesc} peak (${peakValue}/100) occurred because `;
+  // Build detailed explanation
+  let explanation = `This ${magnitudeDesc} peak (${peakValue}/100) occurred on ${formattedDate} because `;
 
-  // Add event-specific context
-  if (event.title.toLowerCase().includes(keyword.toLowerCase())) {
-    explanation += `${event.title} happened on ${formattedDate}. `;
-  } else {
-    explanation += `${event.title} occurred on or around ${formattedDate}. `;
+  // Add specific event title
+  explanation += `${event.title}. `;
+
+  // Add detailed description if available
+  if (event.description && event.description.trim()) {
+    const desc = event.description.length > 300 
+      ? event.description.substring(0, 300) + '...' 
+      : event.description;
+    explanation += desc + ' ';
   }
 
-  // Add description if available
-  if (event.description) {
-    const desc = event.description.length > 200 
-      ? event.description.substring(0, 200) + '...' 
-      : event.description;
-    explanation += desc;
-  } else {
-    explanation += `This event generated significant media coverage and public interest, driving search volume for "${keyword}".`;
+  // Add source information
+  const sourceNames = event.sources.map(s => {
+    if (s === 'wikipedia') return 'Wikipedia';
+    if (s === 'gdelt') return 'GDELT';
+    if (s === 'newsapi') return 'NewsAPI';
+    if (s === 'tech-db') return 'Tech Events Database';
+    return s;
+  }).join(', ');
+
+  if (event.sources.length > 0) {
+    explanation += `This event was reported by ${sourceNames}. `;
   }
 
   // Add verification note if applicable
   if (event.verified) {
-    explanation += ` This event was confirmed by multiple independent sources.`;
+    explanation += `The event was verified by multiple independent sources, confirming its connection to the search interest spike.`;
   }
+
+  // Add impact statement
+  explanation += ` The media coverage and public attention around this event directly drove search interest for "${keyword}" to reach ${peakValue}/100.`;
 
   return explanation;
 }
 
 /**
- * Build citations array from event
+ * Build citations array from event with proper URLs
  */
 function buildCitations(event: UnifiedEvent, keywords: string[]): Array<{
   title: string;
@@ -177,7 +271,7 @@ function buildCitations(event: UnifiedEvent, keywords: string[]): Array<{
     date?: string;
   }> = [];
 
-  // Add Wikipedia citation if available
+  // Add all URLs from the event
   if (event.urls && event.urls.length > 0) {
     event.urls.forEach((url, index) => {
       // Determine source from URL
@@ -207,14 +301,65 @@ function buildCitations(event: UnifiedEvent, keywords: string[]): Array<{
     });
   }
 
-  // If no URLs, create a placeholder citation
+  // If no URLs but we have sources, ALWAYS generate search URLs for each source
   if (citations.length === 0 && event.sources.length > 0) {
-    citations.push({
-      title: event.title,
-      url: `#`, // Placeholder
-      source: event.sources.join(', '),
-      date: event.date ? new Date(event.date).toISOString().split('T')[0] : undefined,
-    });
+    const eventDate = event.date ? new Date(event.date).toISOString().split('T')[0] : '';
+    const searchQuery = `${keywords[0]} ${event.title}`;
+    
+    // For Wikipedia, create a search URL
+    if (event.sources.includes('wikipedia')) {
+      const searchTerm = encodeURIComponent(event.title);
+      citations.push({
+        title: `${event.title} - Wikipedia`,
+        url: `https://en.wikipedia.org/wiki/Special:Search/${searchTerm}`,
+        source: 'Wikipedia',
+        date: eventDate,
+      });
+    }
+
+    // For GDELT, create a search URL
+    if (event.sources.includes('gdelt')) {
+      const searchTerm = encodeURIComponent(keywords[0]);
+      citations.push({
+        title: `${event.title} - GDELT`,
+        url: `https://www.gdeltproject.org/search.html?query=${searchTerm}&startdatetime=${eventDate}&enddatetime=${eventDate}`,
+        source: 'GDELT',
+        date: eventDate,
+      });
+    }
+
+    // For NewsAPI, create a Google News search
+    if (event.sources.includes('newsapi')) {
+      const searchTerm = encodeURIComponent(searchQuery);
+      citations.push({
+        title: `${event.title} - News`,
+        url: `https://news.google.com/search?q=${searchTerm}&hl=en&gl=US&ceid=US:en`,
+        source: 'Google News',
+        date: eventDate,
+      });
+    }
+
+    // For tech-db, create a Google search
+    if (event.sources.includes('tech-db')) {
+      const searchTerm = encodeURIComponent(searchQuery);
+      citations.push({
+        title: `${event.title} - Tech News`,
+        url: `https://www.google.com/search?q=${searchTerm}&tbm=nws`,
+        source: 'Tech News',
+        date: eventDate,
+      });
+    }
+
+    // Always add at least one Google search as fallback
+    if (citations.length === 0) {
+      const searchTerm = encodeURIComponent(searchQuery);
+      citations.push({
+        title: event.title,
+        url: `https://www.google.com/search?q=${searchTerm}&tbm=nws`,
+        source: event.sources.join(', '),
+        date: eventDate,
+      });
+    }
   }
 
   return citations;
@@ -319,10 +464,27 @@ function generateFallbackExplanation(
 
   const explanation = `This ${magnitudeDesc} peak (${peakValue}/100) on ${formattedDate} may have been caused by ${possibleReasons[0]}, ${possibleReasons[1]}, or ${possibleReasons[2]}. The exact cause is unclear, but these are the most likely scenarios based on typical patterns for "${keyword}".`;
 
+  // Generate search URLs as citations even for fallback
+  const searchQuery = `${keyword} ${formattedDate}`;
+  const citations = [
+    {
+      title: `Search for "${keyword}" on ${formattedDate}`,
+      url: `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&tbm=nws`,
+      source: 'Google News',
+      date: date.toISOString().split('T')[0],
+    },
+    {
+      title: `Wikipedia events on ${formattedDate}`,
+      url: `https://en.wikipedia.org/wiki/${date.getFullYear()}_${String(date.getMonth() + 1).padStart(2, '0')}_${String(date.getDate()).padStart(2, '0')}`,
+      source: 'Wikipedia',
+      date: date.toISOString().split('T')[0],
+    },
+  ];
+
   return {
     explanation,
     confidence: 40, // Lower confidence for fallback
-    citations: [],
+    citations, // Always include citations, even for fallback
     relevanceScore: 0,
     sources: [],
     verified: false,
@@ -364,6 +526,77 @@ export async function explainPeaks(
   }
 
   return results;
+}
+
+/**
+ * Enhance explanation with AI to provide more specific details and context
+ */
+async function enhanceExplanationWithAI(
+  baseExplanation: string,
+  event: UnifiedEvent,
+  keyword: string,
+  peakValue: number,
+  date: Date
+): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return null;
+  }
+
+  try {
+    const { Anthropic } = await import('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const formattedDate = date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    const prompt = `You are analyzing why the search term "${keyword}" peaked on ${formattedDate} with a value of ${peakValue}/100.
+
+REAL EVENT DATA FOUND:
+- Event Title: ${event.title}
+- Event Description: ${event.description}
+- Event Date: ${event.date}
+- Sources: ${event.sources.join(', ')}
+- Verified: ${event.verified ? 'Yes (confirmed by multiple sources)' : 'No'}
+
+CURRENT EXPLANATION:
+${baseExplanation}
+
+TASK: Enhance this explanation to be MORE SPECIFIC and DETAILED. You must:
+1. Use the EXACT event title and details from the real event data above
+2. Explain SPECIFICALLY why this event caused the search spike for "${keyword}"
+3. Mention the exact date (${formattedDate}) when the event occurred
+4. Include the peak value (${peakValue}/100) to show magnitude
+5. Reference the sources that confirmed this event (${event.sources.join(', ')})
+6. Be concrete and factual - avoid vague phrases like "increased interest" or "gained attention"
+7. If the event description provides specific details, include them
+
+IMPORTANT: 
+- DO NOT make up information not in the event data
+- DO NOT use generic explanations
+- DO reference the specific event title and description
+- DO explain the direct connection between the event and the search spike
+
+Return ONLY the enhanced explanation text, nothing else.`;
+
+    const message = await client.messages.create({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const content = message.content[0];
+    if (content.type === 'text') {
+      return content.text.trim();
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[PeakExplanation] AI enhancement error:', error);
+    return null;
+  }
 }
 
 

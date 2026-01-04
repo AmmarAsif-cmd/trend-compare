@@ -313,20 +313,30 @@ function computeComparisonMetricsInternal(
   let agreementChange = 0;
   
   if (previousSnapshot) {
-    const changes = calculateChangeMetrics(
-      {
-        marginPoints: verdict.margin,
-        confidence: verdict.confidence,
-        volatility,
-        agreementIndex,
-      },
-      {
-        marginPoints: previousSnapshot.marginPoints,
-        confidence: previousSnapshot.confidence,
-        volatility: previousSnapshot.volatility,
-        agreementIndex: previousSnapshot.agreementIndex,
-      }
-    );
+      // Calculate previous period confidence using real data
+      const prevConfidenceResult = calculateComparisonConfidence(
+        previousSnapshot.agreementIndex,
+        previousSnapshot.volatility,
+        series.length, // Use current series length as approximation
+        sourceCount,
+        previousSnapshot.marginPoints,
+        Math.min(100, previousSnapshot.volatility * 0.7 + (previousSnapshot.marginPoints < 5 ? 50 : previousSnapshot.marginPoints < 15 ? 30 : 0))
+      );
+      
+      const changes = calculateChangeMetrics(
+        {
+          marginPoints: verdict.margin,
+          confidence: computedConfidence, // Use computed confidence, not verdict.confidence
+          volatility,
+          agreementIndex,
+        },
+        {
+          marginPoints: previousSnapshot.marginPoints,
+          confidence: prevConfidenceResult.score, // Use calculated confidence
+          volatility: previousSnapshot.volatility,
+          agreementIndex: previousSnapshot.agreementIndex,
+        }
+      );
     gapChangePoints = changes.gapChangePoints;
     confidenceChange = changes.confidenceChange;
     volatilityDelta = changes.volatilityDelta;
@@ -343,25 +353,43 @@ function computeComparisonMetricsInternal(
       const prevVolatilityB = calculateVolatility(previousPeriod, termB);
       const prevVolatility = (prevVolatilityA + prevVolatilityB) / 2;
       
-      // Estimate previous margin (simplified)
+      // Calculate previous period metrics from real data
       const prevValuesA = previousPeriod.map(p => Number(p[termA]) || 0);
       const prevValuesB = previousPeriod.map(p => Number(p[termB]) || 0);
       const prevAvgA = prevValuesA.reduce((a, b) => a + b, 0) / prevValuesA.length;
       const prevAvgB = prevValuesB.reduce((a, b) => a + b, 0) / prevValuesB.length;
       const prevMargin = Math.abs(prevAvgA - prevAvgB);
       
+      // Calculate previous period agreement index (simplified - compare averages)
+      const prevAgreementIndex = Math.abs(prevAvgA - prevAvgB) > 5 
+        ? 70 // If clear winner, assume good agreement
+        : 50; // If close, assume neutral agreement
+      
+      // Calculate previous period leader change risk
+      const prevLeaderChangeRisk = Math.min(100, prevVolatility * 0.7 + (prevMargin < 5 ? 50 : prevMargin < 15 ? 30 : 0));
+      
+      // Calculate previous period confidence using real data
+      const prevConfidenceResult = calculateComparisonConfidence(
+        prevAgreementIndex,
+        prevVolatility,
+        previousPeriod.length,
+        sourceCount,
+        prevMargin,
+        prevLeaderChangeRisk
+      );
+      
       const changes = calculateChangeMetrics(
         {
           marginPoints: verdict.margin,
-          confidence: verdict.confidence,
+          confidence: computedConfidence, // Use computed confidence
           volatility,
           agreementIndex,
         },
         {
           marginPoints: prevMargin,
-          confidence: 75, // Default estimate
+          confidence: prevConfidenceResult.score, // Use calculated confidence from real data
           volatility: prevVolatility,
-          agreementIndex: 50, // Default estimate
+          agreementIndex: prevAgreementIndex,
         }
       );
       gapChangePoints = changes.gapChangePoints;
