@@ -8,6 +8,7 @@ import {
   clearLoginAttempts,
   getRemainingLockoutTime,
 } from "@/lib/auth";
+import { ADMIN_ROUTES } from "@/lib/admin-config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,7 +77,11 @@ export async function POST(request: NextRequest) {
     // Create session
     await createSession();
 
-    return NextResponse.json({ success: true });
+    // Return the dashboard URL so client doesn't need to know the admin path
+    return NextResponse.json({ 
+      success: true,
+      redirectUrl: ADMIN_ROUTES.dashboard 
+    });
   } catch (error) {
     console.error("[Login API] Error:", error);
     return NextResponse.json(
