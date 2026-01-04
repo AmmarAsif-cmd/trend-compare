@@ -94,10 +94,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     <div className="min-h-screen bg-white">
       {/* Article Header */}
       <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
-        {/* Breadcrumb */}
-        <nav className="mb-4 sm:mb-8">
-          <Link href="/blog" className="text-sm sm:text-base text-blue-600 hover:text-blue-900 flex items-center gap-1">
+        {/* Breadcrumb Navigation */}
+        <nav className="mb-4 sm:mb-8 flex items-center gap-4">
+          <Link href="/blog" className="text-sm sm:text-base text-blue-600 hover:text-blue-900 flex items-center gap-1 transition-colors">
             <span>←</span> <span>Back to Blog</span>
+          </Link>
+          <span className="text-slate-300">|</span>
+          <Link href="/" className="text-sm sm:text-base text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors">
+            <span>Home</span>
           </Link>
         </nav>
 

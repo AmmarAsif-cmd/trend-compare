@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { TrendingUp, ArrowRight, User, LayoutDashboard } from "lucide-react";
 import { BRAND, TAGLINE } from "@/lib/brand";
+import { ADMIN_PATH } from "@/lib/admin-config";
 
 function isActive(pathname: string, href: string) {
   return pathname === href;
@@ -13,8 +14,8 @@ function isActive(pathname: string, href: string) {
 export default function SiteHeader() {
   const pathname = usePathname();
   
-  // Hide header on dashboard and admin pages
-  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/admin')) {
+  // Hide header on dashboard and admin pages (secure admin path)
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith(`/${ADMIN_PATH}`)) {
     return null;
   }
   const [open, setOpen] = useState(false);

@@ -4,7 +4,9 @@
  * Rebuilt for clean, premium output
  */
 
-import puppeteer from 'puppeteer';
+// Use puppeteer-core for serverless, puppeteer for local dev
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { shouldShowForecast } from './forecast-guardrails';
 import { filterValidEvidence } from './evidence-validation';
 import { formatTermForPDF } from './term-formatter';
@@ -995,7 +997,7 @@ function generatePDFHTML(
   </div>
 
   <!-- PAGE 6: TREND OVER TIME -->
-  ${scoreChartImageBase64 ? `
+  ${scoreChartImageBase64 && scoreChartImageBase64.length > 100 ? `
   <div class="page">
     <div class="page-footer">
       <div class="page-footer-left">TrendArc</div>
@@ -1006,7 +1008,7 @@ function generatePDFHTML(
     </div>
     
     <div class="chart-container">
-      <img src="data:image/png;base64,${scoreChartImageBase64}" alt="Trend Over Time Chart" style="max-width: 100%; height: auto; display: block;" />
+      <img src="data:image/png;base64,${scoreChartImageBase64}" alt="Trend Over Time Chart" style="max-width: 100%; height: auto; display: block; border: 1px solid #e5e7eb;" />
     </div>
     <div class="chart-caption">
       ${data.metrics?.stability === 'stable' 
@@ -1015,27 +1017,8 @@ function generatePDFHTML(
         ? `The trend shows significant volatility, suggesting event-driven spikes.` 
         : `The trend shows moderate variation over time.`}
     </div>
-    
-    ${forecastGuardrail.shouldShow && data.predictions && forecastChartImageBase64 ? `
-    <div class="page-header" style="margin-top: 30px;">
-      <h2>Forecast</h2>
-    </div>
-    <div class="chart-container">
-      <img src="data:image/png;base64,${forecastChartImageBase64}" alt="Forecast Chart" />
-    </div>
-    <div style="margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 6px; font-size: 12px; color: #166534; line-height: 1.6; border-left: 3px solid #22c55e;">
-      <strong>Forecast Summary:</strong> Based on ${data.predictions.historicalDataPoints || 0} historical data points. ${data.predictions.predictionsA ? `${termAFormatted}: ${data.predictions.predictionsA.trend === 'rising' ? 'Rising' : data.predictions.predictionsA.trend === 'falling' ? 'Falling' : 'Stable'} trend (${data.predictions.predictionsA.confidence.toFixed(0)}% confidence). ` : ''}${data.predictions.predictionsB ? `${termBFormatted}: ${data.predictions.predictionsB.trend === 'rising' ? 'Rising' : data.predictions.predictionsB.trend === 'falling' ? 'Falling' : 'Stable'} trend (${data.predictions.predictionsB.confidence.toFixed(0)}% confidence). ` : ''}Forecasts are directional indicators, not exact volume predictions.
-    </div>
-    ` : forecastGuardrail.shouldShow ? `
-    <div class="forecast-note">
-      <div class="forecast-note-title">Forecast Not Shown</div>
-      <div class="forecast-note-text">
-        ${forecastGuardrail.reason || 'Forecasts are shown only when reliability is sufficient. High volatility or low source agreement reduces forecast reliability.'}
-      </div>
-    </div>
-    ` : ''}
   </div>
-  ` : `
+  ` : data.series && data.series.length > 0 ? `
   <div class="page">
     <div class="page-footer">
       <div class="page-footer-left">TrendArc</div>
@@ -1044,11 +1027,84 @@ function generatePDFHTML(
     <div class="page-header">
       <h2>Trend Over Time</h2>
     </div>
-    <div class="chart-error">
-      <div class="chart-error-text">Chart unavailable due to rendering error. Data is available but visual representation could not be generated.</div>
+    <div style="padding: 40px; text-align: center; color: #6b7280;">
+      <p>Chart generation is temporarily unavailable. Please try again later.</p>
+    </div>
+    <div class="chart-caption">
+      ${data.metrics?.stability === 'stable' 
+        ? `The trend demonstrates stability with consistent patterns over the selected timeframe.` 
+        : data.metrics?.stability === 'hype' 
+        ? `The trend shows significant volatility, suggesting event-driven spikes.` 
+        : `The trend shows moderate variation over time.`}
     </div>
   </div>
-  `}
+  ` : data.series && data.series.length > 0 ? `
+  <div class="page">
+    <div class="page-footer">
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 6 • ${date}</div>
+    </div>
+    <div class="page-header">
+      <h2>Trend Over Time</h2>
+    </div>
+    <div style="padding: 40px; text-align: center; color: #6b7280;">
+      <p>Chart generation is temporarily unavailable. Please try again later.</p>
+    </div>
+    <div class="chart-caption">
+      ${data.metrics?.stability === 'stable' 
+        ? `The trend demonstrates stability with consistent patterns over the selected timeframe.` 
+        : data.metrics?.stability === 'hype' 
+        ? `The trend shows significant volatility, suggesting event-driven spikes.` 
+        : `The trend shows moderate variation over time.`}
+    </div>
+  </div>
+  ` : ''}
+  
+  ${data.predictions && data.metrics && shouldShowForecast({
+    seriesLength: data.predictions.historicalDataPoints || 0,
+    volatility: data.metrics.volatility,
+    disagreementFlag: data.metrics.agreementIndex < 60,
+    agreementIndex: data.metrics.agreementIndex,
+  }).shouldShow && forecastChartImageBase64 && forecastChartImageBase64.length > 100 ? `
+  <div class="page">
+    <div class="page-footer">
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 7 • ${date}</div>
+    </div>
+    <div class="page-header">
+      <h2>Forecast</h2>
+    </div>
+    <div class="chart-container">
+      <img src="data:image/png;base64,${forecastChartImageBase64}" alt="Forecast Chart" style="max-width: 100%; height: auto; display: block; border: 1px solid #e5e7eb;" />
+    </div>
+    <div style="margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 6px; font-size: 12px; color: #166534; line-height: 1.6; border-left: 3px solid #22c55e;">
+      <strong>Forecast Summary:</strong> Based on ${data.predictions.historicalDataPoints || 0} historical data points. ${data.predictions.predictionsA ? `${termAFormatted}: ${data.predictions.predictionsA.trend === 'rising' ? 'Rising' : data.predictions.predictionsA.trend === 'falling' ? 'Falling' : 'Stable'} trend (${data.predictions.predictionsA.confidence.toFixed(0)}% confidence). ` : ''}${data.predictions.predictionsB ? `${termBFormatted}: ${data.predictions.predictionsB.trend === 'rising' ? 'Rising' : data.predictions.predictionsB.trend === 'falling' ? 'Falling' : 'Stable'} trend (${data.predictions.predictionsB.confidence.toFixed(0)}% confidence). ` : ''}Forecasts are directional indicators, not exact volume predictions.
+    </div>
+  </div>
+  ` : data.predictions && data.metrics && shouldShowForecast({
+    seriesLength: data.predictions.historicalDataPoints || 0,
+    volatility: data.metrics.volatility,
+    disagreementFlag: data.metrics.agreementIndex < 60,
+    agreementIndex: data.metrics.agreementIndex,
+  }).shouldShow && !forecastChartImageBase64 ? `
+  <div class="page">
+    <div class="page-footer">
+      <div class="page-footer-left">TrendArc</div>
+      <div class="page-footer-right">Page 7 • ${date}</div>
+    </div>
+    <div class="forecast-note">
+      <div class="forecast-note-title">Forecast Not Shown</div>
+      <div class="forecast-note-text">
+        ${shouldShowForecast({
+          seriesLength: data.predictions.historicalDataPoints || 0,
+          volatility: data.metrics.volatility,
+          disagreementFlag: data.metrics.agreementIndex < 60,
+          agreementIndex: data.metrics.agreementIndex,
+        }).reason || 'Forecasts are shown only when reliability is sufficient. High volatility or low source agreement reduces forecast reliability.'}
+      </div>
+    </div>
+  </div>
+  ` : ''}
 
   <!-- PAGE 7: GEOGRAPHIC INSIGHTS -->
   ${data.geographicData && data.geographicData.countries && data.geographicData.countries.length > 0 ? `
@@ -1215,16 +1271,32 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
         
         if (scoreChartImage && scoreChartImage.length > 0) {
           scoreChartImageBase64 = scoreChartImage.toString('base64');
-          console.log('[PDF Generator] ✅ Score chart generated successfully', {
-            imageSize: scoreChartImage.length,
-            base64Length: scoreChartImageBase64.length,
-          });
+          // Validate base64 string
+          if (scoreChartImageBase64 && scoreChartImageBase64.length > 100) {
+            console.log('[PDF Generator] ✅ Score chart generated successfully', {
+              imageSize: scoreChartImage.length,
+              base64Length: scoreChartImageBase64.length,
+              base64Preview: scoreChartImageBase64.substring(0, 50) + '...',
+            });
+          } else {
+            console.error('[PDF Generator] ❌ Score chart base64 string is invalid or too short', {
+              base64Length: scoreChartImageBase64?.length || 0,
+            });
+            scoreChartImageBase64 = undefined;
+          }
         } else {
           console.error('[PDF Generator] ❌ Score chart generation returned null or empty buffer');
+          scoreChartImageBase64 = undefined;
         }
-      } catch (error) {
-        console.error('[PDF Generator] ❌ Error generating score chart image:', error);
+      } catch (error: any) {
+        console.error('[PDF Generator] ❌ Error generating score chart image:', {
+          error: error?.message,
+          stack: error?.stack,
+          slug: data.slug,
+        });
         // Don't fail the PDF generation if chart fails, but log the error
+        // Set to undefined so HTML won't try to render it
+        scoreChartImageBase64 = undefined;
       }
       
       // Generate forecast chart image if forecast should be shown
@@ -1283,20 +1355,40 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
           
           if (forecastChartImage && forecastChartImage.length > 0) {
             forecastChartImageBase64 = forecastChartImage.toString('base64');
-            console.log('[PDF Generator] ✅ Forecast chart generated successfully', {
-              imageSize: forecastChartImage.length,
-            });
+            // Validate base64 string
+            if (forecastChartImageBase64 && forecastChartImageBase64.length > 100) {
+              console.log('[PDF Generator] ✅ Forecast chart generated successfully', {
+                imageSize: forecastChartImage.length,
+                base64Length: forecastChartImageBase64.length,
+                base64Preview: forecastChartImageBase64.substring(0, 50) + '...',
+              });
+            } else {
+              console.error('[PDF Generator] ❌ Forecast chart base64 string is invalid or too short', {
+                base64Length: forecastChartImageBase64?.length || 0,
+              });
+              forecastChartImageBase64 = undefined;
+            }
           } else {
             console.warn('[PDF Generator] ⚠️ Forecast chart generation returned null or empty buffer');
+            forecastChartImageBase64 = undefined;
           }
-        } catch (error) {
-          console.error('[PDF Generator] ❌ Error generating forecast chart image:', error);
+        } catch (error: any) {
+          console.error('[PDF Generator] ❌ Error generating forecast chart image:', {
+            error: error?.message,
+            stack: error?.stack,
+            slug: data.slug,
+          });
+          // Set to undefined so HTML won't try to render it
+          forecastChartImageBase64 = undefined;
         }
       }
     }
     
-    // Launch browser
-    browser = await puppeteer.launch({
+    // Launch browser with serverless-compatible configuration
+    // Use @sparticuz/chromium for Vercel/serverless environments
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    const launchOptions: any = {
       headless: true,
       args: [
         '--no-sandbox',
@@ -1306,9 +1398,48 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
         '--disable-gpu',
         '--font-render-hinting=none',
       ],
-    });
+    };
+
+    // In serverless environments, use the Chromium binary from @sparticuz/chromium
+    if (isServerless) {
+      launchOptions.executablePath = await chromium.executablePath();
+      launchOptions.args.push(...chromium.args);
+      browser = await puppeteerCore.launch(launchOptions);
+    } else {
+      // For local development, use regular puppeteer if available
+      try {
+        const puppeteer = require('puppeteer');
+        browser = await puppeteer.launch(launchOptions);
+      } catch {
+        // Fallback: try to find Chrome in common locations
+        const possiblePaths = [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ];
+        for (const path of possiblePaths) {
+          try {
+            const fs = require('fs');
+            if (fs.existsSync(path)) {
+              launchOptions.executablePath = path;
+              break;
+            }
+          } catch {}
+        }
+        browser = await puppeteerCore.launch(launchOptions);
+      }
+    }
 
     const page = await browser.newPage();
+    
+    // Generate HTML with embedded chart images
+    // Log chart status before generating HTML
+    console.log('[PDF Generator] Chart status before HTML generation:', {
+      hasScoreChart: !!scoreChartImageBase64 && scoreChartImageBase64.length > 100,
+      hasForecastChart: !!forecastChartImageBase64 && forecastChartImageBase64.length > 100,
+      scoreChartLength: scoreChartImageBase64?.length || 0,
+      forecastChartLength: forecastChartImageBase64?.length || 0,
+    });
     
     // Generate HTML with embedded chart images
     const html = generatePDFHTML(data, scoreChartImageBase64, forecastChartImageBase64);
@@ -1317,6 +1448,9 @@ export async function generateComparisonPDF(data: ComparisonPDFData): Promise<Bu
     await page.setContent(html, {
       waitUntil: 'networkidle0',
     });
+    
+    // Wait a bit for images to load in the PDF
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Generate PDF with minimal margins to maximize content area
     const pdf = await page.pdf({

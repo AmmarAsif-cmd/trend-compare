@@ -25,7 +25,9 @@ export default function AdminLogin() {
       const data = await res.json();
 
       if (data.success) {
-        router.push(ADMIN_ROUTES.dashboard);
+        // Use redirect URL from server (which has access to env vars)
+        const redirectUrl = data.redirectUrl || ADMIN_ROUTES.dashboard;
+        router.push(redirectUrl);
         router.refresh();
       } else {
         // Show specific error message from server

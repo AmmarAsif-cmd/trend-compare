@@ -13,6 +13,19 @@ if (!googleClientId || !googleClientSecret) {
   console.warn('[Auth] Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env.local file.');
 }
 
+// Get the base URL for OAuth redirects
+// Priority: NEXTAUTH_URL > AUTH_URL > auto-detect from request
+const getBaseUrl = () => {
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL;
+  }
+  if (process.env.AUTH_URL) {
+    return process.env.AUTH_URL;
+  }
+  // Will be auto-detected from request in production
+  return undefined;
+};
+
 export const authConfig: NextAuthConfig = {
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   providers: [
@@ -20,6 +33,15 @@ export const authConfig: NextAuthConfig = {
       GoogleProvider({
         clientId: googleClientId,
         clientSecret: googleClientSecret,
+        // Explicitly set authorization URL parameters if needed
+        authorization: {
+          params: {
+            // Ensure redirect_uri is properly set
+            prompt: "consent",
+            access_type: "offline",
+            response_type: "code",
+          },
+        },
       }),
     ] : []),
     CredentialsProvider({

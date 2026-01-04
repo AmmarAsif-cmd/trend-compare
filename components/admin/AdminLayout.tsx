@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ADMIN_ROUTES } from '@/lib/admin-config';
 import AdminSidebar from './AdminSidebar';
 
 interface AdminLayoutProps {
@@ -17,7 +18,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
 
     try {
       await fetch('/api/admin/logout', { method: 'POST' });
-      router.push('/admin/login');
+      router.push(ADMIN_ROUTES.login);
     } catch (err) {
       console.error('Logout failed:', err);
     }
