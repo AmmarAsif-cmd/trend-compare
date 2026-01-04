@@ -40,7 +40,7 @@
 
 Add a small credit in the footer:
 ```
-Built with ❤️ using Next.js, TypeScript, and Claude AI
+Built with ❤️ using Next.js and TypeScript
 ```
 
 **Pros:**
@@ -60,13 +60,10 @@ Add a "How We Built It" section:
 ```
 ## How We Built TrendArc
 
-TrendArc was built using modern web technologies and AI assistance. 
-We used Claude AI (Anthropic) to help with code generation, 
-architecture decisions, and development acceleration.
+TrendArc was built using modern web technologies and AI assistance.
 
 **Tech Stack:**
 - Next.js 16 & TypeScript
-- Claude AI (Anthropic) for development assistance
 - Multi-source API integrations
 - Real-time data processing
 ```
@@ -85,7 +82,7 @@ architecture decisions, and development acceleration.
 
 **Footer:**
 ```
-Built with ❤️ using Next.js, TypeScript, and Claude AI
+Built with ❤️ using Next.js and TypeScript
 ```
 
 **About Page:**
@@ -106,7 +103,7 @@ Add a section about the tech stack and AI assistance.
 
 Add a subtle credit in the footer:
 ```
-Built with ❤️ using Next.js, TypeScript, and Claude AI
+Built with ❤️ using Next.js and TypeScript
 ```
 
 **Why:**
@@ -127,7 +124,7 @@ Built with ❤️ using Next.js, TypeScript, and Claude AI
 **Add after copyright:**
 ```tsx
 <div className="text-xs text-slate-500 mt-4">
-  Built with ❤️ using Next.js, TypeScript, and Claude AI
+  Built with ❤️ using Next.js and TypeScript
 </div>
 ```
 

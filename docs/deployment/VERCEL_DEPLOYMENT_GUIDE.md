@@ -123,7 +123,9 @@ Cron jobs are configured in `vercel.json`:
 **Active Cron Jobs:**
 1. **Warmup Forecasts** - Daily at 2:00 AM UTC (refreshes forecasts for popular comparisons)
 2. **Warmup AI Explanations** - Weekly on Sunday at 3:00 AM UTC (refreshes AI insights)
-3. **Check Alerts** - Every hour (checks trend alerts and sends emails)
+3. **Check Alerts** - Daily at 4:00 AM UTC (checks trend alerts and sends emails)
+
+**⚠️ Important**: Hobby plan only allows **daily cron jobs** (once per day maximum). The hourly alert check has been changed to daily. For more frequent alert checking, use an external cron service (see below).
 
 **⚠️ Hobby Plan Timing Variance:**
 
@@ -137,9 +139,19 @@ On the **Hobby plan**, Vercel cannot guarantee exact cron job execution times. J
 - ⚠️ **Not suitable for time-critical operations** - If exact timing is required, upgrade to Pro plan
 - ✅ **Current jobs are **not time-critical** - They can run within the hour window
 
-**For Precise Timing:**
-- Upgrade to **Vercel Pro plan** for guaranteed execution times
-- Or use external cron service (cron-job.org, EasyCron) for more precise timing
+**For More Frequent Execution:**
+- **Hobby Plan Limitation**: Cron jobs can only run **once per day maximum**
+- **Hourly/More Frequent Jobs**: Must use external cron service (cron-job.org, EasyCron, etc.)
+- **Alert Checking**: Currently set to daily, but can be run hourly via external service (recommended for "instant" alerts)
+- **Upgrade to Pro Plan**: Unlocks all cron job frequencies (hourly, every 5 minutes, etc.)
+
+**Recommended Setup for Alert Checking:**
+Since "instant" alerts should be checked hourly, use an external cron service:
+- **Service**: [cron-job.org](https://cron-job.org) (free)
+- **Schedule**: `0 * * * *` (every hour)
+- **URL**: `https://your-domain.vercel.app/api/cron/check-alerts`
+- **Method**: GET
+- **Headers**: `Authorization: Bearer YOUR_CRON_SECRET`
 
 **Note**: Vercel cron jobs require:
 - The routes must be accessible (no authentication blocking)
@@ -157,6 +169,9 @@ On the **Hobby plan**, Vercel cannot guarantee exact cron job execution times. J
 - ✅ **Cron Jobs**: 
   - Maximum 20 cron jobs per project (hard limit)
   - Current: 3 cron jobs configured
+  - ⚠️ **Frequency Limit**: Hobby plan only allows **daily cron jobs** (once per day maximum)
+    - Cannot use hourly (`0 * * * *`), every 5 minutes, etc.
+    - All cron expressions must run at most once per day
   - ⚠️ **Timing Variance**: On Hobby plan, cron jobs may trigger anywhere within the scheduled hour window
     - Example: `0 2 * * *` may run between 2:00 AM - 2:59 AM
     - For precise timing, upgrade to Pro plan or use external cron service

@@ -51,7 +51,7 @@ TrendArc is an intelligent trend comparison platform that helps you see which to
 • Researchers analyzing topic popularity
 • Anyone curious about what's trending
 
-Built with Next.js, TypeScript, and Claude AI. Free to use, with optional API integrations for richer data.
+Built with Next.js and TypeScript. Free to use, with optional API integrations for richer data.
 
 Try it now: Compare any two topics and see which one is winning! 🚀
 ```

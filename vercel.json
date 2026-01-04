@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/check-alerts",
-      "schedule": "0 * * * *"
+      "schedule": "0 4 * * *"
     }
   ]
 }

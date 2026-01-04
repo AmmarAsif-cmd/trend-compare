@@ -9,7 +9,9 @@
 
 1. ✅ **Warmup Forecasts** - Daily at 2:00 AM UTC (may run 2:00-2:59 AM on Hobby plan)
 2. ✅ **Warmup AI Explanations** - Weekly on Sunday at 3:00 AM UTC (may run 3:00-3:59 AM on Hobby plan)
-3. ✅ **Check Alerts** - Every hour (may run anywhere within the hour on Hobby plan)
+3. ✅ **Check Alerts** - Daily at 4:00 AM UTC (may run 4:00-4:59 AM on Hobby plan)
+
+**⚠️ Note**: Hobby plan only allows daily cron jobs. For hourly alert checking, use external cron service (see `HOBBY_PLAN_ALERT_SETUP.md`).
 
 ## 🔧 External Cron Setup
 
