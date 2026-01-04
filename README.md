@@ -147,6 +147,25 @@ npm start
 3. Add environment variables in Vercel dashboard
 4. Deploy!
 
+For detailed deployment instructions, see the [Vercel Deployment Guide](./docs/deployment/VERCEL_DEPLOYMENT_GUIDE.md).
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) folder:
+
+- **[📖 Documentation Index](./docs/README.md)** - Complete documentation overview
+- **[🚀 Deployment Guides](./docs/deployment/)** - Production deployment instructions
+- **[⚙️ Setup Guides](./docs/setup/)** - Configuration and setup instructions
+- **[✨ Features](./docs/features/)** - Feature documentation
+- **[🔧 Troubleshooting](./docs/troubleshooting/)** - Common issues and solutions
+- **[💻 Development](./docs/development/)** - Development guides and workflows
+
+**Quick Links:**
+- [Quick Start Guide](./docs/setup/QUICK_START.md)
+- [Local Setup](./docs/setup/LOCAL_SETUP_GUIDE.md)
+- [Vercel Deployment](./docs/deployment/VERCEL_DEPLOYMENT_GUIDE.md)
+- [Troubleshooting](./docs/troubleshooting/)
+
 ### Environment Variables in Vercel
 
 Go to Project Settings → Environment Variables and add all variables from `.env.local`.
@@ -277,4 +296,4 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ using Next.js, TypeScript, and Claude AI**
+**Built with ❤️ using Next.js and TypeScript**

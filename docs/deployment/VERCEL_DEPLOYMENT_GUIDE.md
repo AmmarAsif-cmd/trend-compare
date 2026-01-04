@@ -90,12 +90,17 @@ Vercel will auto-detect Next.js, but verify:
 - **Framework Preset**: Next.js
 - **Build Command**: `npm run build` (default)
 - **Output Directory**: `.next` (default)
-- **Install Command**: `npm install` (default)
+- **Install Command**: `npm install` (default - uses `.npmrc` for legacy peer deps)
 - **Node Version**: 20.x (recommended)
+
+**Note**: The project includes a `.npmrc` file with `legacy-peer-deps=true` to handle peer dependency conflicts (React 19 with packages that declare React 18 support). This is automatically used by Vercel during builds.
 
 ### 4. Cron Jobs Configuration
 
-**Important**: Vercel Hobby plan allows **only 2 cron jobs**.
+**Cron Job Limits:**
+- **Per Project**: Maximum 20 cron jobs (hard limit)
+- **Per Team (Hobby Plan)**: Maximum 2 cron jobs total across all projects
+- **Current Configuration**: 2 cron jobs (within team limit)
 
 Cron jobs are configured in `vercel.json`:
 
@@ -107,6 +112,10 @@ Cron jobs are configured in `vercel.json`:
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/jobs/warmup-ai-explanations",
+      "schedule": "0 3 * * 0"
+    },
+    {
       "path": "/api/cron/check-alerts",
       "schedule": "0 * * * *"
     }
@@ -116,25 +125,38 @@ Cron jobs are configured in `vercel.json`:
 
 **Active Cron Jobs:**
 1. **Warmup Forecasts** - Daily at 2:00 AM UTC (refreshes forecasts for popular comparisons)
-2. **Check Alerts** - Every hour (checks trend alerts and sends emails)
+2. **Check Alerts** - Daily at 4:00 AM UTC (checks trend alerts and sends emails)
 
 **Removed from Vercel Cron:**
-- `warmup-ai-explanations` - Weekly AI explanation refresh (moved to external service - see below)
+- `warmup-ai-explanations` - Weekly AI explanation refresh (moved to external service - see `HOBBY_PLAN_ALERT_SETUP.md` for setup)
 
-**Alternative for AI Explanations Warmup:**
+**⚠️ Important**: Hobby plan only allows **daily cron jobs** (once per day maximum). The hourly alert check has been changed to daily. For more frequent alert checking, use an external cron service (see below).
 
-Since Vercel Hobby only allows 2 cron jobs, the AI explanations warmup job should be run via:
+**⚠️ Hobby Plan Timing Variance:**
 
-**Option 1: External Cron Service (Recommended)**
-- Use [cron-job.org](https://cron-job.org) (free)
-- Schedule: Weekly on Sunday at 3:00 AM UTC (`0 3 * * 0`)
-- URL: `https://your-domain.vercel.app/api/jobs/warmup-ai-explanations`
-- Method: POST
-- Headers: `X-Job-Secret: your-job-secret`
+On the **Hobby plan**, Vercel cannot guarantee exact cron job execution times. Jobs may trigger anywhere within the scheduled hour window:
 
-**Option 2: Manual Trigger**
-- Can be triggered manually via API when needed
-- Or combine with forecasts job (modify forecasts endpoint to optionally run AI explanations)
+- **Example**: A job scheduled for `0 2 * * *` (2:00 AM) may trigger anywhere between **2:00 AM and 2:59 AM**
+- **Example**: A job scheduled for `0 * * * *` (every hour) may trigger anywhere within that hour window
+
+**Impact:**
+- ✅ **Acceptable for most use cases** - Jobs still run, just with timing variance
+- ⚠️ **Not suitable for time-critical operations** - If exact timing is required, upgrade to Pro plan
+- ✅ **Current jobs are **not time-critical** - They can run within the hour window
+
+**For More Frequent Execution:**
+- **Hobby Plan Limitation**: Cron jobs can only run **once per day maximum**
+- **Hourly/More Frequent Jobs**: Must use external cron service (cron-job.org, EasyCron, etc.)
+- **Alert Checking**: Currently set to daily, but can be run hourly via external service (recommended for "instant" alerts)
+- **Upgrade to Pro Plan**: Unlocks all cron job frequencies (hourly, every 5 minutes, etc.)
+
+**Recommended Setup for Alert Checking:**
+Since "instant" alerts should be checked hourly, use an external cron service:
+- **Service**: [cron-job.org](https://cron-job.org) (free)
+- **Schedule**: `0 * * * *` (every hour)
+- **URL**: `https://your-domain.vercel.app/api/cron/check-alerts`
+- **Method**: GET
+- **Headers**: `Authorization: Bearer YOUR_CRON_SECRET`
 
 **Note**: Vercel cron jobs require:
 - The routes must be accessible (no authentication blocking)
@@ -149,7 +171,15 @@ Since Vercel Hobby only allows 2 cron jobs, the AI explanations warmup job shoul
 - ✅ **100 Function Invocations/day** - Should be sufficient for most use cases
 - ✅ **Serverless Functions**: 10s execution time limit (Hobby)
 - ⚠️ **Edge Functions**: Unlimited (use for lightweight operations)
-- ✅ **Cron Jobs**: Included (2 configured - Hobby plan limit)
+- ✅ **Cron Jobs**: 
+  - Maximum 20 cron jobs per project (hard limit)
+  - Current: 3 cron jobs configured
+  - ⚠️ **Frequency Limit**: Hobby plan only allows **daily cron jobs** (once per day maximum)
+    - Cannot use hourly (`0 * * * *`), every 5 minutes, etc.
+    - All cron expressions must run at most once per day
+  - ⚠️ **Timing Variance**: On Hobby plan, cron jobs may trigger anywhere within the scheduled hour window
+    - Example: `0 2 * * *` may run between 2:00 AM - 2:59 AM
+    - For precise timing, upgrade to Pro plan or use external cron service
 - ✅ **Environment Variables**: Unlimited
 - ⚠️ **Build Time**: 45 minutes max per build
 

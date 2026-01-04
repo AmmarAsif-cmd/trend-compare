@@ -143,7 +143,7 @@ export default function DataSources() {
           <div className="flex-1">
             <h4 className="font-bold text-sm text-slate-900 mb-1.5">AI-Powered Smart Analysis</h4>
             <p className="text-xs text-slate-700 leading-relaxed">
-              Our system uses <span className="font-semibold">Claude AI</span> to automatically detect what you're comparing (movies, music, games, products) and intelligently fetches data from the most relevant sources. All metrics are combined into a unified <span className="font-semibold">TrendArc Score</span> for easy comparison.
+              Our system uses <span className="font-semibold">advanced AI</span> to automatically detect what you're comparing (movies, music, games, products) and intelligently fetches data from the most relevant sources. All metrics are combined into a unified <span className="font-semibold">TrendArc Score</span> for easy comparison.
             </p>
           </div>
         </div>
