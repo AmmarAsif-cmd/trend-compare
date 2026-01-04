@@ -27,10 +27,29 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
         html,
       });
       
-      console.log('[Email] Sent via Resend:', result);
+      console.log('[Email] Sent via Resend:', {
+        id: result.data?.id || 'unknown',
+        to,
+        subject,
+      });
       return;
     } catch (error: any) {
-      console.error('[Email] Resend error:', error);
+      console.error('[Email] Resend error details:', {
+        message: error?.message,
+        name: error?.name,
+        status: error?.status,
+        statusCode: error?.statusCode,
+        response: error?.response,
+      });
+      
+      // Log specific Resend error messages
+      if (error?.message?.includes('domain')) {
+        console.error('[Email] Domain verification issue. Make sure your domain is verified in Resend or use "onboarding@resend.dev" for testing.');
+      }
+      if (error?.message?.includes('API key') || error?.message?.includes('Unauthorized')) {
+        console.error('[Email] API key issue. Check that RESEND_API_KEY is correct.');
+      }
+      
       // Fall through to next method
     }
   }

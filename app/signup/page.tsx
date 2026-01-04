@@ -53,7 +53,13 @@ export default function SignupPage() {
         return;
       }
 
-      // Auto-login after signup
+      // If email verification is required, show verification message
+      if (data.requiresVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
+      // Auto-login after signup (if verification not required)
       try {
         const result = await signIn("credentials", {
           email,

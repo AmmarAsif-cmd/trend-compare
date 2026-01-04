@@ -110,6 +110,13 @@ export const authConfig: NextAuthConfig = {
             return null;
           }
 
+          // Check if email is verified (only for credential-based signups, OAuth emails are auto-verified)
+          if (!user.emailVerified && user.password) {
+            console.log('[Auth] Email not verified for:', email);
+            // Return null to indicate failed login, but we'll handle the error in signIn callback
+            return null;
+          }
+
           console.log('[Auth] ✅ Login successful for:', email);
 
           // Update last sign-in method

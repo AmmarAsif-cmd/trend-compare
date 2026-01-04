@@ -36,12 +36,9 @@ const securityHeaders: { key: string; value: string }[] = [
     key: "Permissions-Policy",
     value: [
       "accelerometer=()",
-      "ambient-light-sensor=()",
       "autoplay=()",
-      "battery=()",
       "camera=()",
       "display-capture=()",
-      "document-domain=()",
       "encrypted-media=()",
       "fullscreen=(self)",
       "geolocation=()",

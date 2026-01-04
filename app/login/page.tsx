@@ -69,7 +69,34 @@ export default function LoginPage() {
         console.error("Login error:", result.error);
         // Provide more helpful error messages
         if (result.error.includes("CredentialsSignin")) {
+          // Check if email verification is required
+          try {
+            const checkResponse = await fetch("/api/auth/check-verification", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email }),
+            });
+            const checkData = await checkResponse.json();
+            
+            if (checkData.requiresVerification) {
+              setError("Please verify your email address before logging in. Check your inbox for the verification link.");
+              setTimeout(() => {
+                router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+              }, 2000);
+              setLoading(false);
+              return;
+            }
+          } catch (checkError) {
+            // If check fails, show generic error
+          }
+          
           setError("Invalid email or password. Please check your credentials and try again.");
+        } else if (result.error.includes("EMAIL_NOT_VERIFIED") || result.error.includes("Email not verified")) {
+          setError("Please verify your email address before logging in. Check your inbox for the verification link.");
+          // Optionally redirect to resend verification
+          setTimeout(() => {
+            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+          }, 2000);
         } else if (result.error.includes("Configuration")) {
           setError("Authentication error: Please contact support if this persists.");
         } else {
