@@ -6,18 +6,19 @@ const cspReportOnly = [
   "base-uri 'self'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  // Scripts: allow inline and eval for Next.js dev mode, Chart.js, and other libraries
-  // In production, consider using nonces or extracting inline scripts
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
+  // Scripts: allow inline and eval for Next.js dev mode, Chart.js, and AdSense
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://tpc.googlesyndication.com",
   // Styles: allow inline for now; remove 'unsafe-inline' after cleanup.
   "style-src 'self' 'unsafe-inline'",
-  // Images (include GA beacons), data and blobs
-  "img-src 'self' data: blob: https://www.google-analytics.com",
+  // Images (include GA beacons, AdSense), data and blobs
+  "img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://pagead2.googlesyndication.com",
   // Fonts and workers
   "font-src 'self' data:",
   "worker-src 'self' blob:",
-  // Network calls your app makes (add any others you actually call)
-  "connect-src 'self' https://suggestqueries.google.com https://www.google-analytics.com https://www.googletagmanager.com https://trendarc.net https://www.trendarc.net https://dev.trendarc.net",
+  // Network calls your app makes (add AdSense domains)
+  "connect-src 'self' https://suggestqueries.google.com https://www.google-analytics.com https://www.googletagmanager.com https://trendarc.net https://www.trendarc.net https://dev.trendarc.net https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com https://tpc.googlesyndication.com",
+  // Frame sources for AdSense ads
+  "frame-src 'self' https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://pagead2.googlesyndication.com",
   // No plugins/objects
   "object-src 'none'",
   // Where browsers send CSP reports
@@ -66,6 +67,12 @@ const nextConfig: NextConfig = {
   turbopack: { root: __dirname },
   // Disable production source maps (not needed, reduces build size)
   productionBrowserSourceMaps: false,
+  // Remove console logs in production (keep error and warn)
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'], // Keep console.error and console.warn for production debugging
+    } : false,
+  },
   images: {
     remotePatterns: [
       {

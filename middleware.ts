@@ -18,9 +18,23 @@ const ALLOWLIST = new Set<string>([
 const ALLOW_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const ALLOW_HEADERS = "Origin, X-Requested-With, Content-Type, Accept, Authorization";
 
+// Get secure admin path (must match next.config.ts)
+const getSecureAdminPath = (): string => {
+  return process.env.ADMIN_PATH || 'cp-9a4eef7';
+};
+
 export function middleware(req: NextRequest) {
   const url = new URL(req.url);
   const path = url.pathname;
+
+  // Block direct access to /admin/* routes
+  // Only allow access through the secure admin path (e.g., /cp-9a4eef7/*)
+  // The secure path gets rewritten to /admin/* by next.config.ts, but middleware runs before rewrites
+  if (path.startsWith('/admin/') || path === '/admin') {
+    // This is a direct /admin/* access - block it
+    // The secure path requests will be at /cp-9a4eef7/* and will be rewritten after middleware
+    return new NextResponse('Not Found', { status: 404 });
+  }
 
   // Prepare response so we can set headers
   const res = NextResponse.next();

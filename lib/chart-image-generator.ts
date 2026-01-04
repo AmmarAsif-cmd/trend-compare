@@ -4,7 +4,9 @@
  * Uses Puppeteer to render Chart.js charts server-side
  */
 
-import puppeteer from 'puppeteer';
+// Use puppeteer-core for serverless, puppeteer for local dev
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import type { SeriesPoint } from '@/lib/trends';
 import type { ComparisonCategory } from '@/lib/category-resolver';
 import { calculateTrendArcScoreTimeSeries } from '@/lib/trendarc-score-time-series';
@@ -48,7 +50,18 @@ export async function generateScoreChartImage(
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // Fallback if CDN fails - wait a bit longer
+    if (typeof Chart === 'undefined') {
+      setTimeout(() => {
+        if (typeof Chart === 'undefined') {
+          console.error('Chart.js failed to load from CDN');
+        }
+      }, 5000);
+    }
+  </script>
   <style>
     body {
       margin: 0;
@@ -156,40 +169,115 @@ export async function generateScoreChartImage(
       },
     });
     
-    // Wait for chart to render
+    // Wait for chart to render - increased timeout for serverless
     setTimeout(() => {
       window.chartReady = true;
-    }, 500);
+      console.log('[ChartImageGenerator] Chart ready flag set in HTML');
+    }, 1000);
   </script>
 </body>
 </html>
   `;
 
+  let browser: any = null;
+  
   try {
-    const browser = await puppeteer.launch({
+    // Use serverless-compatible Chromium for Vercel/serverless environments
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    const launchOptions: any = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
+    };
+
+    // In serverless environments, use the Chromium binary from @sparticuz/chromium
+    if (isServerless) {
+      launchOptions.executablePath = await chromium.executablePath();
+      launchOptions.args.push(...chromium.args);
+      browser = await puppeteerCore.launch(launchOptions);
+    } else {
+      // For local development, use regular puppeteer if available
+      try {
+        const puppeteer = require('puppeteer');
+        browser = await puppeteer.launch(launchOptions);
+      } catch {
+        // Fallback: try to find Chrome in common locations
+        const possiblePaths = [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ];
+        for (const path of possiblePaths) {
+          try {
+            const fs = require('fs');
+            if (fs.existsSync(path)) {
+              launchOptions.executablePath = path;
+              break;
+            }
+          } catch {}
+        }
+        browser = await puppeteerCore.launch(launchOptions);
+      }
+    }
 
     const page = await browser.newPage();
     await page.setViewport({ width, height: height + 100, deviceScaleFactor });
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    // Wait for chart to render - increase timeout and add additional wait
-    await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 10000 });
-    
-    // Additional wait to ensure chart is fully rendered
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for Chart.js to load and chart to render
+    try {
+      // Wait for Chart.js library to be available
+      await page.waitForFunction(() => typeof (window as any).Chart !== 'undefined', { timeout: 15000 });
+      console.log('[ChartImageGenerator] Chart.js library loaded');
+      
+      // Wait for chart to be created and ready
+      await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 15000 });
+      console.log('[ChartImageGenerator] Chart ready flag set');
+      
+      // Additional wait to ensure chart is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Verify chart canvas exists and Chart.js is ready
+      const canvasReady = await page.evaluate(() => {
+        const canvas = document.getElementById('chart') as HTMLCanvasElement;
+        if (!canvas) return false;
+        // Check if canvas has dimensions (indicates it's been initialized)
+        return canvas.width > 0 && canvas.height > 0;
+      });
+      
+      if (!canvasReady) {
+        console.warn('[ChartImageGenerator] Canvas not ready, waiting longer...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (waitError) {
+      console.error('[ChartImageGenerator] Error waiting for chart:', waitError);
+      // Continue anyway - might still work
+    }
 
     // Take screenshot of the canvas element specifically
     const canvas = await page.$('#chart');
     if (!canvas) {
+      console.error('[ChartImageGenerator] Chart canvas element not found');
       throw new Error('Chart canvas not found');
     }
     
+    console.log('[ChartImageGenerator] Taking screenshot of chart canvas...');
     const imageBuffer = await canvas.screenshot({
       type: 'png',
     }) as Buffer;
+    
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.error('[ChartImageGenerator] Screenshot returned empty buffer');
+      throw new Error('Screenshot returned empty buffer');
+    }
+    
+    console.log('[ChartImageGenerator] Screenshot captured successfully', {
+      bufferSize: imageBuffer.length,
+    });
 
     await browser.close();
 
@@ -205,8 +293,20 @@ export async function generateScoreChartImage(
     });
 
     return imageBuffer;
-  } catch (error) {
-    console.error('[ChartImageGenerator] Error generating chart image:', error);
+  } catch (error: any) {
+    console.error('[ChartImageGenerator] Error generating chart image:', {
+      error: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
+    // Ensure browser is closed even on error
+    try {
+      if (browser) {
+        await browser.close();
+      }
+    } catch (closeError) {
+      console.error('[ChartImageGenerator] Error closing browser:', closeError);
+    }
     return null;
   }
 }
@@ -240,7 +340,18 @@ export async function generateForecastChartImage(
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // Fallback if CDN fails - wait a bit longer
+    if (typeof Chart === 'undefined') {
+      setTimeout(() => {
+        if (typeof Chart === 'undefined') {
+          console.error('Chart.js failed to load from CDN');
+        }
+      }, 5000);
+    }
+  </script>
   <style>
     body {
       margin: 0;
@@ -329,30 +440,110 @@ export async function generateForecastChartImage(
 </html>
   `;
 
+  let browser: any = null;
+  
   try {
-    const browser = await puppeteer.launch({
+    // Use serverless-compatible Chromium for Vercel/serverless environments
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    const launchOptions: any = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
+    };
+
+    // In serverless environments, use the Chromium binary from @sparticuz/chromium
+    if (isServerless) {
+      launchOptions.executablePath = await chromium.executablePath();
+      launchOptions.args.push(...chromium.args);
+      browser = await puppeteerCore.launch(launchOptions);
+    } else {
+      // For local development, use regular puppeteer if available
+      try {
+        const puppeteer = require('puppeteer');
+        browser = await puppeteer.launch(launchOptions);
+      } catch {
+        // Fallback: try to find Chrome in common locations
+        const possiblePaths = [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ];
+        for (const path of possiblePaths) {
+          try {
+            const fs = require('fs');
+            if (fs.existsSync(path)) {
+              launchOptions.executablePath = path;
+              break;
+            }
+          } catch {}
+        }
+        browser = await puppeteerCore.launch(launchOptions);
+      }
+    }
 
     const page = await browser.newPage();
     await page.setViewport({ width, height: height + 100, deviceScaleFactor });
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 10000 });
-    
-    // Additional wait to ensure chart is fully rendered
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for Chart.js to load and chart to render
+    try {
+      // Wait for Chart.js library to be available
+      await page.waitForFunction(() => typeof (window as any).Chart !== 'undefined', { timeout: 15000 });
+      console.log('[ChartImageGenerator] Chart.js library loaded (forecast)');
+      
+      // Wait for chart to be created and ready
+      await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 15000 });
+      console.log('[ChartImageGenerator] Forecast chart ready flag set');
+      
+      // Additional wait to ensure chart is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Verify chart canvas exists and has content
+      const canvasExists = await page.evaluate(() => {
+        const canvas = document.getElementById('chart') as HTMLCanvasElement;
+        if (!canvas) return false;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return false;
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        for (let i = 3; i < imageData.data.length; i += 4) {
+          if (imageData.data[i] > 0) return true;
+        }
+        return false;
+      });
+      
+      if (!canvasExists) {
+        console.warn('[ChartImageGenerator] Forecast canvas exists but appears empty, waiting longer...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (waitError) {
+      console.error('[ChartImageGenerator] Error waiting for forecast chart:', waitError);
+      // Continue anyway - might still work
+    }
 
     // Take screenshot of the canvas element specifically
     const canvas = await page.$('#chart');
     if (!canvas) {
+      console.error('[ChartImageGenerator] Forecast chart canvas element not found');
       throw new Error('Forecast chart canvas not found');
     }
     
+    console.log('[ChartImageGenerator] Taking screenshot of forecast chart canvas...');
     const imageBuffer = await canvas.screenshot({
       type: 'png',
     }) as Buffer;
+    
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.error('[ChartImageGenerator] Forecast screenshot returned empty buffer');
+      throw new Error('Forecast screenshot returned empty buffer');
+    }
+    
+    console.log('[ChartImageGenerator] Forecast screenshot captured successfully', {
+      bufferSize: imageBuffer.length,
+    });
 
     await browser.close();
 

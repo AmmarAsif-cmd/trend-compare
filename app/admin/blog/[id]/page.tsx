@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
+import { ADMIN_ROUTES } from "@/lib/admin-config";
 
 type Reference = {
   title: string;
@@ -205,7 +206,7 @@ export default function BlogPostReview({ params }: { params: Promise<{ id: strin
         <div className="mb-8 flex items-center justify-between">
           <div>
             <button
-              onClick={() => router.push("/admin/blog")}
+              onClick={() => router.push(ADMIN_ROUTES.blog)}
               className="text-blue-600 hover:text-blue-900 mb-2"
             >
               ← Back to Dashboard

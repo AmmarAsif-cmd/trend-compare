@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ADMIN_ROUTES } from "@/lib/admin-config";
 import AdminLayout from "@/components/admin/AdminLayout";
 
 type KeywordPair = {
@@ -97,7 +98,7 @@ export default function AdminKeywordsPage() {
       const response = await fetch(`/api/admin/keywords?${params}`);
       if (!response.ok) {
         if (response.status === 401) {
-          router.push("/admin/login");
+          router.push(ADMIN_ROUTES.login);
           return;
         }
         throw new Error("Failed to fetch keywords");
