@@ -58,8 +58,8 @@ export default async function RelatedComparisons({
         </p>
       </div>
 
-      {/* Enhanced Grid Layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      {/* Enhanced Grid Layout - Full width with more columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
         {related.map((row, idx) => (
           <Link
             key={row.slug}

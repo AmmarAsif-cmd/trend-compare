@@ -81,10 +81,14 @@ export default function AIPeakExplanations({
                 {prettyTerm(term)} Peak
               </p>
               {peak.verified && (
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" title="Verified by multiple sources" />
+                <span title="Verified by multiple sources">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                </span>
               )}
               {!hasRealEventData && (
-                <AlertCircle className="w-3.5 h-3.5 text-orange-500" title="Limited event data available" />
+                <span title="Limited event data available">
+                  <AlertCircle className="w-3.5 h-3.5 text-orange-500" />
+                </span>
               )}
             </div>
             <p className="text-xs text-rose-600/70">

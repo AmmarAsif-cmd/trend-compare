@@ -910,15 +910,6 @@ export default async function ComparePage({
               termB={actualTerms[1]}
             />
           )}
-
-
-
-          {/* Related Comparisons - Main content area only */}
-          <RelatedComparisons
-            currentSlug={canonical || slug}
-            terms={actualTerms}
-            category={intelligentComparison?.category?.category || row.category || null}
-          />
         </div>
 
         {/* Sidebar - Ads only (Related Comparisons removed to avoid duplication) */}
@@ -937,6 +928,13 @@ export default async function ComparePage({
           </div>
         </aside>
       </div>
+
+      {/* Related Comparisons - Full width */}
+      <RelatedComparisons
+        currentSlug={canonical || slug}
+        terms={actualTerms}
+        category={intelligentComparison?.category?.category || row.category || null}
+      />
 
       {/* AdSense - Bottom of Page */}
       {process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID && process.env.NEXT_PUBLIC_ADSENSE_SLOT_3 && (

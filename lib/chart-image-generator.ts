@@ -179,7 +179,7 @@ export async function generateScoreChartImage(
     await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 10000 });
     
     // Additional wait to ensure chart is fully rendered
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Take screenshot of the canvas element specifically
     const canvas = await page.$('#chart');
@@ -342,7 +342,7 @@ export async function generateForecastChartImage(
     await page.waitForFunction(() => (window as any).chartReady === true, { timeout: 10000 });
     
     // Additional wait to ensure chart is fully rendered
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Take screenshot of the canvas element specifically
     const canvas = await page.$('#chart');

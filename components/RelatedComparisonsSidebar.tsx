@@ -4,6 +4,11 @@ import { prisma } from "@/lib/db";
 import { fromSlug } from "@/lib/slug";
 import { unstable_cache } from "next/cache";
 
+// Helper to slugify a single term
+function slugifyTerm(term: string): string {
+  return term.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
 type Props = {
   currentSlug: string;
   category: string | null;
@@ -32,11 +37,15 @@ async function getRelatedComparisonsByCategory(
     const [termA, termB] = terms;
     if (!termA || !termB) return [];
 
+    // Slugify terms for pattern matching
+    const slugA = slugifyTerm(termA);
+    const slugB = slugifyTerm(termB);
+
     const patterns = [
-      `${termA}-vs-`,
-      `-vs-${termA}`,
-      `${termB}-vs-`,
-      `-vs-${termB}`,
+      `${slugA}-vs-`,
+      `-vs-${slugA}`,
+      `${slugB}-vs-`,
+      `-vs-${slugB}`,
     ];
 
     const rows = await prisma.comparison.findMany({

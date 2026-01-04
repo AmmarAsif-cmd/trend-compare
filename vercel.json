@@ -5,10 +5,6 @@
       "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/jobs/warmup-ai-explanations",
-      "schedule": "0 3 * * 0"
-    },
-    {
       "path": "/api/cron/check-alerts",
       "schedule": "0 * * * *"
     }

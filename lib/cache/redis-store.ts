@@ -3,13 +3,26 @@
  */
 
 let Redis: any = null;
-try {
-  // Try to import @upstash/redis if available
-  const upstashRedis = require('@upstash/redis');
-  Redis = upstashRedis.Redis;
-} catch (error) {
-  // @upstash/redis not installed, Redis will be unavailable
-  console.warn('[Cache] @upstash/redis not installed. Redis caching will be unavailable.');
+let redisLoadAttempted = false;
+
+// Lazy load @upstash/redis at runtime to avoid build-time resolution
+async function loadRedis() {
+  if (redisLoadAttempted) {
+    return Redis;
+  }
+  redisLoadAttempted = true;
+  
+  try {
+    // Use dynamic import to avoid build-time resolution
+    const upstashRedis = await import('@upstash/redis');
+    Redis = upstashRedis.Redis;
+  } catch (error) {
+    // @upstash/redis not installed, Redis will be unavailable
+    console.warn('[Cache] @upstash/redis not installed. Redis caching will be unavailable.');
+    Redis = null;
+  }
+  
+  return Redis;
 }
 
 export interface CacheEntry<T> {
@@ -20,27 +33,52 @@ export interface CacheEntry<T> {
 }
 
 export class RedisStore {
-  private redis: InstanceType<typeof Redis> | null = null;
+  private redis: any = null;
   private initialized = false;
+  private redisUrl?: string;
+  private redisToken?: string;
+  private initPromise: Promise<void> | null = null;
 
   constructor(redisUrl?: string, redisToken?: string) {
-    if (!Redis) {
-      this.initialized = false;
+    this.redisUrl = redisUrl;
+    this.redisToken = redisToken;
+  }
+
+  /**
+   * Initialize Redis connection (lazy loading)
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized || this.initPromise) {
+      if (this.initPromise) {
+        await this.initPromise;
+      }
       return;
     }
 
-    if (redisUrl && redisToken) {
+    this.initPromise = (async () => {
       try {
-        this.redis = new Redis({
-          url: redisUrl,
-          token: redisToken,
-        });
-        this.initialized = true;
+        const RedisClass = await loadRedis();
+        if (!RedisClass) {
+          this.initialized = false;
+          return;
+        }
+
+        if (this.redisUrl && this.redisToken) {
+          this.redis = new RedisClass({
+            url: this.redisUrl,
+            token: this.redisToken,
+          });
+          this.initialized = true;
+        } else {
+          this.initialized = false;
+        }
       } catch (error) {
         console.error('[Cache] Failed to initialize Redis:', error);
         this.initialized = false;
       }
-    }
+    })();
+
+    await this.initPromise;
   }
 
   /**
@@ -54,6 +92,7 @@ export class RedisStore {
    * Get value from cache
    */
   async get<T>(key: string): Promise<{ value: T; isStale: boolean } | null> {
+    await this.ensureInitialized();
     if (!this.isAvailable()) {
       return null;
     }
@@ -94,6 +133,7 @@ export class RedisStore {
     staleTtlSeconds?: number,
     tags?: string[]
   ): Promise<void> {
+    await this.ensureInitialized();
     if (!this.isAvailable()) {
       return;
     }
@@ -133,6 +173,7 @@ export class RedisStore {
    * Delete value from cache
    */
   async delete(key: string): Promise<void> {
+    await this.ensureInitialized();
     if (!this.isAvailable()) {
       return;
     }
@@ -148,6 +189,7 @@ export class RedisStore {
    * Delete all entries with matching tag
    */
   async deleteByTag(tag: string): Promise<void> {
+    await this.ensureInitialized();
     if (!this.isAvailable()) {
       return;
     }
@@ -169,6 +211,7 @@ export class RedisStore {
    * Acquire distributed lock
    */
   async acquireLock(lockKey: string, lockSeconds: number): Promise<boolean> {
+    await this.ensureInitialized();
     if (!this.isAvailable()) {
       return false;
     }
@@ -193,6 +236,7 @@ export class RedisStore {
    * Release distributed lock
    */
   async releaseLock(lockKey: string): Promise<void> {
+    await this.ensureInitialized();
     if (!this.isAvailable()) {
       return;
     }

@@ -13,7 +13,17 @@ export default function BrowseByCategory({ categories, hybridData }: Props) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || "movies");
 
   const activeCategoryData = categories.find((c) => c.id === activeCategory);
-  const comparisons = hybridData[activeCategory] || [];
+  const rawComparisons = hybridData[activeCategory] || [];
+  
+  // Filter out duplicates by slug to ensure unique keys
+  const seenSlugs = new Set<string>();
+  const comparisons = rawComparisons.filter((comparison) => {
+    if (seenSlugs.has(comparison.slug)) {
+      return false;
+    }
+    seenSlugs.add(comparison.slug);
+    return true;
+  });
 
   return (
     <section>
