@@ -70,6 +70,12 @@ export default function LoginPage() {
         // Provide more helpful error messages
         if (result.error.includes("CredentialsSignin")) {
           setError("Invalid email or password. Please check your credentials and try again.");
+        } else if (result.error.includes("EMAIL_NOT_VERIFIED") || result.error.includes("Email not verified")) {
+          setError("Please verify your email address before logging in. Check your inbox for the verification link.");
+          // Optionally redirect to resend verification
+          setTimeout(() => {
+            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+          }, 2000);
         } else if (result.error.includes("Configuration")) {
           setError("Authentication error: Please contact support if this persists.");
         } else {

@@ -110,6 +110,13 @@ export const authConfig: NextAuthConfig = {
             return null;
           }
 
+          // Check if email is verified (only for credential-based signups, OAuth emails are auto-verified)
+          if (!user.emailVerified && user.password) {
+            console.log('[Auth] Email not verified for:', email);
+            // Return null to indicate failed login, but we'll handle the error in signIn callback
+            return null;
+          }
+
           console.log('[Auth] ✅ Login successful for:', email);
 
           // Update last sign-in method
@@ -136,7 +143,26 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile, credentials }) {
+      // Check email verification for credential-based signups
+      if (account?.provider === "credentials" && user.email) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { emailVerified: true, password: true },
+          });
+          
+          // If user has password but email not verified, block sign-in
+          if (dbUser && !dbUser.emailVerified && dbUser.password) {
+            throw new Error('EMAIL_NOT_VERIFIED');
+          }
+        } catch (error: any) {
+          if (error?.message === 'EMAIL_NOT_VERIFIED') {
+            throw error;
+          }
+        }
+      }
+      
       // Handle Google OAuth sign-in - create user if doesn't exist
       if (account?.provider === "google" && user.email) {
         try {

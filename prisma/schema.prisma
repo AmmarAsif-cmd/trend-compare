@@ -8,22 +8,22 @@ datasource db {
 }
 
 model Comparison {
-  id          String    @id @default(cuid())
-  slug        String
-  timeframe   String
-  geo         String
-  terms       Json
-  series      Json
-  stats       Json
-  ai          Json?
-  dataHash    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  category    String?
-  source      String    @default("manual")
-  lastVisited DateTime?
-  visitCount  Int       @default(0)
-  viewCount   Int       @default(0)
+  id           String        @id @default(cuid())
+  slug         String
+  timeframe    String
+  geo          String
+  terms        Json
+  series       Json
+  stats        Json
+  ai           Json?
+  dataHash     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  category     String?
+  source       String        @default("manual")
+  lastVisited  DateTime?
+  visitCount   Int           @default(0)
+  viewCount    Int           @default(0)
   forecastRuns ForecastRun[]
 
   @@unique([slug, timeframe, geo], name: "slug_timeframe_geo")
@@ -104,32 +104,34 @@ model KeywordPair {
 }
 
 model User {
-  id                  String              @id @default(cuid())
-  email               String              @unique
-  name                String?
-  password            String?
-  emailVerified       DateTime?
-  subscriptionTier    String              @default("free")
-  stripeCustomerId    String?             @unique
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  trialStartedAt      DateTime?
-  trialEndsAt         DateTime?
-  image               String?
-  failedLoginAttempts Int                 @default(0)
-  accountLockedUntil  DateTime?
-  lastSignInMethod    String?             // "google" or "credentials"
-  passwordResetToken  String?
-  passwordResetExpires DateTime?
-  Account             Account[]
-  comparisonHistory   ComparisonHistory[]
-  savedComparisons    SavedComparison[]
-  Session             Session[]
-  subscriptions       Subscription[]
-  trendAlerts         TrendAlert[]
-  pdfJobs             PdfJob[]
-  comparisonSnapshots ComparisonSnapshot[]
-  exportHistory       ExportHistory[]
+  id                       String               @id @default(cuid())
+  email                    String               @unique
+  name                     String?
+  password                 String?
+  emailVerified            DateTime?
+  subscriptionTier         String               @default("free")
+  stripeCustomerId         String?              @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  trialStartedAt           DateTime?
+  trialEndsAt              DateTime?
+  image                    String?
+  failedLoginAttempts      Int                  @default(0)
+  accountLockedUntil       DateTime?
+  lastSignInMethod         String? // "google" or "credentials"
+  passwordResetToken       String?
+  passwordResetExpires     DateTime?
+  emailVerificationToken   String?
+  emailVerificationExpires DateTime?
+  Account                  Account[]
+  comparisonHistory        ComparisonHistory[]
+  savedComparisons         SavedComparison[]
+  Session                  Session[]
+  subscriptions            Subscription[]
+  trendAlerts              TrendAlert[]
+  pdfJobs                  PdfJob[]
+  comparisonSnapshots      ComparisonSnapshot[]
+  exportHistory            ExportHistory[]
 
   @@index([email])
   @@index([subscriptionTier])
@@ -195,24 +197,24 @@ model PredictionStats {
 }
 
 model ForecastRun {
-  id                String             @id @default(cuid())
+  id                String               @id @default(cuid())
   comparisonId      String
-  comparison        Comparison         @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+  comparison        Comparison           @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
   timeframe         String
-  horizon           Int                @default(28) // Forecast horizon in days (default 4 weeks)
-  dataHash          String             // Hash of input series data
-  modelTermA        String             // 'ets' | 'arima' | 'naive'
+  horizon           Int                  @default(28) // Forecast horizon in days (default 4 weeks)
+  dataHash          String // Hash of input series data
+  modelTermA        String // 'ets' | 'arima' | 'naive'
   modelTermB        String
-  confidenceScoreA  Int                // 0-100
+  confidenceScoreA  Int // 0-100
   confidenceScoreB  Int
-  metricsA          Json               // { mae, mape, intervalCoverage80, intervalCoverage95, sampleSize }
+  metricsA          Json // { mae, mape, intervalCoverage80, intervalCoverage95, sampleSize }
   metricsB          Json
-  qualityFlagsA     Json               // { seriesTooShort, tooSpiky, eventShockLikely }
+  qualityFlagsA     Json // { seriesTooShort, tooSpiky, eventShockLikely }
   qualityFlagsB     Json
-  winnerProbability Float?             // P(termB > termA) from head-to-head analysis
-  expectedMargin    Float?             // Expected margin (B - A)
-  leadChangeRisk    String?            // 'low' | 'medium' | 'high'
-  computedAt        DateTime           @default(now())
+  winnerProbability Float? // P(termB > termA) from head-to-head analysis
+  expectedMargin    Float? // Expected margin (B - A)
+  leadChangeRisk    String? // 'low' | 'medium' | 'high'
+  computedAt        DateTime             @default(now())
   evaluatedAt       DateTime?
   forecastPoints    ForecastPoint[]
   evaluations       ForecastEvaluation[]
@@ -224,17 +226,17 @@ model ForecastRun {
 }
 
 model ForecastPoint {
-  id            String       @id @default(cuid())
+  id            String      @id @default(cuid())
   forecastRunId String
-  forecastRun   ForecastRun  @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
-  term          String       // 'termA' | 'termB'
+  forecastRun   ForecastRun @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
+  term          String // 'termA' | 'termB'
   date          DateTime
-  value         Float        // Forecasted value
-  lower80       Float        // 80% prediction interval lower bound
-  upper80       Float        // 80% prediction interval upper bound
-  lower95       Float        // 95% prediction interval lower bound
-  upper95       Float        // 95% prediction interval upper bound
-  actualValue   Float?       // Actual observed value (filled during evaluation)
+  value         Float // Forecasted value
+  lower80       Float // 80% prediction interval lower bound
+  upper80       Float // 80% prediction interval upper bound
+  lower95       Float // 95% prediction interval lower bound
+  upper95       Float // 95% prediction interval upper bound
+  actualValue   Float? // Actual observed value (filled during evaluation)
 
   @@unique([forecastRunId, term, date], name: "forecast_point_unique")
   @@index([forecastRunId])
@@ -242,18 +244,18 @@ model ForecastPoint {
 }
 
 model ForecastEvaluation {
-  id                  String       @id @default(cuid())
-  forecastRunId       String
-  forecastRun          ForecastRun @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
-  evaluatedAt         DateTime     @default(now())
-  winnerCorrect       Boolean?     // Whether predicted winner matched actual
-  directionCorrectA   Boolean?     // Whether termA direction was correct
-  directionCorrectB   Boolean?     // Whether termB direction was correct
-  intervalHitRate80   Float?       // % of actuals within 80% interval
-  intervalHitRate95   Float?       // % of actuals within 95% interval
-  mae                 Float?       // Mean Absolute Error over forecast horizon
-  mape                Float?       // Mean Absolute Percentage Error
-  evaluatedPoints     Int          @default(0) // Number of points evaluated
+  id                String      @id @default(cuid())
+  forecastRunId     String
+  forecastRun       ForecastRun @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
+  evaluatedAt       DateTime    @default(now())
+  winnerCorrect     Boolean? // Whether predicted winner matched actual
+  directionCorrectA Boolean? // Whether termA direction was correct
+  directionCorrectB Boolean? // Whether termB direction was correct
+  intervalHitRate80 Float? // % of actuals within 80% interval
+  intervalHitRate95 Float? // % of actuals within 95% interval
+  mae               Float? // Mean Absolute Error over forecast horizon
+  mape              Float? // Mean Absolute Percentage Error
+  evaluatedPoints   Int         @default(0) // Number of points evaluated
 
   @@unique([forecastRunId], name: "forecast_evaluation_unique")
   @@index([forecastRunId])
@@ -264,9 +266,9 @@ model ForecastTrustStats {
   id                      String   @id @default(cuid())
   period                  String   @unique // e.g., "last90days", "alltime"
   totalEvaluated          Int      @default(0)
-  winnerAccuracyPercent   Float?   // % of correct winner predictions
-  intervalCoveragePercent Float?   // Average interval coverage
-  last90DaysAccuracy     Float?   // Accuracy for last 90 days
+  winnerAccuracyPercent   Float? // % of correct winner predictions
+  intervalCoveragePercent Float? // Average interval coverage
+  last90DaysAccuracy      Float? // Accuracy for last 90 days
   sampleSize              Int      @default(0)
   lastCalculated          DateTime @default(now())
   createdAt               DateTime @default(now())
@@ -339,23 +341,23 @@ model ComparisonHistory {
 }
 
 model ComparisonSnapshot {
-  id            String   @id @default(cuid())
-  userId        String
-  slug          String
-  termA         String
-  termB         String
-  timeframe     String
-  geo           String
-  computedAt    DateTime @default(now())
-  marginPoints  Float
-  confidence    Float
-  volatility    Float
+  id             String   @id @default(cuid())
+  userId         String
+  slug           String
+  termA          String
+  termB          String
+  timeframe      String
+  geo            String
+  computedAt     DateTime @default(now())
+  marginPoints   Float
+  confidence     Float
+  volatility     Float
   agreementIndex Float
-  winner        String
-  winnerScore   Float
-  loserScore    Float
-  category      String?
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  winner         String
+  winnerScore    Float
+  loserScore     Float
+  category       String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, slug, timeframe, geo])
@@ -413,20 +415,20 @@ model TrendAlert {
 }
 
 model PdfJob {
-  id                String    @id @default(cuid())
-  userId            String
-  slug              String
-  timeframe         String
-  geo               String
-  status            String    @default("pending")
-  fileUrl           String?
-  signedUrl         String?
+  id                 String    @id @default(cuid())
+  userId             String
+  slug               String
+  timeframe          String
+  geo                String
+  status             String    @default("pending")
+  fileUrl            String?
+  signedUrl          String?
   signedUrlExpiresAt DateTime?
-  error             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  completedAt       DateTime?
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  error              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  completedAt        DateTime?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, slug, timeframe, geo])
   @@index([userId])
@@ -441,11 +443,11 @@ model ExportHistory {
   slug      String
   termA     String
   termB     String
-  type      String   // 'pdf' | 'csv' | 'json'
+  type      String // 'pdf' | 'csv' | 'json'
   timeframe String   @default("12m")
   geo       String   @default("")
-  fileUrl   String?  // For PDFs, the stored file URL
-  fileSize  Int?     // File size in bytes
+  fileUrl   String? // For PDFs, the stored file URL
+  fileSize  Int? // File size in bytes
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
