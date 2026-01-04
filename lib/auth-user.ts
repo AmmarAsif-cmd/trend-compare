@@ -143,26 +143,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile, credentials }) {
-      // Check email verification for credential-based signups
-      if (account?.provider === "credentials" && user.email) {
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: user.email },
-            select: { emailVerified: true, password: true },
-          });
-          
-          // If user has password but email not verified, block sign-in
-          if (dbUser && !dbUser.emailVerified && dbUser.password) {
-            throw new Error('EMAIL_NOT_VERIFIED');
-          }
-        } catch (error: any) {
-          if (error?.message === 'EMAIL_NOT_VERIFIED') {
-            throw error;
-          }
-        }
-      }
-      
+    async signIn({ user, account, profile }) {
       // Handle Google OAuth sign-in - create user if doesn't exist
       if (account?.provider === "google" && user.email) {
         try {
