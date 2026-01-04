@@ -99,7 +99,8 @@ Vercel will auto-detect Next.js, but verify:
 
 **Cron Job Limits:**
 - **Per Project**: Maximum 20 cron jobs (hard limit)
-- **Current Configuration**: 3 cron jobs (well within limit)
+- **Per Team (Hobby Plan)**: Maximum 2 cron jobs total across all projects
+- **Current Configuration**: 2 cron jobs (within team limit)
 
 Cron jobs are configured in `vercel.json`:
 
@@ -124,8 +125,10 @@ Cron jobs are configured in `vercel.json`:
 
 **Active Cron Jobs:**
 1. **Warmup Forecasts** - Daily at 2:00 AM UTC (refreshes forecasts for popular comparisons)
-2. **Warmup AI Explanations** - Weekly on Sunday at 3:00 AM UTC (refreshes AI insights)
-3. **Check Alerts** - Daily at 4:00 AM UTC (checks trend alerts and sends emails)
+2. **Check Alerts** - Daily at 4:00 AM UTC (checks trend alerts and sends emails)
+
+**Removed from Vercel Cron:**
+- `warmup-ai-explanations` - Weekly AI explanation refresh (moved to external service - see `HOBBY_PLAN_ALERT_SETUP.md` for setup)
 
 **⚠️ Important**: Hobby plan only allows **daily cron jobs** (once per day maximum). The hourly alert check has been changed to daily. For more frequent alert checking, use an external cron service (see below).
 
