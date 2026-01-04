@@ -1,7 +1,7 @@
 'use client';
 
 import { Download, FileText, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Props = {
@@ -21,13 +21,46 @@ export default function PDFDownloadButton({
 }: Props) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const router = useRouter();
+
+  // Check if user is logged in
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user/me');
+        setIsLoggedIn(response.ok);
+      } catch {
+        setIsLoggedIn(false);
+      }
+    }
+    checkAuth();
+  }, []);
 
   const formatTerm = (term: string) => {
     return term.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   const handleDownload = async () => {
+    // Check authentication first
+    if (isLoggedIn === false) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+
+    // If auth status is still loading, wait a bit
+    if (isLoggedIn === null) {
+      setError('Checking authentication...');
+      // Wait for auth check to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (isLoggedIn === false) {
+        const currentPath = window.location.pathname + window.location.search;
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        return;
+      }
+    }
+
     setIsDownloading(true);
     setError(null);
 
@@ -42,6 +75,14 @@ export default function PDFDownloadButton({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to generate PDF' }));
+        
+        // Handle authentication error specifically
+        if (response.status === 401) {
+          const currentPath = window.location.pathname + window.location.search;
+          router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          return;
+        }
+        
         throw new Error(errorData.error || 'Failed to generate PDF');
       }
 
