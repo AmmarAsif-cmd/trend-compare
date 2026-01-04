@@ -37,7 +37,8 @@ async function testResend() {
     });
 
     console.log('✅ Email sent successfully!');
-    console.log('Email ID:', result.id);
+    console.log('Email ID:', result.data?.id || 'unknown');
+    console.log('Response:', result);
     console.log('\nCheck your inbox at:', testEmail);
   } catch (error: any) {
     console.error('❌ Failed to send email');

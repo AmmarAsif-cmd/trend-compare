@@ -87,8 +87,9 @@ This link will expire in 1 hour. If you didn't request this, please ignore this 
           });
           
           console.log("[Password Reset] Email sent successfully via Resend:", {
-            emailId: result.id,
+            emailId: result.data?.id || 'unknown',
             to: user.email,
+            result: result,
           });
         } catch (error: any) {
           console.error("[Password Reset] Resend error details:", {
