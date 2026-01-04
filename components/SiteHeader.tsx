@@ -26,9 +26,18 @@ export default function SiteHeader() {
     async function checkAuth() {
       try {
         const response = await fetch('/api/user/me');
+        // 401 is expected when not logged in, don't log as error
         setIsLoggedIn(response.ok);
-      } catch {
-        setIsLoggedIn(false);
+      } catch (error) {
+        // Only log unexpected errors (network errors, etc.)
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          // Network error - silently fail
+          setIsLoggedIn(false);
+        } else {
+          // Other errors - log but don't show to user
+          console.debug('[SiteHeader] Auth check error:', error);
+          setIsLoggedIn(false);
+        }
       }
     }
     checkAuth();
