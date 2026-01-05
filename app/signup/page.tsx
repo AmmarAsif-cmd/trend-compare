@@ -48,7 +48,14 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to create account");
+        // Provide helpful error message if account exists
+        if (data.existingMethod === 'google') {
+          setError("An account with this email already exists. Please sign in with Google instead, or use a different email address.");
+        } else if (data.existingMethod === 'email') {
+          setError("An account with this email already exists. Please sign in with your password instead, or use a different email address.");
+        } else {
+          setError(data.error || "Failed to create account");
+        }
         setLoading(false);
         return;
       }
