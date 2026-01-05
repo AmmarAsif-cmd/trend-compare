@@ -1,9 +1,10 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { fromSlug, toCanonicalSlug } from "@/lib/slug";
 import { getOrBuildComparison } from "@/lib/getOrBuild";
 import { generateDynamicMeta, calculateComparisonData } from "@/lib/dynamicMetaGenerator";
 import { getComparisonCanonicalUrl } from "@/lib/canonical-url";
+import { getRobotsForParams } from "@/lib/seo/params";
 import TrendChart from "@/components/TrendChart";
 import TrendArcScoreChart from "@/components/TrendArcScoreChart";
 import TopActionsBar from "@/components/TopActionsBar";
@@ -60,6 +61,11 @@ import { isComparisonSaved } from "@/lib/saved-comparisons";
 import { shouldShowForecast } from "@/lib/forecast-guardrails";
 import { AlertTriangle } from "lucide-react";
 import LazyDeepDive from "@/components/LazyDeepDive";
+import ComparisonOverview from "@/components/compare/ComparisonOverview";
+import KeyTakeaways from "@/components/compare/KeyTakeaways";
+import HowToInterpret from "@/components/compare/HowToInterpret";
+import FAQSchema from "@/components/compare/FAQSchema";
+import RelatedAnalysis from "@/components/compare/RelatedAnalysis";
 
 // Revalidate every 10 minutes for fresh data while maintaining performance
 export const revalidate = 600; // 10 minutes
@@ -89,7 +95,7 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ tf?: string; geo?: string }>;
+  searchParams?: Promise<{ tf?: string; geo?: string; [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
@@ -108,6 +114,10 @@ export async function generateMetadata({
 
   const timeframe = tf ?? "12m";
   const region = geo ?? "";
+
+  // Check for non-indexable params (utm_*, gclid, fbclid, ref, source, etc.)
+  // Note: tf and geo are indexable params, so we only check for non-indexable ones
+  const robots = getRobotsForParams(resolvedSearchParams);
 
   // Fetch comparison data to generate dynamic meta content
   try {
@@ -138,12 +148,14 @@ export async function generateMetadata({
 
       const ogImageUrl = `/api/og?a=${encodeURIComponent(actualTerms[0])}&b=${encodeURIComponent(actualTerms[1])}&winner=${encodeURIComponent(comparisonData.leader)}&advantage=${Math.round(comparisonData.advantage)}`;
 
+      // Canonical URL must exclude query params always
       const canonicalUrl = getComparisonCanonicalUrl(canonical);
       
       return {
         title: `${title} | TrendArc`,
         description,
         alternates: { canonical: canonicalUrl },
+        robots,
         openGraph: {
           title: `${title} | TrendArc`,
           description,
@@ -174,6 +186,7 @@ export async function generateMetadata({
   const pretty = (t: string) => t.replace(/-/g, " ");
   const cleanTerms = terms.map(pretty);
 
+  // Canonical URL must exclude query params always
   const canonicalUrl = getComparisonCanonicalUrl(canonical);
   
   return {
@@ -182,6 +195,7 @@ export async function generateMetadata({
       " vs ",
     )} search interest${tf ? ` (${tf})` : ""} with clear charts and human-friendly summaries.`,
     alternates: { canonical: canonicalUrl },
+    robots,
   };
 }
 
@@ -219,10 +233,10 @@ export default async function ComparePage({
   const canonical = toCanonicalSlug(terms);
   if (!canonical) return notFound();
   if (canonical !== slug) {
-    const q = new URLSearchParams();
-    if (tf) q.set("tf", tf);
-    if (geo) q.set("geo", geo);
-    redirect(`/compare/${canonical}${q.toString() ? `?${q.toString()}` : ""}`);
+    // 301 redirect to clean canonical slug (no query params)
+    // This ensures single-hop redirect to final canonical URL
+    // Query params (tf, geo) are for functionality but not part of canonical URL
+    permanentRedirect(`/compare/${canonical}`);
   }
 
   // All features are free - no premium restrictions
@@ -668,6 +682,20 @@ export default async function ComparePage({
               </div>
             </div>
 
+            {/* Comparison Overview - Server-rendered narrative content */}
+            <ComparisonOverview
+              termA={actualTerms[0]}
+              termB={actualTerms[1]}
+              winner={verdictData.winner}
+              loser={verdictData.loser}
+              margin={verdictData.margin}
+              confidence={metrics.confidence}
+              timeframe={timeframe || '12m'}
+              stability={metrics.stability}
+              category={verdictData.category}
+              currentSlug={canonical || slug}
+            />
+
             {/* Track comparison view in history */}
             <ComparisonHistoryTracker
               slug={canonical || slug}
@@ -740,6 +768,17 @@ export default async function ComparePage({
             termB={actualTerms[1]}
           />
 
+          {/* Key Takeaways - Semantic H2 + bullets */}
+          <KeyTakeaways
+            winner={verdictData.winner}
+            loser={verdictData.loser}
+            margin={verdictData.margin}
+            confidence={metrics.confidence}
+            volatility={metrics.volatility}
+            stability={metrics.stability}
+            agreementIndex={metrics.agreementIndex}
+          />
+
           {/* V2: Why you can trust this result (merged Key Insights + Trust) */}
           <TrustAndInsights
             insights={keyInsights}
@@ -774,6 +813,9 @@ export default async function ComparePage({
             agreementIndex={metrics.agreementIndex}
           />
       </div>
+
+      {/* How to Interpret This Comparison - Plain-text section */}
+      <HowToInterpret />
 
       {/* V2: Deep Dive Accordion (collapsed by default - Everything analytical goes here) */}
       <DeepDiveAccordion>
@@ -936,6 +978,13 @@ export default async function ComparePage({
         category={intelligentComparison?.category?.category || row.category || null}
       />
 
+      {/* Related Analysis - Blog posts that provide context (at the end) */}
+      <RelatedAnalysis
+        comparisonSlug={canonical || slug}
+        comparisonTerms={actualTerms}
+        comparisonCategory={intelligentComparison?.category?.category || row.category || null}
+      />
+
       {/* AdSense - Bottom of Page */}
       {process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID && process.env.NEXT_PUBLIC_ADSENSE_SLOT_3 && (
         <div className="mt-6 sm:mt-8 flex justify-center">
@@ -956,6 +1005,9 @@ export default async function ComparePage({
         leader={aShare > bShare ? actualTerms[0] : actualTerms[1]}
         advantage={Math.round(Math.abs((aShare - bShare) * 100))}
       />
+
+      {/* FAQ JSON-LD Schema - Server-rendered */}
+      <FAQSchema comparisonFaqs={comparisonFaqs} />
     </main>
   );
 }

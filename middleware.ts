@@ -109,12 +109,10 @@ export function middleware(req: NextRequest) {
       return new NextResponse("Too Many Requests", { status: 429, headers: res.headers });
     }
   }
-// Url Fix
-    if (url.pathname === "/" && url.search) {
-    // Strip all query parameters on the homepage
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  
+  // Note: Homepage query params (like ?q=) are allowed for UX
+  // but handled with noindex robots meta via generateMetadata in app/page.tsx
+  
   return res;
 }
 
