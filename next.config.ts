@@ -108,6 +108,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // Redirect trailing slashes to non-trailing slash (except root)
+      {
+        source: "/:path+/",
+        destination: "/:path+",
+        permanent: true, // 301 redirect
+      },
+    ];
+  },
 };
 
 export default nextConfig;

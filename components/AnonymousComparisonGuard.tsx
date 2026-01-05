@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import SignupPromptModal from "./SignupPromptModal";
 
 const ANONYMOUS_COMPARISON_KEY = "trendarc_anonymous_comparisons";
-const ANONYMOUS_LIMIT = 1;
+const ANONYMOUS_LIMIT = 3; // Allow 3 comparisons, block on 4th
 
 /**
  * Component that blocks comparison pages for anonymous users who have exceeded their limit
@@ -60,9 +60,9 @@ export default function AnonymousComparisonGuard({ children }: { children: React
 
         console.log('[AnonymousGuard] Checking access for comparison page. Count:', count, '(from cookie:', cookieCount, ', localStorage:', stored, ')');
 
-        // Block if count >= 2 (they've already viewed 2 comparisons)
-        // ANONYMOUS_LIMIT is 1, so after viewing 2, they must sign up
-        if (count >= 2) {
+        // Block if count >= ANONYMOUS_LIMIT (they've already viewed ANONYMOUS_LIMIT comparisons)
+        // After viewing ANONYMOUS_LIMIT, they must sign up for more
+        if (count >= ANONYMOUS_LIMIT) {
           // User has exceeded limit, show modal immediately and block access
           console.log('[AnonymousGuard] Limit exceeded (count:', count, '), blocking access and showing modal');
           setShowModal(true);

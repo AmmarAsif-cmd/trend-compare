@@ -1,13 +1,15 @@
 /**
  * Comparison Limit System
- * - Anonymous users: 1 comparison, then must sign up
+ * - Anonymous users: 3 comparisons total, then must sign up
  * - Signed-in users: Unlimited comparisons (everything is free)
+ * 
+ * Note: This is for daily limits. Total anonymous limit is in anonymous-limit-server.ts
  */
 
 import { prisma } from './db';
 import { getCurrentUser } from './user-auth-helpers';
 
-const ANONYMOUS_USER_LIMIT = 1; // Anonymous users get 1 free comparison
+const ANONYMOUS_USER_LIMIT = 3; // Anonymous users get 3 free comparisons total
 
 /**
  * Get today's date at midnight (UTC)

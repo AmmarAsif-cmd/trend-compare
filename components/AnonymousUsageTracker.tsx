@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import SignupPromptModal from "./SignupPromptModal";
 
 const ANONYMOUS_COMPARISON_KEY = "trendarc_anonymous_comparisons";
-const ANONYMOUS_LIMIT = 1;
+const ANONYMOUS_LIMIT = 3; // Allow 3 comparisons, block on 4th
 
 export default function AnonymousUsageTracker() {
   const { data: session, status } = useSession();
@@ -101,8 +101,8 @@ export default function AnonymousUsageTracker() {
       localStorage.getItem(ANONYMOUS_COMPARISON_KEY) || "0",
       10
     );
-    // Non-dismissible if count >= 2 (they've exceeded the limit)
-    return count < 2;
+    // Non-dismissible if count >= ANONYMOUS_LIMIT (they've exceeded the limit)
+    return count < ANONYMOUS_LIMIT;
   };
 
   return (

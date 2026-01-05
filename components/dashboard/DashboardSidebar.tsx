@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   X,
+  Home,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -31,6 +32,7 @@ const navigation = {
     { name: 'Alerts & Monitoring', href: '/dashboard/alerts', icon: Bell },
     { name: 'Trend Explorer', href: '/', icon: TrendingUp },
     { name: 'Reports', href: '/dashboard/reports', icon: FileText },
+    { name: 'Home', href: '/', icon: Home },
   ],
   secondary: [
     { name: 'History', href: '/dashboard/history', icon: History },

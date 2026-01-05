@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 import { getCurrentUser } from './user-auth-helpers';
 
 const ANONYMOUS_COMPARISON_COOKIE = 'trendarc_anonymous_comparisons';
-const ANONYMOUS_LIMIT = 1; // Allow 1 comparison, block on 2nd
+const ANONYMOUS_LIMIT = 3; // Allow 3 comparisons, block on 4th
 
 /**
  * Check if anonymous user has exceeded comparison limit
@@ -35,10 +35,10 @@ export async function checkAnonymousLimit(): Promise<{
     const comparisonCookie = cookieStore.get(ANONYMOUS_COMPARISON_COOKIE);
     const count = comparisonCookie ? parseInt(comparisonCookie.value, 10) : 0;
 
-    // Allow if count < 2 (they can view 1 comparison)
-    // Block if count >= 2 (they've viewed 2, need to sign up for 3rd)
-    const allowed = count < 2;
-    const needsSignup = count >= 2;
+    // Allow if count < ANONYMOUS_LIMIT (they can view up to ANONYMOUS_LIMIT comparisons)
+    // Block if count >= ANONYMOUS_LIMIT (they've viewed ANONYMOUS_LIMIT, need to sign up for more)
+    const allowed = count < ANONYMOUS_LIMIT;
+    const needsSignup = count >= ANONYMOUS_LIMIT;
 
     return {
       allowed,

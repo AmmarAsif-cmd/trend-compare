@@ -5,6 +5,7 @@ import Link from "next/link";
 import AdSense from "@/components/AdSense";
 import type { Metadata } from "next";
 import { getBlogCanonicalUrl } from "@/lib/canonical-url";
+import BlogStructuredData from "@/components/blog/BlogStructuredData";
 
 const prisma = new PrismaClient();
 
@@ -294,6 +295,20 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </div>
         </div>
       )}
+
+      {/* Structured Data */}
+      <BlogStructuredData
+        post={{
+          slug: post.slug,
+          title: post.title,
+          excerpt: post.excerpt,
+          content: post.content,
+          category: post.category,
+          publishedAt: post.publishedAt,
+          updatedAt: post.updatedAt,
+          keywords: post.keywords,
+        }}
+      />
     </div>
   );
 }

@@ -6,6 +6,30 @@ import HowItWorksSection from "@/components/HowItWorksSection";
 import UseCasesSection from "@/components/UseCasesSection";
 import CTASection from "@/components/CTASection";
 import DataSources from "@/components/DataSources";
+import FeaturedBlogs from "@/components/blog/FeaturedBlogs";
+import type { Metadata } from "next";
+import { getCanonicalUrl, getRobotsForParams } from "@/lib/seo/params";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  
+  // Always set canonical to clean homepage URL
+  const canonical = getCanonicalUrl("https://trendarc.net", "/");
+  
+  // Set robots based on non-indexable params
+  const robots = getRobotsForParams(resolvedSearchParams);
+  
+  return {
+    alternates: {
+      canonical,
+    },
+    robots,
+  };
+}
 
 export default function Home() {
   return (
@@ -18,6 +42,9 @@ export default function Home() {
           <BrowseByCategoryServer />
         </div>
       </div>
+
+      {/* Featured Blogs - Insights & Analysis */}
+      <FeaturedBlogs />
 
       {/* Data Sources - Build Trust */}
       <div className="relative bg-gradient-to-br from-slate-50 to-white py-20 sm:py-24">
