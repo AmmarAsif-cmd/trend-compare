@@ -13,16 +13,24 @@ function isActive(pathname: string, href: string) {
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Hide header on dashboard and admin pages (secure admin path)
   if (pathname?.startsWith('/dashboard') || pathname?.startsWith(`/${ADMIN_PATH}`)) {
     return null;
   }
-  const [open, setOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Mark as mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check if user is logged in
   useEffect(() => {
+    if (!mounted) return; // Don't check until mounted
+    
     async function checkAuth() {
       try {
         const response = await fetch('/api/user/me');
@@ -53,7 +61,7 @@ export default function SiteHeader() {
     return () => {
       window.removeEventListener('auth-state-change', handleAuthChange);
     };
-  }, [pathname]); // Re-check when pathname changes (e.g., after login redirect)
+  }, [pathname, mounted]); // Re-check when pathname changes (e.g., after login redirect)
 
   const navItems = [
     { href: "/", label: "Home" },

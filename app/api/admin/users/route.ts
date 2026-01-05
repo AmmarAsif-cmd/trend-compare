@@ -31,14 +31,44 @@ export async function GET(request: NextRequest) {
     const total = await prisma.user.count({ where });
 
     // Get users with subscriptions
-    const users = await prisma.user.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: {
-        [sortBy]: sortOrder as "asc" | "desc",
-      },
-    });
+    let users;
+    try {
+      users = await prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          [sortBy]: sortOrder as "asc" | "desc",
+        },
+      });
+    } catch (dbError: any) {
+      // Handle case where new fields don't exist yet (migration not run)
+      if (dbError?.message?.includes('emailVerificationToken') || dbError?.code === 'P2021') {
+        console.warn('[Admin Users] Database migration may not be complete. Attempting fallback query.');
+        // Try with select to avoid new fields
+        users = await prisma.user.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: {
+            [sortBy]: sortOrder as "asc" | "desc",
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            emailVerified: true,
+            createdAt: true,
+            updatedAt: true,
+            lastSignInMethod: true,
+            image: true,
+            subscriptionTier: true,
+          },
+        });
+      } else {
+        throw dbError;
+      }
+    }
 
     // Get counts for each user in parallel
     const formattedUsers = await Promise.all(
@@ -54,11 +84,11 @@ export async function GET(request: NextRequest) {
           id: user.id,
           email: user.email,
           name: user.name,
-          emailVerified: user.emailVerified,
+          emailVerified: (user as any).emailVerified || null,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-          lastSignInMethod: user.lastSignInMethod,
-          image: user.image,
+          lastSignInMethod: (user as any).lastSignInMethod || null,
+          image: (user as any).image || null,
           stats: {
             comparisonsViewed: comparisonsCount,
             savedComparisons: savedCount,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, getUserWithSubscription } from "@/lib/user-auth-helpers";
+import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +16,28 @@ export async function GET(request: NextRequest) {
     const userId = (user as any).id;
 
     // Get full user details with subscription
-    const fullUser = await getUserWithSubscription(userId);
+    let fullUser;
+    try {
+      fullUser = await getUserWithSubscription(userId);
+    } catch (dbError: any) {
+      // Handle case where new fields don't exist yet (migration not run)
+      if (dbError?.message?.includes('emailVerificationToken') || dbError?.code === 'P2021') {
+        console.warn('[User Me] Database migration may not be complete. Attempting fallback query.');
+        // Try without the new fields
+        fullUser = await prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            subscriptions: {
+              where: { status: "active" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+          },
+        });
+      } else {
+        throw dbError;
+      }
+    }
 
     if (!fullUser) {
       return NextResponse.json(
