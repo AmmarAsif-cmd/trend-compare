@@ -17,11 +17,6 @@ export default function SiteHeader() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  // Hide header on dashboard and admin pages (secure admin path)
-  if (pathname?.startsWith('/dashboard') || pathname?.startsWith(`/${ADMIN_PATH}`)) {
-    return null;
-  }
-
   // Mark as mounted to prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
@@ -62,6 +57,12 @@ export default function SiteHeader() {
       window.removeEventListener('auth-state-change', handleAuthChange);
     };
   }, [pathname, mounted]); // Re-check when pathname changes (e.g., after login redirect)
+
+  // Hide header on dashboard and admin pages (secure admin path)
+  // This check must be AFTER all hooks are called
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith(`/${ADMIN_PATH}`)) {
+    return null;
+  }
 
   const navItems = [
     { href: "/", label: "Home" },
