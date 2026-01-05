@@ -24,6 +24,7 @@ import {
   MoreVertical,
   Calendar,
   Clock,
+  Trash2,
 } from 'lucide-react';
 
 type User = {
@@ -90,6 +91,7 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'unverified'>('all');
   const [authFilter, setAuthFilter] = useState<'all' | 'google' | 'email'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -213,6 +215,48 @@ export default function AdminUsersPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    const confirmMessage = `Are you sure you want to delete user "${user.email}"?\n\nThis will permanently delete:\n- User account\n- All saved comparisons\n- All trend alerts\n- All comparison history\n- All export history\n\nThis action cannot be undone!`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Double confirmation for safety
+    if (!confirm(`Final confirmation: Delete user "${user.email}"?`)) {
+      return;
+    }
+
+    setDeletingUserId(user.id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+
+      // Remove user from list
+      setUsers(users.filter(u => u.id !== user.id));
+      
+      // Refresh stats
+      await fetchStats();
+      
+      // Show success message
+      alert(`User "${user.email}" has been deleted successfully.`);
+    } catch (error: any) {
+      console.error('Failed to delete user:', error);
+      setError(error.message || 'Failed to delete user. Please try again.');
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
   const filteredUsers = users.filter(user => {
@@ -482,12 +526,15 @@ export default function AdminUsersPage() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                       No users found matching your filters.
                     </td>
                   </tr>
@@ -572,6 +619,20 @@ export default function AdminUsersPage() {
                           <Eye className="w-4 h-4" />
                         </button>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        disabled={deletingUserId === user.id}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete User"
+                      >
+                        {deletingUserId === user.id ? (
+                          <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
                     </td>
                   </tr>
                   ))
