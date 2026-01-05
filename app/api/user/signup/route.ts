@@ -17,16 +17,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
+    // Check if user already exists (regardless of signup method)
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase().trim() },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        lastSignInMethod: true,
+      },
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "User with this email already exists" },
-        { status: 400 }
-      );
+      // Provide helpful message based on how the account was created
+      if (existingUser.lastSignInMethod === 'google') {
+        return NextResponse.json(
+          { 
+            error: "An account with this email already exists. Please sign in with Google instead.",
+            existingMethod: 'google'
+          },
+          { status: 400 }
+        );
+      } else if (existingUser.password) {
+        return NextResponse.json(
+          { 
+            error: "An account with this email already exists. Please sign in with your password instead.",
+            existingMethod: 'email'
+          },
+          { status: 400 }
+        );
+      } else {
+        return NextResponse.json(
+          { 
+            error: "An account with this email already exists. Please sign in instead.",
+            existingMethod: 'unknown'
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Hash password
@@ -38,14 +66,16 @@ export async function POST(request: NextRequest) {
     verificationExpires.setHours(verificationExpires.getHours() + 24); // Token expires in 24 hours
 
     // Create user with free tier subscription (email not verified yet)
+    // Normalize email to lowercase to prevent duplicates
     const user = await prisma.user.create({
       data: {
-        email,
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
         name: name || null,
         subscriptionTier: "free",
         emailVerificationToken: verificationToken,
         emailVerificationExpires: verificationExpires,
+        lastSignInMethod: "credentials", // Mark as email/password signup
         subscriptions: {
           create: {
             tier: "free",

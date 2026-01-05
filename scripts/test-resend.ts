@@ -9,7 +9,7 @@ import { Resend } from 'resend';
 async function testResend() {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'TrendArc <onboarding@resend.dev>';
-  const testEmail = process.env.TEST_EMAIL || 'test@example.com';
+  const testEmail = process.env.TEST_EMAIL || process.env.TEST_EMAIL_RECIPIENT || 'test@example.com';
 
   console.log('=== Resend Configuration Test ===\n');
   console.log('RESEND_API_KEY:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NOT SET');

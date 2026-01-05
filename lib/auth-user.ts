@@ -62,9 +62,12 @@ export const authConfig: NextAuthConfig = {
         console.log('[Auth] Attempting login for:', email);
 
         try {
+          // Normalize email to lowercase to ensure consistency
+          const normalizedEmail = email.toLowerCase().trim();
+          
           const user = await prisma.user.findUnique({
             where: {
-              email: email,
+              email: normalizedEmail,
             },
             include: {
               subscriptions: {
@@ -144,37 +147,62 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Handle Google OAuth sign-in - create user if doesn't exist
+      // Handle Google OAuth sign-in - link to existing account or create new
       if (account?.provider === "google" && user.email) {
         try {
+          // Normalize email to lowercase to ensure consistency
+          const normalizedEmail = user.email.toLowerCase().trim();
+          
           const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
+            where: { email: normalizedEmail },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              password: true,
+              lastSignInMethod: true,
+              emailVerified: true,
+            },
           });
 
           if (!existingUser) {
             // Create new user from Google OAuth
             await prisma.user.create({
               data: {
-                email: user.email,
+                email: normalizedEmail,
                 name: user.name || null,
                 password: null, // OAuth users don't have passwords
                 subscriptionTier: "free",
                 emailVerified: new Date(), // Google emails are verified
                 lastSignInMethod: "google",
+                subscriptions: {
+                  create: {
+                    tier: "free",
+                    status: "active",
+                  },
+                },
               },
             });
-            console.log('[Auth] ✅ Created new user from Google OAuth:', user.email);
+            console.log('[Auth] ✅ Created new user from Google OAuth:', normalizedEmail);
           } else {
-            // Update name if it's different and user doesn't have a name
-            // Update last sign-in method
+            // Account exists - link Google OAuth to existing account
+            // This ensures one account per email regardless of signup method
             await prisma.user.update({
               where: { id: existingUser.id },
               data: {
-                ...(user.name && !existingUser.name ? { name: user.name } : {}),
+                // Update name if user doesn't have one or if Google name is more complete
+                ...(user.name && (!existingUser.name || user.name.length > (existingUser.name?.length || 0)) 
+                  ? { name: user.name } 
+                  : {}),
+                // Mark email as verified if it wasn't already
+                ...(existingUser.emailVerified ? {} : { emailVerified: new Date() }),
                 lastSignInMethod: "google",
               },
             });
-            console.log('[Auth] ✅ Existing user signed in with Google:', user.email);
+            console.log('[Auth] ✅ Linked Google OAuth to existing account:', normalizedEmail, {
+              hadPassword: !!existingUser.password,
+              previousMethod: existingUser.lastSignInMethod,
+            });
           }
         } catch (error: any) {
           console.error('[Auth] Error handling Google sign-in:', error);
