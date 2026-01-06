@@ -39,7 +39,7 @@ export async function getTopChangedComparisons(
         where: { userId },
         select: { slug: true },
       });
-      slugs.push(...saved.map(s => s.slug));
+      slugs.push(...saved.map((s: any) => s.slug));
     }
 
     if (filter === 'tracked' || filter === 'all') {
@@ -49,7 +49,7 @@ export async function getTopChangedComparisons(
         select: { slug: true },
         distinct: ['slug'],
       });
-      slugs.push(...history.map(h => h.slug));
+      slugs.push(...history.map((h: any) => h.slug));
     }
 
     // Remove duplicates

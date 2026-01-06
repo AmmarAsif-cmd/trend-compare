@@ -73,7 +73,7 @@ export async function getRandomComparisonsForCategory(
     }
 
     // Convert to format and shuffle with time-based seed
-    const formatted = comparisons.map((comp) => {
+    const formatted = comparisons.map((comp: any) => {
       if (!Array.isArray(comp.terms) || comp.terms.length < 2) {
         return null;
       }
@@ -82,11 +82,11 @@ export async function getRandomComparisonsForCategory(
         title: comp.terms.join(" vs "),
         trending: false,
       };
-    }).filter((item): item is { slug: string; title: string; trending: boolean } => item !== null);
+    }).filter((item: any): item is { slug: string; title: string; trending: boolean } => item !== null);
 
     // Shuffle with time-based seed (deterministic based on time period)
-    const shuffled = shuffleArray(formatted, seed);
-    
+    const shuffled: Array<{ slug: string; title: string; trending: boolean }> = shuffleArray(formatted, seed);
+
     // Return limited amount
     return shuffled.slice(0, limit);
   } catch (error) {
@@ -119,7 +119,7 @@ export async function getRandomComparisonsAcrossCategories(
     });
 
     const formatted = comparisons
-      .map((comp) => {
+      .map((comp: any) => {
         if (!Array.isArray(comp.terms) || comp.terms.length < 2) {
           return null;
         }
@@ -128,10 +128,10 @@ export async function getRandomComparisonsAcrossCategories(
           title: comp.terms.join(" vs "),
         };
       })
-      .filter((item): item is { slug: string; title: string } => item !== null);
+      .filter((item: any): item is { slug: string; title: string } => item !== null);
 
     // Shuffle and return
-    const shuffled = shuffleArray(formatted, seed);
+    const shuffled: Array<{ slug: string; title: string }> = shuffleArray(formatted, seed);
     return shuffled.slice(0, limit);
   } catch (error) {
     console.warn('[RandomComparisons] Failed to get random comparisons:', error);

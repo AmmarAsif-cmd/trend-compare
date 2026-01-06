@@ -7,8 +7,8 @@ import type {
   KeepaSearchResult,
   ChartDataPoint,
   ParsedKeepaData,
-  KeepaCSVIndex,
 } from './types';
+import { KeepaCSVIndex } from './types';
 
 const KEEPA_API_BASE = 'https://api.keepa.com';
 const KEEPA_API_KEY = process.env.KEEPA_API_KEY;

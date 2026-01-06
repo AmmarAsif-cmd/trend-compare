@@ -39,7 +39,7 @@ export async function DELETE(
     }
 
     // Delete user and all related data in a transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Delete user-related records
       await tx.comparisonHistory.deleteMany({ where: { userId: id } });
       await tx.savedComparison.deleteMany({ where: { userId: id } });

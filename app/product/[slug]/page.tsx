@@ -81,7 +81,7 @@ export default async function ProductAnalysisPage({ params }: Props) {
       // Return error page
       return (
         <main className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8 py-12">
-          <BackButton label="Back to Search" href="/" />
+          <BackButton label="Back to Search" />
           <div className="text-center space-y-4">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
               <svg
@@ -119,7 +119,7 @@ export default async function ProductAnalysisPage({ params }: Props) {
   if (!cachedData?.keepaData && !cachedData?.trendsData) {
     return (
       <main className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8 py-12">
-        <BackButton label="Back to Search" href="/" />
+        <BackButton label="Back to Search" />
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-4">
             <svg
@@ -168,7 +168,7 @@ export default async function ProductAnalysisPage({ params }: Props) {
   // Render the product analysis page
   return (
     <main className="mx-auto max-w-7xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
-      <BackButton label="Back to Search" href="/" />
+      <BackButton label="Back to Search" />
 
       <ProductAnalysisClient productName={productName} data={cachedData} />
     </main>

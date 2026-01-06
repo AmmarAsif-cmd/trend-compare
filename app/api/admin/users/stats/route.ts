@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get user details for top users
-    const topUserIds = topUsersRaw.map((u) => u.userId).filter((id): id is string => id !== null);
+    const topUserIds = topUsersRaw.map((u: any) => u.userId).filter((id: any): id is string => id !== null);
     const topUsers = await prisma.user.findMany({
       where: {
         id: { in: topUserIds },
@@ -117,8 +117,8 @@ export async function GET(request: NextRequest) {
 
     // Get detailed counts for top users
     const formattedTopUsers = await Promise.all(
-      topUsers.map(async (user) => {
-        const comparisonCount = topUsersRaw.find((u) => u.userId === user.id)?._count.userId || 0;
+      topUsers.map(async (user: any) => {
+        const comparisonCount = topUsersRaw.find((u: any) => u.userId === user.id)?._count.userId || 0;
         const [savedCount, alertCount] = await Promise.all([
           prisma.savedComparison.count({ where: { userId: user.id } }),
           prisma.trendAlert.count({ where: { userId: user.id } }),

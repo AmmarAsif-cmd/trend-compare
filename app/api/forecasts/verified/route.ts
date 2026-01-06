@@ -55,13 +55,13 @@ export async function GET(request: NextRequest) {
 
     // Format response
     const verifiedForecasts = forecastRuns
-      .filter(run => run.evaluations.length > 0)
-      .map(run => {
+      .filter((run: any) => run.evaluations.length > 0)
+      .map((run: any) => {
         const evaluation = run.evaluations[0];
         // Get points for both terms (or filter by term if specified)
-        const points = run.forecastPoints.filter(p => {
+        const points = run.forecastPoints.filter((p: any) => {
           if (!term) return true;
-          const termIndex = terms.findIndex(t => t.toLowerCase() === term.toLowerCase());
+          const termIndex = terms.findIndex((t: any) => t.toLowerCase() === term.toLowerCase());
           if (termIndex === 0) return p.term === 'termA';
           if (termIndex === 1) return p.term === 'termB';
           return true;
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
           intervalHitRate95: evaluation.intervalHitRate95,
           mae: evaluation.mae,
           mape: evaluation.mape,
-          points: points.map(p => ({
+          points: points.map((p: any) => ({
             date: p.date.toISOString().split('T')[0],
             predictedValue: p.value,
             actualValue: p.actualValue,

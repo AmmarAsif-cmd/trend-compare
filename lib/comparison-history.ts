@@ -146,7 +146,7 @@ export async function getMostViewedComparisons(limit: number = 10): Promise<Comp
     });
 
     // Get most recent view for each slug
-    const slugs = counts.map((c) => c.slug);
+    const slugs = counts.map((c: any) => c.slug);
     const history = await prisma.comparisonHistory.findMany({
       where: {
         userId,
@@ -173,8 +173,8 @@ export async function getMostViewedComparisons(limit: number = 10): Promise<Comp
 
     // Sort by view count (from counts array)
     return Array.from(uniqueBySlug.values()).sort((a, b) => {
-      const countA = counts.find((c) => c.slug === a.slug)?._count.slug || 0;
-      const countB = counts.find((c) => c.slug === b.slug)?._count.slug || 0;
+      const countA = counts.find((c: any) => c.slug === a.slug)?._count.slug || 0;
+      const countB = counts.find((c: any) => c.slug === b.slug)?._count.slug || 0;
       return countB - countA;
     });
   } catch (error) {

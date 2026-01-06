@@ -180,7 +180,7 @@ export async function getSnapshotHistory(
       take: limit,
     });
     
-    return snapshots.map(s => ({
+    return snapshots.map((s: any) => ({
       id: s.id,
       userId: s.userId,
       slug: s.slug,

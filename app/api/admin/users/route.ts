@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     // Get counts for each user in parallel
     const formattedUsers = await Promise.all(
-      users.map(async (user) => {
+      users.map(async (user: any) => {
         // Get counts in parallel
         const [comparisonsCount, savedCount, alertsCount] = await Promise.all([
           prisma.comparisonHistory.count({ where: { userId: user.id } }),

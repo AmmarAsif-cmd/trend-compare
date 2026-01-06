@@ -219,14 +219,14 @@ export async function getPredictionStats(): Promise<{
     
     const verifiedCount = verified.length;
     const avgAccuracy = verifiedCount > 0
-      ? verified.reduce((sum, p) => sum + (p.accuracy || 0), 0) / verifiedCount
+      ? verified.reduce((sum: any, p: any) => sum + (p.accuracy || 0), 0) / verifiedCount
       : 0;
-    
+
     // Calculate accuracy by method
     const methodAccuracies: Record<string, number[]> = {};
-    verified.forEach(p => {
+    verified.forEach((p: any) => {
       const methods = p.method.split('+');
-      methods.forEach(method => {
+      methods.forEach((method: any) => {
         if (!methodAccuracies[method]) {
           methodAccuracies[method] = [];
         }

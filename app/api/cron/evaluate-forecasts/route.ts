@@ -303,17 +303,17 @@ async function updateTrustStats(): Promise<void> {
 
     // Calculate metrics
     const totalEvaluated = allEvaluations.length;
-    const winnerCorrect = allEvaluations.filter(e => e.winnerCorrect === true).length;
+    const winnerCorrect = allEvaluations.filter((e: any) => e.winnerCorrect === true).length;
     const winnerAccuracy = totalEvaluated > 0 ? (winnerCorrect / totalEvaluated) * 100 : null;
 
     const intervalCoverages = allEvaluations
-      .map(e => e.intervalHitRate80)
-      .filter((v): v is number => v !== null && v !== undefined);
+      .map((e: any) => e.intervalHitRate80)
+      .filter((v: any): v is number => v !== null && v !== undefined);
     const avgIntervalCoverage = intervalCoverages.length > 0
-      ? intervalCoverages.reduce((a, b) => a + b, 0) / intervalCoverages.length
+      ? intervalCoverages.reduce((a: number, b: number) => a + b, 0) / intervalCoverages.length
       : null;
 
-    const recentWinnerCorrect = recentEvaluations.filter(e => e.winnerCorrect === true).length;
+    const recentWinnerCorrect = recentEvaluations.filter((e: any) => e.winnerCorrect === true).length;
     const last90DaysAccuracy = recentEvaluations.length > 0
       ? (recentWinnerCorrect / recentEvaluations.length) * 100
       : null;

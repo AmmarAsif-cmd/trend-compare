@@ -1,10 +1,16 @@
 // Product data caching using Upstash Redis
 // Reduces API costs by 70-80%
 
-import { redis } from '@/lib/cache/redis-store';
+import { RedisStore } from '@/lib/cache/redis-store';
 import type { ParsedKeepaData } from '../keepa/types';
 
 const CACHE_TTL = 3600; // 1 hour in seconds
+
+// Initialize Redis store
+const redisStore = new RedisStore(
+  process.env.UPSTASH_REDIS_URL,
+  process.env.UPSTASH_REDIS_TOKEN
+);
 
 export interface CachedProductData {
   keepaData: ParsedKeepaData | null;
@@ -28,10 +34,10 @@ export async function getCachedProduct(
 ): Promise<CachedProductData | null> {
   try {
     const cacheKey = getProductCacheKey(productName);
-    const cached = await redis.get<CachedProductData>(cacheKey);
+    const cached = await redisStore.get<CachedProductData>(cacheKey);
 
-    if (cached && typeof cached === 'object') {
-      return cached;
+    if (cached && !cached.isStale) {
+      return cached.value;
     }
 
     return null;
@@ -51,9 +57,7 @@ export async function setCachedProduct(
   try {
     const cacheKey = getProductCacheKey(productName);
 
-    await redis.set(cacheKey, data, {
-      ex: CACHE_TTL,
-    });
+    await redisStore.set(cacheKey, data, CACHE_TTL);
   } catch (error) {
     console.error('[ProductCache] Error setting cached product:', error);
   }
@@ -65,7 +69,7 @@ export async function setCachedProduct(
 export async function invalidateProductCache(productName: string): Promise<void> {
   try {
     const cacheKey = getProductCacheKey(productName);
-    await redis.del(cacheKey);
+    await redisStore.delete(cacheKey);
   } catch (error) {
     console.error('[ProductCache] Error invalidating cache:', error);
   }
@@ -78,19 +82,10 @@ export async function getProductCacheStats(): Promise<{
   totalKeys: number;
   estimatedSize: string;
 }> {
-  try {
-    // This is a simplified version - in production you'd want more detailed stats
-    const keys = await redis.keys('product:*');
-
-    return {
-      totalKeys: keys?.length || 0,
-      estimatedSize: 'N/A', // Would need to scan all values for accurate size
-    };
-  } catch (error) {
-    console.error('[ProductCache] Error getting cache stats:', error);
-    return {
-      totalKeys: 0,
-      estimatedSize: 'N/A',
-    };
-  }
+  // Note: RedisStore doesn't expose keys() method
+  // This would need to be implemented differently in production
+  return {
+    totalKeys: 0,
+    estimatedSize: 'N/A',
+  };
 }
