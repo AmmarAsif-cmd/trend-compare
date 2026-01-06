@@ -135,16 +135,16 @@ export default function TrendingProductsPage() {
       </div>
 
       {/* CTA */}
-      <div className="text-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-12 border border-blue-200">
-        <h2 className="text-3xl font-bold text-slate-900 mb-4">
+      <div className="text-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 sm:p-8 lg:p-12 border border-blue-200">
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
           Search for Any Product
         </h2>
-        <p className="text-lg text-slate-600 mb-6">
+        <p className="text-base sm:text-lg text-slate-600 mb-6 px-4">
           Not seeing what you're looking for? Search our database of millions of products.
         </p>
         <Link
           href="/"
-          className="inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg text-lg"
+          className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg text-base sm:text-lg"
         >
           Search Products →
         </Link>

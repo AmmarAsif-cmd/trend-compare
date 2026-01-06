@@ -202,6 +202,32 @@ export default function SiteHeader() {
                 </Link>
               </li>
             ))}
+
+            {/* Tools Section for Mobile */}
+            <li>
+              <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Tools
+              </div>
+              <div className="space-y-1 mt-1">
+                <Link
+                  href="/tools/trend-comparison"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 ml-2"
+                >
+                  <div className="font-medium">Trend Comparison</div>
+                  <div className="text-xs text-slate-500">Multi-source trend analysis</div>
+                </Link>
+                <Link
+                  href="/"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 ml-2"
+                >
+                  <div className="font-medium">Product Research</div>
+                  <div className="text-xs text-slate-500">Amazon product analysis</div>
+                </Link>
+              </div>
+            </li>
+
             {isLoggedIn && (
               <li>
                 <Link
