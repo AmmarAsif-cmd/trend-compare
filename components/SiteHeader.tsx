@@ -66,6 +66,7 @@ export default function SiteHeader() {
 
   const navItems = [
     { href: "/", label: "Home" },
+    { href: "/trending", label: "Trending" },
     { href: "/blog", label: "Blog" },
     { href: "/about", label: "About" },
   ];
@@ -104,6 +105,36 @@ export default function SiteHeader() {
               </Link>
             </li>
           ))}
+
+          {/* Tools Dropdown */}
+          <li className="relative group">
+            <button className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1">
+              Tools
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="py-2">
+                <Link
+                  href="/tools/trend-comparison"
+                  className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="font-semibold text-slate-900">Trend Comparison</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Multi-source trend analysis</div>
+                </Link>
+                <div className="border-t border-slate-100 my-1"></div>
+                <Link
+                  href="/"
+                  className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="font-semibold text-slate-900">Product Research</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Amazon product analysis</div>
+                </Link>
+              </div>
+            </div>
+          </li>
+
           {isLoggedIn && (
             <li>
               <Link

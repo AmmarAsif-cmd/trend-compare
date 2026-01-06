@@ -1,0 +1,78 @@
+import HeroSection from "@/components/HeroSection";
+import FAQSection from "@/components/FAQSection";
+import BrowseByCategoryServer from "@/components/BrowseByCategoryServer";
+import FeaturesSection from "@/components/FeaturesSection";
+import HowItWorksSection from "@/components/HowItWorksSection";
+import UseCasesSection from "@/components/UseCasesSection";
+import CTASection from "@/components/CTASection";
+import DataSources from "@/components/DataSources";
+import FeaturedBlogs from "@/components/blog/FeaturedBlogs";
+import type { Metadata } from "next";
+import { getCanonicalUrl, getRobotsForParams } from "@/lib/seo/params";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+
+  // Set canonical to /tools/trend-comparison
+  const canonical = getCanonicalUrl("https://trendarc.net", "/tools/trend-comparison");
+
+  // Set robots based on non-indexable params
+  const robots = getRobotsForParams(resolvedSearchParams);
+
+  return {
+    title: "Multi-Source Trend Analysis Tool | TrendArc",
+    description: "Compare trends across Google Trends, GitHub, Reddit and more. AI-powered trend analysis tool for researchers and analysts.",
+    keywords: "trend analysis, google trends, github trends, multi-source trends, trend comparison",
+    alternates: {
+      canonical,
+    },
+    robots,
+    openGraph: {
+      title: "Multi-Source Trend Analysis Tool | TrendArc",
+      description: "Compare trends across Google Trends, GitHub, Reddit and more. AI-powered trend analysis tool.",
+      type: "website",
+      url: canonical,
+    },
+  };
+}
+
+export default function TrendComparisonToolPage() {
+  return (
+    <main>
+      <HeroSection />
+
+      {/* Browse by Category */}
+      <div className="relative bg-white py-20 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <BrowseByCategoryServer />
+        </div>
+      </div>
+
+      {/* Featured Blogs - Insights & Analysis */}
+      <FeaturedBlogs />
+
+      {/* Data Sources - Build Trust */}
+      <div className="relative bg-gradient-to-br from-slate-50 to-white py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <DataSources />
+        </div>
+      </div>
+
+      <FeaturesSection />
+      <HowItWorksSection />
+      <UseCasesSection />
+
+      <div id="faq" className="relative bg-gradient-to-br from-white to-slate-50 py-20 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <FAQSection />
+        </div>
+      </div>
+
+      <CTASection />
+    </main>
+  );
+}
