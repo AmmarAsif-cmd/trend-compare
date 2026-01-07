@@ -33,7 +33,7 @@ export async function getCachedTrendingProducts(
       const cached = await redisStore.get<TrendingProduct[]>(cacheKey);
       if (cached) {
         console.log(`[TrendingCache] Redis cache hit for ${category}`);
-        return cached;
+        return cached.value;
       }
     } catch (error) {
       console.error('[TrendingCache] Redis error:', error);
