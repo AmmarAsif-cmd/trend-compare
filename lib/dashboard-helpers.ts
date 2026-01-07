@@ -123,12 +123,12 @@ export async function getHighVolatilityCount(): Promise<number> {
       select: { slug: true },
     });
 
-    const slugs = savedComparisons.map(c => c.slug);
+    const slugs = savedComparisons.map((c: any) => c.slug);
     if (slugs.length === 0) return 0;
 
     // Get latest snapshots
     const snapshots = await Promise.all(
-      slugs.map(slug =>
+      slugs.map((slug: any) =>
         prisma.comparisonSnapshot.findFirst({
           where: { userId, slug },
           orderBy: { computedAt: 'desc' },
@@ -160,7 +160,7 @@ export async function getConfidenceDropsCount(): Promise<number> {
       select: { slug: true },
     });
 
-    const slugs = savedComparisons.map(c => c.slug);
+    const slugs = savedComparisons.map((c: any) => c.slug);
     if (slugs.length === 0) return 0;
 
     let dropsCount = 0;
@@ -414,7 +414,7 @@ export async function getRecentExports(limit: number = 5, userId?: string): Prom
       take: limit,
     });
 
-    return exports.map(exp => ({
+    return exports.map((exp: any) => ({
       id: exp.id,
       slug: exp.slug,
       termA: exp.termA,

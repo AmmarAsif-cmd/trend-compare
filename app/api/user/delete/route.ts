@@ -16,7 +16,7 @@ export async function DELETE(request: NextRequest) {
     const userId = (user as any).id;
 
     // Delete user and related data in a transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Delete related records
       await tx.comparisonHistory.deleteMany({ where: { userId } });
       await tx.savedComparison.deleteMany({ where: { userId } });

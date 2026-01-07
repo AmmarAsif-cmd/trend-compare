@@ -202,14 +202,14 @@ export async function GET(request: NextRequest) {
           today: comparisonsToday,
           last7Days: comparisonsLast7Days,
           last30Days: comparisonsLast30Days,
-          topComparisons: topComparisons.map(c => ({
+          topComparisons: topComparisons.map((c: any) => ({
             slug: c.slug,
             views: c.viewCount,
             visits: c.visitCount,
             category: c.category,
             lastVisited: c.lastVisited,
           })),
-          categoryBreakdown: categoryBreakdown.map(c => ({
+          categoryBreakdown: categoryBreakdown.map((c: any) => ({
             category: c.category || 'general',
             count: c._count.category,
           })),

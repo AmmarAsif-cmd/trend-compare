@@ -36,6 +36,16 @@ export function middleware(req: NextRequest) {
     return new NextResponse('Not Found', { status: 404 });
   }
 
+  // SEO-preserving redirects for e-commerce pivot
+  // 301 permanent redirects to maintain SEO value
+
+  // Note: The old homepage functionality has been moved to /tools/trend-comparison
+  // but we DON'T redirect the homepage (/) because it now has new e-commerce content
+
+  // However, if there are query params that indicate old compare functionality,
+  // redirect to the tools page
+  // This is handled by generateMetadata in the page components instead
+
   // Prepare response so we can set headers
   const res = NextResponse.next();
 

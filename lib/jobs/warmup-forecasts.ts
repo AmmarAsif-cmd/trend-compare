@@ -64,7 +64,7 @@ async function getPopularComparisons(limit: number = 50): Promise<Array<{
   });
 
   return comparisons
-    .map(c => {
+    .map((c: any) => {
       const terms = Array.isArray(c.terms) ? c.terms as string[] : [];
       if (terms.length < 2) return null;
       return {
@@ -76,7 +76,7 @@ async function getPopularComparisons(limit: number = 50): Promise<Array<{
         category: c.category,
       };
     })
-    .filter((c): c is NonNullable<typeof c> => c !== null);
+    .filter((c: any): c is NonNullable<typeof c> => c !== null);
 }
 
 /**

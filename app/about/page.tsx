@@ -5,7 +5,7 @@ import { Target, Zap, Users, TrendingUp } from "lucide-react";
 export const metadata = {
   title: `About Us | ${BRAND}`,
   description:
-    "Learn what TrendArc is all about, how we make online trend comparisons simple, fast, and meaningful for everyone.",
+    "TrendArc is a free Amazon product research tool that helps sellers find profitable products using AI-powered analysis. We also offer advanced trend analysis tools for researchers and analysts.",
 };
 
 export default function AboutPage() {
@@ -24,15 +24,15 @@ export default function AboutPage() {
             </span>
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-            <span className="block text-slate-900">Making Trends</span>
+            <span className="block text-slate-900">Free Product Research</span>
             <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Crystal Clear
+              For Everyone
             </span>
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
-            We combine data from 7+ trusted sources to give you comprehensive trend intelligence. 
-            Compare movies, music, games, products, and more with AI-powered insights that explain 
-            the "why" behind the trends.
+            TrendArc is a 100% free Amazon product research tool that helps e-commerce sellers
+            find profitable products using AI-powered analysis. We also offer advanced trend
+            analysis tools for researchers and analysts.
           </p>
         </section>
 
@@ -44,10 +44,11 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">What We Do</h2>
             <p className="text-slate-600 leading-relaxed">
-              We aggregate data from multiple sources including Google Trends, TMDB, Spotify, Steam, 
-              Best Buy, YouTube, and Wikipedia to create comprehensive trend comparisons. Our AI-powered 
-              system automatically detects categories and fetches the most relevant data, 
-              then generates insights that explain why trends exist.
+              TrendArc provides free AI-powered product research for Amazon and Shopify sellers.
+              We analyze search trends, price history, competition, and market opportunities to
+              help you find profitable products in seconds. We also offer advanced trend analysis
+              tools that aggregate data from multiple sources like Google Trends, Spotify, YouTube,
+              and more.
             </p>
           </div>
 
@@ -57,10 +58,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">How It Works</h2>
             <p className="text-slate-600 leading-relaxed">
-              Enter any two topics you want to compare. Our AI automatically detects the category 
-              (movies, music, games, products, etc.) and fetches relevant data from multiple sources. 
-              We calculate a unified TrendArc Score, create beautiful visualizations, and generate 
-              AI-powered insights explaining the results. All in seconds, no signup required.
+              Simply enter any product name, and our AI analyzes market data in seconds. We check
+              search interest trends, price history, competition levels, and seasonality patterns.
+              Then we give you a clear GO/NO-GO verdict with actionable recommendations. All for
+              free, no signup required, instant results.
             </p>
           </div>
 
@@ -70,10 +71,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">Why It Matters</h2>
             <p className="text-slate-600 leading-relaxed">
-              Multi-source intelligence gives you a complete picture. Instead of relying on a single 
-              data point, you get insights from search trends, streaming platforms, gaming platforms, 
-              retail data, and social engagement. This comprehensive view helps you make smarter decisions 
-              whether you&rsquo;re choosing products, planning content, or analyzing market trends.
+              Product research tools like Jungle Scout and Helium 10 cost $49-99/month, putting them
+              out of reach for many new sellers. TrendArc provides the same essential insights
+              completely free. We believe every entrepreneur should have access to powerful product
+              research tools without breaking the bank. Our mission is to level the playing field.
             </p>
           </div>
 
@@ -83,10 +84,10 @@ export default function AboutPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-slate-900">Our Vision</h2>
             <p className="text-slate-600 leading-relaxed">
-              To become the #1 platform for multi-source trend intelligence. We believe comprehensive 
-              data analysis should be accessible, beautiful, and actionable for everyone, not just data 
-              scientists. By combining multiple data sources with AI-powered insights, we make trend 
-              analysis simple and meaningful.
+              To become the #1 free product research platform trusted by e-commerce sellers worldwide.
+              We believe powerful tools shouldn&rsquo;t require expensive subscriptions. By offering
+              AI-powered product research for free, we help thousands of entrepreneurs launch successful
+              online businesses without the upfront costs.
             </p>
           </div>
         </section>
@@ -95,10 +96,30 @@ export default function AboutPage() {
         <section className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-12 text-center text-white shadow-2xl">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">Our Mission</h2>
           <p className="text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed opacity-95">
-            Democratize access to multi-source trend intelligence. Combine data from search, streaming, 
-            gaming, retail, and social platforms. Make it fast, free, and beautiful. Help people make 
-            informed decisions based on comprehensive insights, not just single data points.
+            Democratize access to powerful product research tools. Make Amazon and Shopify product
+            analysis free, fast, and AI-powered. Help entrepreneurs find profitable products without
+            expensive monthly subscriptions. Empower 10,000+ sellers to build successful e-commerce
+            businesses with confidence.
           </p>
+        </section>
+
+        {/* Additional Tools */}
+        <section className="mt-12 bg-slate-50 rounded-2xl p-8 border border-slate-200">
+          <h2 className="text-2xl font-bold text-slate-900 mb-4 text-center">
+            More Than Just Product Research
+          </h2>
+          <p className="text-slate-600 text-center max-w-2xl mx-auto mb-6">
+            While our focus is on helping e-commerce sellers, we also offer advanced trend
+            analysis tools for researchers and analysts.
+          </p>
+          <div className="text-center">
+            <a
+              href="/tools/trend-comparison"
+              className="inline-block px-6 py-3 bg-white border-2 border-blue-200 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              Explore Trend Analysis Tools →
+            </a>
+          </div>
         </section>
       </div>
     </main>

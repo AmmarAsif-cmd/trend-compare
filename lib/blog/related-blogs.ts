@@ -131,7 +131,7 @@ export async function getRelatedBlogsForComparison(opts: {
       });
 
       // Score by keyword overlap
-      const scored = categoryBlogs.map(blog => {
+      const scored = categoryBlogs.map((blog: any) => {
         const blogText = `${blog.title} ${blog.excerpt} ${blog.tags.join(' ')} ${blog.keywords.join(' ')}`.toLowerCase();
         let score = 0;
         
@@ -147,9 +147,9 @@ export async function getRelatedBlogsForComparison(opts: {
       });
 
       categoryMatches.push(...scored
-        .sort((a, b) => (b as any).score - (a as any).score)
+        .sort((a: any, b: any) => b.score - a.score)
         .slice(0, limit - explicitlyLinked.length)
-        .map(post => ({
+        .map((post: any) => ({
           slug: post.slug,
           title: post.title,
           excerpt: post.excerpt,
@@ -190,7 +190,7 @@ export async function getRelatedBlogsForComparison(opts: {
         take: remaining,
       });
 
-      categoryMatches.push(...keywordMatches.map(post => ({
+      categoryMatches.push(...keywordMatches.map((post: any) => ({
         slug: post.slug,
         title: post.title,
         excerpt: post.excerpt,
