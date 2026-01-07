@@ -594,3 +594,58 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model TikTokUser {
+  id              String   @id @default(cuid())
+  username        String   @unique  // "charlidamelio" (lowercase, no @)
+  displayName     String?  // "Charli D'Amelio" (from API)
+  avatarUrl       String?  // "https://p16-sign-va.tiktokcdn.com/..."
+  followerCount   Int?
+  followingCount  Int?
+  videoCount      Int?
+  likeCount       Int?
+  engagementRate  Float?
+  verified        Boolean  @default(false)
+  bio             String?
+  profileUrl      String?  // "https://www.tiktok.com/@charlidamelio"
+  lastUpdated     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  comparisonsA   TikTokComparison[] @relation("UserA")
+  comparisonsB   TikTokComparison[] @relation("UserB")
+
+  @@index([username])
+  @@index([followerCount])
+  @@index([lastUpdated])
+}
+
+model TikTokComparison {
+  id              String   @id @default(cuid())
+  slug            String   @unique  // "charlidamelio-vs-addisonre"
+  userAUsername   String   // "charlidamelio"
+  userBUsername   String   // "addisonre"
+  userA           TikTokUser @relation("UserA", fields: [userAUsername], references: [username], onDelete: Cascade)
+  userB           TikTokUser @relation("UserB", fields: [userBUsername], references: [username], onDelete: Cascade)
+  
+  userAScore      Float
+  userBScore      Float
+  winner          String   // "charlidamelio" or "addisonre"
+  margin          Float
+  
+  imageCardUrl    String?  // Generated card image URL
+  videoUrl        String?  // Generated video URL
+  
+  viewCount       Int      @default(0)
+  likeCount       Int      @default(0)
+  shareCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userAUsername])
+  @@index([userBUsername])
+  @@index([viewCount])
+  @@index([createdAt])
+}

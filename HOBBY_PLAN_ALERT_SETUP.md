@@ -158,3 +158,4 @@ If you need more frequent cron jobs or guaranteed execution times:
 
 **Summary**: For Hobby plan, use external cron service for hourly alert checking. The daily Vercel cron serves as a backup.
 
+
