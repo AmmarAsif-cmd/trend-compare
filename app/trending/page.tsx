@@ -1,58 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
+import TrendingProductsClient from "@/components/trending/TrendingProductsClient";
 
 export const metadata: Metadata = {
   title: "Trending Products | TrendArc - Amazon Product Research",
-  description: "Discover trending products on Amazon. Pre-analyzed opportunities updated daily.",
-  keywords: "trending products, amazon trends, hot products, product opportunities",
+  description: "Discover trending products on Amazon powered by real Google Trends data. Pre-analyzed opportunities updated daily across all major categories.",
+  keywords: "trending products, amazon trends, hot products, product opportunities, google trends, product research",
 };
-
-// Sample trending products (in production, this would come from a database)
-const SAMPLE_TRENDING_PRODUCTS = [
-  {
-    name: "Resistance Bands",
-    slug: "resistance-bands",
-    trend: "+380%",
-    competition: "low",
-    category: "Sports & Fitness",
-  },
-  {
-    name: "Air Fryer",
-    slug: "air-fryer",
-    trend: "+245%",
-    competition: "high",
-    category: "Kitchen",
-  },
-  {
-    name: "Yoga Mat",
-    slug: "yoga-mat",
-    trend: "+156%",
-    competition: "medium",
-    category: "Sports & Fitness",
-  },
-  {
-    name: "Standing Desk Converter",
-    slug: "standing-desk-converter",
-    trend: "+198%",
-    competition: "medium",
-    category: "Office",
-  },
-  {
-    name: "Water Bottle",
-    slug: "water-bottle",
-    trend: "+142%",
-    competition: "high",
-    category: "Sports & Fitness",
-  },
-  {
-    name: "Phone Case",
-    slug: "phone-case",
-    trend: "+89%",
-    competition: "high",
-    category: "Electronics",
-  },
-];
 
 export default function TrendingProductsPage() {
   return (
@@ -61,81 +16,22 @@ export default function TrendingProductsPage() {
       <header className="text-center mb-12">
         <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full text-sm font-semibold mb-6">
           <TrendingUp className="w-4 h-4" />
-          Updated Daily
+          Updated Daily • Real Google Trends Data
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">
           🔥 Trending Products This Week
         </h1>
-        <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-          Discover pre-analyzed product opportunities with AI-powered insights
+        <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          Discover pre-analyzed product opportunities with AI-powered insights.
+          All data sourced from real Google Trends with growth rates, search volumes, and competition analysis.
         </p>
       </header>
 
-      {/* Products Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-        {SAMPLE_TRENDING_PRODUCTS.map((product, index) => {
-          const competitionColors = {
-            low: "text-green-600 bg-green-100 border-green-300",
-            medium: "text-yellow-600 bg-yellow-100 border-yellow-300",
-            high: "text-red-600 bg-red-100 border-red-300",
-          };
-
-          return (
-            <Link
-              key={product.slug}
-              href={`/product/${product.slug}`}
-              className="group bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-xl hover:border-blue-300 transition-all"
-            >
-              {/* Rank Badge */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="text-4xl font-bold text-slate-200 group-hover:text-blue-200 transition-colors">
-                  #{index + 1}
-                </div>
-                <div className="text-2xl">
-                  {product.competition === "low" ? "🟢" : product.competition === "high" ? "🔴" : "🟡"}
-                </div>
-              </div>
-
-              {/* Product Name */}
-              <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                {product.name}
-              </h3>
-
-              {/* Category */}
-              <div className="text-sm text-slate-500 mb-4">{product.category}</div>
-
-              {/* Metrics */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Growth</span>
-                  <span className="text-lg font-bold text-green-600">{product.trend} 🚀</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Competition</span>
-                  <span
-                    className={`text-sm font-semibold px-3 py-1 rounded-full border ${competitionColors[product.competition as keyof typeof competitionColors]}`}
-                  >
-                    {product.competition.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-
-              {/* CTA */}
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <div className="text-blue-600 font-medium group-hover:text-blue-700 flex items-center justify-between">
-                  View Analysis
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+      {/* Trending Products (Client Component) */}
+      <TrendingProductsClient />
 
       {/* CTA */}
-      <div className="text-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 sm:p-8 lg:p-12 border border-blue-200">
+      <div className="mt-12 text-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 sm:p-8 lg:p-12 border border-blue-200">
         <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
           Search for Any Product
         </h2>
@@ -148,6 +44,33 @@ export default function TrendingProductsPage() {
         >
           Search Products →
         </Link>
+      </div>
+
+      {/* Data Sources */}
+      <div className="mt-12 bg-slate-50 rounded-2xl p-6 sm:p-8 border border-slate-200">
+        <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">
+          📊 Our Data Sources
+        </h3>
+        <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+          <div className="text-center">
+            <div className="text-3xl mb-2">📈</div>
+            <div className="font-semibold text-slate-900 mb-1">Google Trends</div>
+            <div className="text-sm text-slate-600">Real search interest data over 12 months</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl mb-2">🤖</div>
+            <div className="font-semibold text-slate-900 mb-1">AI Analysis</div>
+            <div className="text-sm text-slate-600">Claude AI processes trend patterns</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl mb-2">💰</div>
+            <div className="font-semibold text-slate-900 mb-1">Market Insights</div>
+            <div className="text-sm text-slate-600">Competition & pricing estimates</div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 text-center mt-6">
+          Data is refreshed every 24 hours. Click the refresh button to get the latest trends.
+        </p>
       </div>
     </main>
   );
