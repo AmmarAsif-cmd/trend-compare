@@ -63,7 +63,7 @@ export default function ProductSearchHero() {
           {/* Badge */}
           <div className="inline-block mb-6 sm:mb-8">
             <span className="bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 px-5 py-2.5 rounded-full text-sm font-semibold border border-blue-200 shadow-sm">
-              🎯 Free Google Trends • Premium Amazon Data • Instant Results
+              ðŸŽ¯ 100% Free Forever â€¢ No Credit Card â€¢ Instant Results
             </span>
           </div>
 
@@ -139,10 +139,10 @@ export default function ProductSearchHero() {
           {/* Value Props */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-4xl mx-auto px-4">
             {[
-              { icon: "✓", text: "Free Google Trends" },
-              { icon: "🤖", text: "AI-Powered Analysis" },
-              { icon: "🚫", text: "Premium Amazon Data" },
-              { icon: "⚡", text: "30-Second Results" },
+              { icon: "âœ“", text: "100% Free Forever" },
+              { icon: "ðŸ¤–", text: "AI-Powered Analysis" },
+              { icon: "ðŸš«", text: "No Credit Card" },
+              { icon: "âš¡", text: "30-Second Results" },
             ].map((item) => (
               <div
                 key={item.text}
@@ -165,3 +165,4 @@ export default function ProductSearchHero() {
     </section>
   );
 }
+

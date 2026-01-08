@@ -1,4 +1,4 @@
-import ProductSearchHero from "@/components/ecommerce/ProductSearchHero";
+﻿import ProductSearchHero from "@/components/ecommerce/ProductSearchHero";
 import EcommerceFeatures from "@/components/ecommerce/EcommerceFeatures";
 import HowItWorksEcommerce from "@/components/ecommerce/HowItWorksEcommerce";
 import FAQSection from "@/components/FAQSection";
@@ -22,7 +22,7 @@ export async function generateMetadata({
   return {
     title: "TrendArc - Free Amazon Product Research Tool | Find Profitable Products",
     description:
-      "Free AI-powered Amazon product research tool. Analyze trends, price history, and competition in 30 seconds. Better than Jungle Scout - 100% free forever.",
+      "Free Google Trends data for all users. Upgrade to Premium ($6.99/month) for Amazon product data, price history, sales rank, and AI-powered insights.",
     keywords:
       "amazon product research, jungle scout alternative, free product research tool, amazon fba, shopify products, keepa, product trends",
     alternates: {
@@ -32,7 +32,7 @@ export async function generateMetadata({
     openGraph: {
       title: "TrendArc - Free Amazon Product Research Tool",
       description:
-        "Find profitable products to sell on Amazon in 30 seconds. 100% free, AI-powered analysis.",
+        "Free Google Trends data. Premium ($6.99/month) includes Amazon product data, price history, sales rank, and AI-powered insights.",
       type: "website",
       url: canonical,
       images: [
@@ -48,7 +48,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: "TrendArc - Free Amazon Product Research Tool",
       description:
-        "Find profitable products to sell on Amazon in 30 seconds. 100% free forever.",
+        "Free Google Trends data. Premium ($6.99/month) for Amazon product data, price history, and AI insights.",
     },
   };
 }

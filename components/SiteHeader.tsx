@@ -67,7 +67,6 @@ export default function SiteHeader() {
   const navItems = [
     { href: "/", label: "Home" },
     { href: "/trending", label: "Trending" },
-    { href: "/tiktok", label: "TikTok" },
     { href: "/blog", label: "Blog" },
     { href: "/about", label: "About" },
   ];
