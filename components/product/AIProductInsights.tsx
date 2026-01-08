@@ -1,9 +1,27 @@
 interface Props {
   insights: any;
   isLoading: boolean;
+  error?: string | null;
 }
 
-export default function AIProductInsights({ insights, isLoading }: Props) {
+export default function AIProductInsights({ insights, isLoading, error }: Props) {
+  if (error) {
+    return (
+      <section className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="text-4xl">⚠️</div>
+          <h2 className="text-2xl font-bold text-slate-900">AI Insights Unavailable</h2>
+        </div>
+        <p className="text-slate-700 mb-4">
+          {error}
+        </p>
+        <p className="text-sm text-slate-600">
+          You can still review the product data below. AI insights are optional and may be available after refreshing.
+        </p>
+      </section>
+    );
+  }
+
   if (isLoading) {
     return (
       <section className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl border border-purple-200 p-8">

@@ -9,6 +9,8 @@ import type {
   ParsedKeepaData,
 } from './types';
 import { KeepaCSVIndex } from './types';
+import { recordAPICall, shouldThrottle } from '@/lib/utils/api-monitoring';
+import { KEEPA_API_MAX_REQUESTS_PER_MINUTE } from '@/lib/config/product-research';
 
 const KEEPA_API_BASE = 'https://api.keepa.com';
 const KEEPA_API_KEY = process.env.KEEPA_API_KEY;
@@ -42,6 +44,12 @@ export async function searchProducts(
     throw new Error('KEEPA_API_KEY is not configured');
   }
 
+  // Check rate limiting
+  if (shouldThrottle('keepa', KEEPA_API_MAX_REQUESTS_PER_MINUTE)) {
+    throw new Error('Keepa API rate limit exceeded. Please try again in a minute.');
+  }
+
+  const startTime = Date.now();
   const params = new URLSearchParams({
     key: KEEPA_API_KEY,
     domain: domain.toString(),
@@ -50,19 +58,29 @@ export async function searchProducts(
     range: maxResults.toString(),
   });
 
-  const response = await fetch(`${KEEPA_API_BASE}/search?${params}`, {
-    headers: {
-      'Accept': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(`${KEEPA_API_BASE}/search?${params}`, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Keepa API error: ${error.error || response.statusText}`);
+    const duration = Date.now() - startTime;
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      recordAPICall('keepa', '/search', duration, false, error.error || response.statusText);
+      throw new Error(`Keepa API error: ${error.error || response.statusText}`);
+    }
+
+    const data = await response.json();
+    recordAPICall('keepa', '/search', duration, true);
+    return data.asinList || [];
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    recordAPICall('keepa', '/search', duration, false, error instanceof Error ? error.message : 'Unknown error');
+    throw error;
   }
-
-  const data = await response.json();
-  return data.asinList || [];
 }
 
 /**
@@ -77,6 +95,12 @@ export async function getProductByAsin(
     throw new Error('KEEPA_API_KEY is not configured');
   }
 
+  // Check rate limiting
+  if (shouldThrottle('keepa', KEEPA_API_MAX_REQUESTS_PER_MINUTE)) {
+    throw new Error('Keepa API rate limit exceeded. Please try again in a minute.');
+  }
+
+  const startTime = Date.now();
   const params = new URLSearchParams({
     key: KEEPA_API_KEY,
     domain: domain.toString(),
@@ -86,24 +110,35 @@ export async function getProductByAsin(
     offers: '20', // Include up to 20 offers
   });
 
-  const response = await fetch(`${KEEPA_API_BASE}/product?${params}`, {
-    headers: {
-      'Accept': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(`${KEEPA_API_BASE}/product?${params}`, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Keepa API error: ${error.error || response.statusText}`);
+    const duration = Date.now() - startTime;
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      recordAPICall('keepa', '/product', duration, false, error.error || response.statusText);
+      throw new Error(`Keepa API error: ${error.error || response.statusText}`);
+    }
+
+    const data: KeepaResponse = await response.json();
+
+    if (!data.products || data.products.length === 0) {
+      recordAPICall('keepa', '/product', duration, true);
+      return null;
+    }
+
+    recordAPICall('keepa', '/product', duration, true);
+    return data.products[0];
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    recordAPICall('keepa', '/product', duration, false, error instanceof Error ? error.message : 'Unknown error');
+    throw error;
   }
-
-  const data: KeepaResponse = await response.json();
-
-  if (!data.products || data.products.length === 0) {
-    return null;
-  }
-
-  return data.products[0];
 }
 
 /**

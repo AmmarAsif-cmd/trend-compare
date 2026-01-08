@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProductByQuery, parseKeepaProduct } from "@/lib/services/keepa/client";
 import { getCachedProduct, setCachedProduct } from "@/lib/services/product/cache";
+import { getProductTrendData } from "@/lib/services/product/trends";
 import ProductAnalysisClient from "@/components/product/ProductAnalysisClient";
 import BackButton from "@/components/BackButton";
 
@@ -13,13 +14,7 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Helper function to convert slug to product name
-function slugToProductName(slug: string): string {
-  return slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
+import { slugToProductName, validateProductName, sanitizeProductName } from "@/lib/utils/product-validation";
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -40,7 +35,49 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductAnalysisPage({ params }: Props) {
   const { slug } = await params;
+  
+  // Validate and sanitize slug
+  if (!slug || typeof slug !== 'string') {
+    notFound();
+  }
+
   const productName = slugToProductName(slug);
+  const validation = validateProductName(productName);
+  
+  if (!validation.valid) {
+    return (
+      <main className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8 py-12">
+        <BackButton label="Back to Search" />
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+            <svg
+              className="w-8 h-8 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900">Invalid Product Name</h1>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            {validation.error || 'The product name is invalid.'}
+          </p>
+          <a
+            href="/"
+            className="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Search
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   // Check cache first
   let cachedData = await getCachedProduct(productName);
@@ -58,12 +95,22 @@ export default async function ProductAnalysisPage({ params }: Props) {
           }
         } catch (error) {
           console.error("[ProductAnalysis] Keepa API error:", error);
+          // Continue without Keepa data - we can still show trends data
+          // This is graceful degradation
         }
       }
 
-      // Fetch Google Trends data (reuse existing implementation)
-      // This would use your existing Google Trends API integration
-      const trendsData = null; // TODO: Integrate with existing trends API
+      // Fetch Google Trends data
+      let trendsData = null;
+      try {
+        trendsData = await getProductTrendData(productName, {
+          timeframe: '12m',
+          geo: 'US',
+        });
+      } catch (error) {
+        console.error("[ProductAnalysis] Google Trends error:", error);
+        // Continue without trends data - it's not critical
+      }
 
       // Prepare data for caching
       cachedData = {

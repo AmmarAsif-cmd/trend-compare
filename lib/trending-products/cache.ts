@@ -3,8 +3,9 @@
 
 import { RedisStore } from '@/lib/cache/redis-store';
 import type { TrendingProduct } from './types';
+import { TRENDING_PRODUCTS_CACHE_TTL } from '@/lib/config/product-research';
 
-const CACHE_TTL = 60 * 60 * 24; // 24 hours
+const CACHE_TTL = TRENDING_PRODUCTS_CACHE_TTL; // Use configuration constant
 const CACHE_KEY_PREFIX = 'trending-products';
 
 // Initialize Redis if available

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
+import { validateProductName, productNameToSlug } from "@/lib/utils/product-validation";
 
 const EXAMPLE_SEARCHES = [
   "Yoga Mat",
@@ -22,10 +23,23 @@ export default function ProductSearchHero() {
     const term = searchTerm || query;
     if (!term.trim()) return;
 
+    // Validate input
+    const validation = validateProductName(term);
+    if (!validation.valid) {
+      // Show error to user (could add toast notification here)
+      console.error('Invalid product name:', validation.error);
+      return;
+    }
+
     setIsLoading(true);
 
-    // Convert to URL-friendly slug
-    const slug = term.toLowerCase().replace(/\s+/g, "-");
+    // Convert to URL-friendly slug using validation utility
+    const slug = productNameToSlug(term);
+
+    if (!slug) {
+      setIsLoading(false);
+      return;
+    }
 
     // Navigate to product analysis page
     router.push(`/product/${slug}`);

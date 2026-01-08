@@ -3,8 +3,9 @@
 
 import { RedisStore } from '@/lib/cache/redis-store';
 import type { ParsedKeepaData } from '../keepa/types';
+import { PRODUCT_CACHE_TTL } from '@/lib/config/product-research';
 
-const CACHE_TTL = 3600; // 1 hour in seconds
+const CACHE_TTL = PRODUCT_CACHE_TTL; // Use configuration constant
 
 // Initialize Redis store
 const redisStore = new RedisStore(
@@ -12,9 +13,11 @@ const redisStore = new RedisStore(
   process.env.UPSTASH_REDIS_TOKEN
 );
 
+import type { ProductTrendData } from './trends';
+
 export interface CachedProductData {
   keepaData: ParsedKeepaData | null;
-  trendsData: any; // Google Trends data
+  trendsData: ProductTrendData | null; // Google Trends data
   analysis: any; // AI analysis
   cachedAt: string;
 }
@@ -42,7 +45,9 @@ export async function getCachedProduct(
 
     return null;
   } catch (error) {
+    // Graceful degradation - log error but don't break the flow
     console.error('[ProductCache] Error getting cached product:', error);
+    // Return null to allow fresh fetch
     return null;
   }
 }
@@ -59,7 +64,9 @@ export async function setCachedProduct(
 
     await redisStore.set(cacheKey, data, CACHE_TTL);
   } catch (error) {
+    // Graceful degradation - log error but don't break the flow
     console.error('[ProductCache] Error setting cached product:', error);
+    // Continue without caching - functionality still works
   }
 }
 

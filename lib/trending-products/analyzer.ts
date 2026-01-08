@@ -3,6 +3,33 @@
 
 import { fetchSeriesGoogle } from '@/lib/trends-google';
 import type { TrendAnalysis, TrendingProduct } from './types';
+import {
+  TREND_GROWTH_THRESHOLD_RISING,
+  TREND_GROWTH_THRESHOLD_FALLING,
+  SEARCH_VOLUME_MULTIPLIER,
+  COMPETITION_HIGH_VOLUME_THRESHOLD,
+  COMPETITION_MEDIUM_VOLUME_THRESHOLD,
+  COMPETITION_LOW_SELLERS,
+  COMPETITION_MEDIUM_SELLERS,
+  COMPETITION_HIGH_SELLERS,
+  OPPORTUNITY_SCORE_BASE,
+  OPPORTUNITY_SCORE_TREND_RISING,
+  OPPORTUNITY_SCORE_TREND_FALLING,
+  OPPORTUNITY_SCORE_GROWTH_HIGH,
+  OPPORTUNITY_SCORE_GROWTH_MEDIUM,
+  OPPORTUNITY_SCORE_GROWTH_NEGATIVE,
+  OPPORTUNITY_SCORE_VOLUME_SWEET_SPOT,
+  OPPORTUNITY_SCORE_VOLUME_HIGH,
+  OPPORTUNITY_SCORE_VOLUME_LOW,
+  OPPORTUNITY_SCORE_COMPETITION_LOW,
+  OPPORTUNITY_SCORE_COMPETITION_HIGH,
+  OPPORTUNITY_SCORE_GO,
+  OPPORTUNITY_SCORE_MAYBE,
+  PRICE_ESTIMATE_MIN,
+  PRICE_ESTIMATE_MAX,
+  TRENDING_PRODUCTS_BATCH_SIZE,
+  TRENDING_PRODUCTS_DEFAULT_LIMIT,
+} from '@/lib/config/product-research';
 
 /**
  * Analyze trend data for a product keyword
@@ -38,13 +65,12 @@ export async function analyzeTrend(keyword: string): Promise<TrendAnalysis | nul
 
     // Determine trend direction
     let trend: 'rising' | 'falling' | 'stable';
-    if (growthRate > 10) trend = 'rising';
-    else if (growthRate < -10) trend = 'falling';
+    if (growthRate > TREND_GROWTH_THRESHOLD_RISING) trend = 'rising';
+    else if (growthRate < TREND_GROWTH_THRESHOLD_FALLING) trend = 'falling';
     else trend = 'stable';
 
     // Estimate search volume (Google Trends values are 0-100)
-    // We'll use a heuristic: value of 100 = ~100k searches/month
-    const searchVolume = Math.round(averageValue * 1000);
+    const searchVolume = Math.round(averageValue * SEARCH_VOLUME_MULTIPLIER);
 
     return {
       keyword,
@@ -71,10 +97,10 @@ function estimateCompetition(keyword: string, trendData: TrendAnalysis): 'low' |
   const isGeneric = genericKeywords.some(gk => keyword.toLowerCase().includes(gk));
 
   // High search volume = likely high competition
-  const highVolume = trendData.searchVolume > 50000;
+  const highVolume = trendData.searchVolume > COMPETITION_HIGH_VOLUME_THRESHOLD;
 
   if (isGeneric || highVolume) return 'high';
-  if (trendData.searchVolume > 20000) return 'medium';
+  if (trendData.searchVolume > COMPETITION_MEDIUM_VOLUME_THRESHOLD) return 'medium';
   return 'low';
 }
 
@@ -82,29 +108,29 @@ function estimateCompetition(keyword: string, trendData: TrendAnalysis): 'low' |
  * Calculate opportunity score (0-100)
  */
 function calculateOpportunityScore(trendData: TrendAnalysis, competition: string): number {
-  let score = 50; // Base score
+  let score = OPPORTUNITY_SCORE_BASE;
 
   // Trend direction
-  if (trendData.trend === 'rising') score += 20;
-  else if (trendData.trend === 'falling') score -= 20;
+  if (trendData.trend === 'rising') score += OPPORTUNITY_SCORE_TREND_RISING;
+  else if (trendData.trend === 'falling') score += OPPORTUNITY_SCORE_TREND_FALLING;
 
   // Growth rate
-  if (trendData.growthRate > 50) score += 15;
-  else if (trendData.growthRate > 20) score += 10;
-  else if (trendData.growthRate < -20) score -= 15;
+  if (trendData.growthRate > 50) score += OPPORTUNITY_SCORE_GROWTH_HIGH;
+  else if (trendData.growthRate > 20) score += OPPORTUNITY_SCORE_GROWTH_MEDIUM;
+  else if (trendData.growthRate < -20) score += OPPORTUNITY_SCORE_GROWTH_NEGATIVE;
 
   // Search volume (sweet spot is 10k-50k)
   if (trendData.searchVolume >= 10000 && trendData.searchVolume <= 50000) {
-    score += 15;
+    score += OPPORTUNITY_SCORE_VOLUME_SWEET_SPOT;
   } else if (trendData.searchVolume > 50000) {
-    score += 5; // Too competitive
+    score += OPPORTUNITY_SCORE_VOLUME_HIGH; // Too competitive
   } else {
-    score -= 10; // Too low volume
+    score += OPPORTUNITY_SCORE_VOLUME_LOW; // Too low volume
   }
 
   // Competition penalty
-  if (competition === 'low') score += 10;
-  else if (competition === 'high') score -= 15;
+  if (competition === 'low') score += OPPORTUNITY_SCORE_COMPETITION_LOW;
+  else if (competition === 'high') score += OPPORTUNITY_SCORE_COMPETITION_HIGH;
 
   return Math.max(0, Math.min(100, score));
 }
@@ -124,11 +150,11 @@ export async function analyzeProduct(
 
   // Estimate competition (will be replaced with Keepa data later)
   const competitionLevel = estimateCompetition(keyword, trendData);
-  const estimatedSellers = competitionLevel === 'low' ? 50 :
-                          competitionLevel === 'medium' ? 200 : 500;
+  const estimatedSellers = competitionLevel === 'low' ? COMPETITION_LOW_SELLERS :
+                          competitionLevel === 'medium' ? COMPETITION_MEDIUM_SELLERS : COMPETITION_HIGH_SELLERS;
 
   // Estimate pricing (placeholder - will use Keepa later)
-  const averagePrice = Math.round(15 + Math.random() * 35); // $15-$50 range
+  const averagePrice = Math.round(PRICE_ESTIMATE_MIN + Math.random() * (PRICE_ESTIMATE_MAX - PRICE_ESTIMATE_MIN));
   const priceRange = {
     min: Math.round(averagePrice * 0.7),
     max: Math.round(averagePrice * 1.5),
@@ -141,12 +167,12 @@ export async function analyzeProduct(
   let verdict: 'GO' | 'MAYBE' | 'NO-GO';
   let reasons: string[] = [];
 
-  if (opportunityScore >= 70) {
+  if (opportunityScore >= OPPORTUNITY_SCORE_GO) {
     verdict = 'GO';
     reasons.push('Strong upward trend');
     if (competitionLevel === 'low') reasons.push('Low competition');
     if (trendData.searchVolume >= 10000) reasons.push('Good search volume');
-  } else if (opportunityScore >= 50) {
+  } else if (opportunityScore >= OPPORTUNITY_SCORE_MAYBE) {
     verdict = 'MAYBE';
     reasons.push('Moderate potential');
     if (competitionLevel === 'high') reasons.push('High competition - need differentiation');
@@ -195,24 +221,31 @@ export async function analyzeProduct(
 export async function analyzeProductsBatch(
   keywords: string[],
   category: string,
-  limit: number = 20
+  limit: number = TRENDING_PRODUCTS_DEFAULT_LIMIT
 ): Promise<TrendingProduct[]> {
   console.log(`[TrendAnalyzer] Analyzing ${keywords.length} products for category: ${category}`);
 
   const results: TrendingProduct[] = [];
 
   // Process in batches to avoid rate limiting
-  const batchSize = 5;
+  const batchSize = TRENDING_PRODUCTS_BATCH_SIZE;
   for (let i = 0; i < Math.min(keywords.length, limit); i += batchSize) {
     const batch = keywords.slice(i, i + batchSize);
 
-    const batchResults = await Promise.all(
+    const batchResults = await Promise.allSettled(
       batch.map(keyword => analyzeProduct(keyword, category))
     );
 
-    results.push(...batchResults.filter((r): r is TrendingProduct => r !== null));
+    // Extract successful results
+    batchResults.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value !== null) {
+        results.push(result.value);
+      } else {
+        console.warn(`[TrendAnalyzer] Failed to analyze ${batch[index]}:`, result.status === 'rejected' ? result.reason : 'null result');
+      }
+    });
 
-    // Small delay between batches
+    // Small delay between batches to avoid rate limiting
     if (i + batchSize < keywords.length) {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }

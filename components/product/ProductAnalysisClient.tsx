@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { CachedProductData } from "@/lib/services/product/cache";
 import OpportunityVerdict from "./OpportunityVerdict";
 import PriceHistoryChart from "./PriceHistoryChart";
 import CompetitionMetrics from "./CompetitionMetrics";
 import AIProductInsights from "./AIProductInsights";
+import ProductTrendDisplay from "./ProductTrendDisplay";
 
 interface Props {
   productName: string;
@@ -15,6 +17,7 @@ interface Props {
 export default function ProductAnalysisClient({ productName, data }: Props) {
   const [aiInsights, setAIInsights] = useState<any>(data.analysis);
   const [isLoadingAI, setIsLoadingAI] = useState(!data.analysis);
+  const [aiError, setAIError] = useState<string | null>(null);
 
   // Load AI insights if not cached
   useEffect(() => {
@@ -26,6 +29,7 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
   const loadAIInsights = async () => {
     try {
       setIsLoadingAI(true);
+      setAIError(null);
 
       const response = await fetch("/api/product/analyze", {
         method: "POST",
@@ -40,8 +44,14 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
       if (response.ok) {
         const insights = await response.json();
         setAIInsights(insights);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to load AI insights' }));
+        setAIError(errorData.error || 'Failed to load AI insights');
+        console.error("[ProductAnalysis] AI insights API error:", errorData);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load AI insights';
+      setAIError(errorMessage);
       console.error("[ProductAnalysis] Error loading AI insights:", error);
     } finally {
       setIsLoadingAI(false);
@@ -51,9 +61,10 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
   const keepaData = data.keepaData;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <header className="space-y-4">
+    <ErrorBoundary>
+      <div className="space-y-6">
+        {/* Header */}
+        <header className="space-y-4">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900">
           {productName}
         </h1>
@@ -86,40 +97,56 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
 
       {/* Price History */}
       {keepaData && keepaData.priceHistory.length > 0 && (
-        <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            💰 Price History
-          </h2>
-          <PriceHistoryChart data={keepaData} />
+        <ErrorBoundary
+          fallback={
+            <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                💰 Price History
+              </h2>
+              <div className="text-center py-8 text-slate-500">
+                Unable to load price history chart. Please try refreshing the page.
+              </div>
+            </section>
+          }
+        >
+          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900 mb-4">
+              💰 Price History
+            </h2>
+            <PriceHistoryChart data={keepaData} />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div className="text-center">
-              <div className="text-sm text-slate-600 mb-1">Current Price</div>
-              <div className="text-2xl font-bold text-slate-900">
-                {keepaData.currentPrice ? `$${keepaData.currentPrice.toFixed(2)}` : "N/A"}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              <div className="text-center">
+                <div className="text-sm text-slate-600 mb-1">Current Price</div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {keepaData.currentPrice ? `$${keepaData.currentPrice.toFixed(2)}` : "N/A"}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-slate-600 mb-1">Average Price</div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {keepaData.averagePrice ? `$${keepaData.averagePrice.toFixed(2)}` : "N/A"}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-slate-600 mb-1">Min Price</div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${keepaData.minPrice.toFixed(2)}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-slate-600 mb-1">Max Price</div>
+                <div className="text-2xl font-bold text-red-600">
+                  ${keepaData.maxPrice.toFixed(2)}
+                </div>
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-sm text-slate-600 mb-1">Average Price</div>
-              <div className="text-2xl font-bold text-slate-900">
-                {keepaData.averagePrice ? `$${keepaData.averagePrice.toFixed(2)}` : "N/A"}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-slate-600 mb-1">Min Price</div>
-              <div className="text-2xl font-bold text-green-600">
-                ${keepaData.minPrice.toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-slate-600 mb-1">Max Price</div>
-              <div className="text-2xl font-bold text-red-600">
-                ${keepaData.maxPrice.toFixed(2)}
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
+        </ErrorBoundary>
       )}
+
+      {/* Trend Analysis */}
+      <ProductTrendDisplay trendData={data.trendsData} />
 
       {/* Competition Metrics */}
       {keepaData && (
@@ -130,6 +157,7 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
       <AIProductInsights
         insights={aiInsights}
         isLoading={isLoadingAI}
+        error={aiError}
       />
 
       {/* Additional Info */}
@@ -183,6 +211,7 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
           Search Again →
         </a>
       </section>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

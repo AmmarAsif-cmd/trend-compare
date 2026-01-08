@@ -24,10 +24,13 @@ export default function TrendingProductsClient({ initialCategory = 'all' }: Prop
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/trending?category=${category}&limit=30`);
+      const response = await fetch(`/api/trending?category=${category}&limit=30`, {
+        signal: AbortSignal.timeout(60000), // 60 second timeout
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch trending products');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch trending products' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -35,7 +38,16 @@ export default function TrendingProductsClient({ initialCategory = 'all' }: Prop
       setLastUpdated(data.lastUpdated || new Date().toISOString());
     } catch (err) {
       console.error('[TrendingProducts] Error:', err);
-      setError('Failed to load trending products. Please try again.');
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Failed to load trending products. Please try again.';
+      
+      // Handle timeout specifically
+      if (err instanceof Error && err.name === 'TimeoutError') {
+        setError('Request timed out. The analysis is taking longer than expected. Please try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

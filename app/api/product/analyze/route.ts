@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ParsedKeepaData } from "@/lib/services/keepa/types";
+import { recordAPICall } from "@/lib/utils/api-monitoring";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -63,12 +64,17 @@ Guidelines for verdict:
 Be specific, actionable, and focus on helping sellers make GO/NO-GO decisions. Base your analysis on the actual data provided.`;
 
 export async function POST(request: Request) {
+  const startTime = Date.now();
+  
   try {
     const body: AnalysisRequest = await request.json();
     const { productName, keepaData } = body;
 
     // Check if ANTHROPIC_API_KEY is configured
     if (!process.env.ANTHROPIC_API_KEY) {
+      const duration = Date.now() - startTime;
+      recordAPICall('anthropic', '/analyze', duration, false, 'API key not configured');
+      
       return NextResponse.json(
         {
           error: "AI analysis not configured. Please set ANTHROPIC_API_KEY.",
