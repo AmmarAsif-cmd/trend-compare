@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getProductByQuery, parseKeepaProduct } from "@/lib/services/keepa/client";
 import { getCachedProduct, setCachedProduct } from "@/lib/services/product/cache";
 import { getProductTrendData } from "@/lib/services/product/trends";
+import { checkSearchLimit, incrementSearchUsage } from "@/lib/services/subscription/usage";
 import ProductAnalysisClient from "@/components/product/ProductAnalysisClient";
 import BackButton from "@/components/BackButton";
 
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductAnalysisPage({ params }: Props) {
   const { slug } = await params;
-  
+
   // Validate and sanitize slug
   if (!slug || typeof slug !== 'string') {
     notFound();
@@ -43,7 +44,7 @@ export default async function ProductAnalysisPage({ params }: Props) {
 
   const productName = slugToProductName(slug);
   const validation = validateProductName(productName);
-  
+
   if (!validation.valid) {
     return (
       <main className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8 py-12">
@@ -74,6 +75,44 @@ export default async function ProductAnalysisPage({ params }: Props) {
           >
             Back to Search
           </a>
+        </div>
+      </main>
+    );
+  }
+
+  // Check Premium Search Limit
+  // In a real app, use session.user.id. For now, use IP or a mock ID.
+  const { headers } = await import("next/headers");
+  const headerList = await headers();
+  const ip = headerList.get("x-forwarded-for") || "anonymous";
+
+  // TODO: Check actual user subscription from DB
+  const isPremium = false; // Default to free for now to test limits
+
+  const { allowed, remaining, limit } = await checkSearchLimit(ip, isPremium ? 'PRO' : 'FREE');
+
+  if (!allowed) {
+    // Redirect to pricing if limit reached
+    return (
+      <main className="mx-auto max-w-4xl px-4 py-20 text-center">
+        <div className="bg-slate-900 text-white rounded-2xl p-10 border border-slate-800 shadow-2xl">
+          <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold mb-4">Daily Search Limit Reached</h1>
+          <p className="text-xl text-slate-400 mb-8 max-w-lg mx-auto">
+            You've used all {limit} free searches for today. Upgrade to TrendArc Pro for unlimited access and deep intelligence.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/pricing" className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-500/25">
+              Upgrade to Unlimited
+            </a>
+            <a href="/" className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition-all">
+              Back to Home
+            </a>
+          </div>
         </div>
       </main>
     );
@@ -122,6 +161,9 @@ export default async function ProductAnalysisPage({ params }: Props) {
 
       // Cache the data
       await setCachedProduct(productName, cachedData);
+
+      // Increment Usage (only on fresh fetch)
+      await incrementSearchUsage(ip);
     } catch (error) {
       console.error("[ProductAnalysis] Error fetching product data:", error);
 
@@ -217,7 +259,7 @@ export default async function ProductAnalysisPage({ params }: Props) {
     <main className="mx-auto max-w-7xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
       <BackButton label="Back to Search" />
 
-      <ProductAnalysisClient productName={productName} data={cachedData} />
+      <ProductAnalysisClient productName={productName} data={cachedData} isPremium={isPremium} />
     </main>
   );
 }

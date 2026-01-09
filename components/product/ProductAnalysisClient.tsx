@@ -8,13 +8,19 @@ import PriceHistoryChart from "./PriceHistoryChart";
 import CompetitionMetrics from "./CompetitionMetrics";
 import AIProductInsights from "./AIProductInsights";
 import ProductTrendDisplay from "./ProductTrendDisplay";
+import ProductOpportunityCard from "./ProductOpportunityCard";
+import NicheSpotlightCard from "./NicheSpotlightCard";
+import ProfitCalculator from "./ProfitCalculator";
+import SeasonalityHeatmap from "./SeasonalityHeatmap";
+import PremiumFeatureLock from "../premium/PremiumFeatureLock";
 
 interface Props {
   productName: string;
   data: CachedProductData;
+  isPremium: boolean;
 }
 
-export default function ProductAnalysisClient({ productName, data }: Props) {
+export default function ProductAnalysisClient({ productName, data, isPremium }: Props) {
   const [aiInsights, setAIInsights] = useState<any>(data.analysis);
   const [isLoadingAI, setIsLoadingAI] = useState(!data.analysis);
   const [aiError, setAIError] = useState<string | null>(null);
@@ -65,152 +71,192 @@ export default function ProductAnalysisClient({ productName, data }: Props) {
       <div className="space-y-6">
         {/* Header */}
         <header className="space-y-4">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900">
-          {productName}
-        </h1>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900">
+            {productName}
+          </h1>
 
-        {keepaData?.brand && (
-          <p className="text-lg text-slate-600">
-            Brand: <span className="font-semibold">{keepaData.brand}</span>
-          </p>
-        )}
+          {keepaData?.brand && (
+            <p className="text-lg text-slate-600">
+              Brand: <span className="font-semibold">{keepaData.brand}</span>
+            </p>
+          )}
 
-        {/* Product Image */}
-        {keepaData?.imageUrl && (
-          <div className="flex justify-center sm:justify-start">
-            <img
-              src={keepaData.imageUrl}
-              alt={productName}
-              className="w-48 h-48 object-contain rounded-lg border border-slate-200"
+          {/* Product Image */}
+          {keepaData?.imageUrl && (
+            <div className="flex justify-center sm:justify-start">
+              <img
+                src={keepaData.imageUrl}
+                alt={productName}
+                className="w-48 h-48 object-contain rounded-lg border border-slate-200"
+              />
+            </div>
+          )}
+        </header>
+
+        {/* Opportunity Verdict */}
+        <OpportunityVerdict
+          productName={productName}
+          keepaData={keepaData}
+          aiInsights={aiInsights}
+          isLoadingAI={isLoadingAI}
+        />
+
+        {/* Product Intelligence Card */}
+        {data.trendsData && data.trendsData.opportunityScore !== undefined && (
+          <div className="grid md:grid-cols-2 gap-6">
+            <ProductOpportunityCard
+              opportunityScore={data.trendsData.opportunityScore}
+              saturationLevel={data.trendsData.saturationLevel}
+              forecastNextMonth={data.trendsData.forecastNextMonth}
+              actionSignal={data.trendsData.actionSignal}
             />
+            {data.trendsData.keywordDNA && (
+              <PremiumFeatureLock isPremium={isPremium} featureName="Deep Market Intelligence">
+                <NicheSpotlightCard dna={data.trendsData.keywordDNA} baseKeyword={productName} />
+              </PremiumFeatureLock>
+            )}
           </div>
         )}
-      </header>
 
-      {/* Opportunity Verdict */}
-      <OpportunityVerdict
-        productName={productName}
-        keepaData={keepaData}
-        aiInsights={aiInsights}
-        isLoadingAI={isLoadingAI}
-      />
+        {/* Price History */}
+        {/* Price History & Profit Logic */}
+        {/* Price History & Profit Logic */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-full">
+            {keepaData && keepaData.priceHistory.length > 0 ? (
+              <ErrorBoundary
+                fallback={
+                  <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm h-full">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-4">💰 Price History</h2>
+                    <div className="text-center py-8 text-slate-500">Chart unavailable</div>
+                  </section>
+                }
+              >
+                <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm h-full flex flex-col">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                    💰 Price History
+                  </h2>
+                  <div className="flex-1">
+                    <PriceHistoryChart data={keepaData} />
+                  </div>
 
-      {/* Price History */}
-      {keepaData && keepaData.priceHistory.length > 0 && (
-        <ErrorBoundary
-          fallback={
-            <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">
-                💰 Price History
-              </h2>
-              <div className="text-center py-8 text-slate-500">
-                Unable to load price history chart. Please try refreshing the page.
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <div className="text-center">
+                      <div className="text-sm text-slate-600 mb-1">Current Price</div>
+                      <div className="text-2xl font-bold text-slate-900">
+                        {keepaData.currentPrice ? `$${keepaData.currentPrice.toFixed(2)}` : "N/A"}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-slate-600 mb-1">Average Price</div>
+                      <div className="text-2xl font-bold text-slate-900">
+                        {keepaData.averagePrice ? `$${keepaData.averagePrice.toFixed(2)}` : "N/A"}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-slate-600 mb-1">Min Price</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        ${keepaData.minPrice.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-slate-600 mb-1">Max Price</div>
+                      <div className="text-2xl font-bold text-red-600">
+                        ${keepaData.maxPrice.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </ErrorBoundary>
+            ) : (
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-8 h-full flex flex-col items-center justify-center text-center text-slate-400">
+                <h3 className="text-lg font-bold mb-2">Price History Unavailable</h3>
+                <p className="max-w-xs mx-auto text-sm">Real-time Amazon price data is not available for this product item yet.</p>
               </div>
-            </section>
-          }
-        >
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            )}
+          </div>
+
+          <div className="lg:col-span-1 h-full">
+            <PremiumFeatureLock isPremium={isPremium} featureName="Profit Simulator">
+              <ProfitCalculator initialSellPrice={keepaData?.currentPrice || 25} />
+            </PremiumFeatureLock>
+          </div>
+        </div>
+
+        {/* Trend Analysis & Seasonality */}
+        <div className="space-y-6">
+          <ProductTrendDisplay trendData={data.trendsData} />
+
+          {data.trendsData && data.trendsData.series.length > 0 && (
+            <PremiumFeatureLock isPremium={isPremium} featureName="Seasonality Matrix">
+              <SeasonalityHeatmap series={data.trendsData.series} />
+            </PremiumFeatureLock>
+          )}
+        </div>
+
+        {/* Competition Metrics */}
+        {keepaData && (
+          <CompetitionMetrics keepaData={keepaData} />
+        )}
+
+        {/* AI Insights */}
+        <AIProductInsights
+          insights={aiInsights}
+          isLoading={isLoadingAI}
+          error={aiError}
+        />
+
+        {/* Additional Info */}
+        {keepaData && (
+          <section className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-2xl border border-slate-200 p-6">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">
-              💰 Price History
+              📊 Additional Metrics
             </h2>
-            <PriceHistoryChart data={keepaData} />
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-              <div className="text-center">
-                <div className="text-sm text-slate-600 mb-1">Current Price</div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {keepaData.currentPrice ? `$${keepaData.currentPrice.toFixed(2)}` : "N/A"}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-slate-600 mb-1">Rating</div>
+                <div className="text-xl font-bold text-slate-900">
+                  {keepaData.rating ? `${keepaData.rating.toFixed(1)} ⭐` : "N/A"}
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-sm text-slate-600 mb-1">Average Price</div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {keepaData.averagePrice ? `$${keepaData.averagePrice.toFixed(2)}` : "N/A"}
+
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-slate-600 mb-1">Reviews</div>
+                <div className="text-xl font-bold text-slate-900">
+                  {keepaData.reviewCount?.toLocaleString() || "N/A"}
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-sm text-slate-600 mb-1">Min Price</div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${keepaData.minPrice.toFixed(2)}
+
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-slate-600 mb-1">Out of Stock (30 days)</div>
+                <div className="text-xl font-bold text-slate-900">
+                  {keepaData.outOfStockPercentage30Days.toFixed(1)}%
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-sm text-slate-600 mb-1">Max Price</div>
-                <div className="text-2xl font-bold text-red-600">
-                  ${keepaData.maxPrice.toFixed(2)}
+
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-slate-600 mb-1">Out of Stock (90 days)</div>
+                <div className="text-xl font-bold text-slate-900">
+                  {keepaData.outOfStockPercentage90Days.toFixed(1)}%
                 </div>
               </div>
             </div>
           </section>
-        </ErrorBoundary>
-      )}
+        )}
 
-      {/* Trend Analysis */}
-      <ProductTrendDisplay trendData={data.trendsData} />
-
-      {/* Competition Metrics */}
-      {keepaData && (
-        <CompetitionMetrics keepaData={keepaData} />
-      )}
-
-      {/* AI Insights */}
-      <AIProductInsights
-        insights={aiInsights}
-        isLoading={isLoadingAI}
-        error={aiError}
-      />
-
-      {/* Additional Info */}
-      {keepaData && (
-        <section className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            📊 Additional Metrics
-          </h2>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg p-4">
-              <div className="text-sm text-slate-600 mb-1">Rating</div>
-              <div className="text-xl font-bold text-slate-900">
-                {keepaData.rating ? `${keepaData.rating.toFixed(1)} ⭐` : "N/A"}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4">
-              <div className="text-sm text-slate-600 mb-1">Reviews</div>
-              <div className="text-xl font-bold text-slate-900">
-                {keepaData.reviewCount?.toLocaleString() || "N/A"}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4">
-              <div className="text-sm text-slate-600 mb-1">Out of Stock (30 days)</div>
-              <div className="text-xl font-bold text-slate-900">
-                {keepaData.outOfStockPercentage30Days.toFixed(1)}%
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4">
-              <div className="text-sm text-slate-600 mb-1">Out of Stock (90 days)</div>
-              <div className="text-xl font-bold text-slate-900">
-                {keepaData.outOfStockPercentage90Days.toFixed(1)}%
-              </div>
-            </div>
-          </div>
+        {/* CTA */}
+        <section className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-center text-white">
+          <h3 className="text-2xl font-bold mb-4">
+            Ready to Research Another Product?
+          </h3>
+          <a
+            href="/"
+            className="inline-block px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-slate-100 transition-all shadow-lg text-lg"
+          >
+            Search Again →
+          </a>
         </section>
-      )}
-
-      {/* CTA */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-center text-white">
-        <h3 className="text-2xl font-bold mb-4">
-          Ready to Research Another Product?
-        </h3>
-        <a
-          href="/"
-          className="inline-block px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-slate-100 transition-all shadow-lg text-lg"
-        >
-          Search Again →
-        </a>
-      </section>
       </div>
     </ErrorBoundary>
   );

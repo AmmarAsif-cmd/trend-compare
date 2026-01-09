@@ -61,23 +61,26 @@ export default function ProductSearchHero() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           {/* Badge */}
-          <div className="inline-block mb-6 sm:mb-8">
-            <span className="bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 px-5 py-2.5 rounded-full text-sm font-semibold border border-blue-200 shadow-sm">
-              🎯 Free Google Trends • Premium Amazon Data • Instant Results
+          <div className="inline-block mb-8 sm:mb-10">
+            <span className="bg-emerald-100 text-emerald-800 px-6 py-2 rounded-full text-sm font-bold border border-emerald-200 shadow-sm relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
+              <span className="relative z-10">✨ Stop Guessing. Start Printing.</span>
+              <div className="absolute inset-0 bg-white/40 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 skew-x-12"></div>
             </span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 mb-6 sm:mb-8 leading-tight px-4">
-            <span className="block">Find Profitable Products</span>
-            <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              in 30 Seconds
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black text-slate-900 mb-8 sm:mb-10 leading-[0.9] tracking-tighter px-2">
+            <span className="block mb-2">Don't Be Boring.</span>
+            <span className="block bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent transform -rotate-1 origin-left inline-block">
+              Sell Winners.
             </span>
           </h1>
 
           {/* Subheadline */}
-          <p className="text-lg sm:text-xl lg:text-2xl text-slate-600 mb-10 sm:mb-12 max-w-3xl mx-auto leading-relaxed px-4">
-            Free Google Trends data for everyone. Upgrade to Premium ($6.99/month) for Amazon product data, price history, sales rank, and AI-powered insights.
+          <p className="text-xl sm:text-2xl text-slate-600 mb-12 max-w-2xl mx-auto leading-relaxed font-medium px-4">
+            Most product research tools cost $99/mo and look like a spreadsheet from 2005.
+            <br className="hidden sm:block" />
+            <span className="text-slate-900 font-bold">TrendArc is $6.99/mo.</span> It's faster. It's prettier. And it actually works.
           </p>
 
           {/* Search Form */}
@@ -137,19 +140,19 @@ export default function ProductSearchHero() {
           </div>
 
           {/* Value Props */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-4xl mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-4xl mx-auto px-4 mt-12 text-left">
             {[
-              { icon: "✓", text: "Free Google Trends" },
-              { icon: "🤖", text: "AI-Powered Analysis" },
-              { icon: "🚫", text: "Premium Amazon Data" },
-              { icon: "⚡", text: "30-Second Results" },
+              { label: "Real Data", desc: "No guesstimates." },
+              { label: "AI Verdicts", desc: "Instant Go/No-Go." },
+              { label: "Viral Alerts", desc: "Spot trends early." },
+              { label: "$6.99/mo", desc: "Cancel anytime." },
             ].map((item) => (
               <div
-                key={item.text}
-                className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-xl border border-slate-200 shadow-sm"
+                key={item.label}
+                className="bg-white/60 backdrop-blur-md px-5 py-4 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md transition-all group"
               >
-                <div className="text-2xl mb-1">{item.icon}</div>
-                <div className="text-sm font-medium text-slate-700">{item.text}</div>
+                <div className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{item.label}</div>
+                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">{item.desc}</div>
               </div>
             ))}
           </div>

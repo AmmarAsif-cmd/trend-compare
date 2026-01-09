@@ -63,12 +63,12 @@ function resolveRange(tf?: string): { startTime?: Date; endTime?: Date; useAll?:
   const end = now;
   const days = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
   switch ((tf ?? "").toLowerCase()) {
-    case "7d":  return { startTime: days(7), endTime: end };
+    case "7d": return { startTime: days(7), endTime: end };
     case "30d": return { startTime: days(30), endTime: end };
     case "12m": return { startTime: days(365), endTime: end };
-    case "5y":  return { startTime: new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()), endTime: end };
+    case "5y": return { startTime: new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()), endTime: end };
     case "all": return { useAll: true };
-    default:    return { startTime: days(365), endTime: end };
+    default: return { startTime: days(365), endTime: end };
   }
 }
 
@@ -87,7 +87,7 @@ function safeParse<T = unknown>(raw: string): T | null {
 /** Single-term fetch (robust) */
 async function fetchTermSeries(term: string, opts: TrendsOptions) {
   const range = resolveRange(opts.timeframe);
-  
+
   try {
     const res = await googleTrends.interestOverTime({
       keyword: normalizeTerm(term), // <-- phrase-aware
@@ -110,7 +110,7 @@ async function fetchTermSeries(term: string, opts: TrendsOptions) {
       console.warn(`[trends] Failed to parse Google Trends response for term "${term}"`);
       throw new Error('Failed to parse Google Trends response');
     }
-    
+
     const timeline = data?.default?.timelineData ?? [];
 
     return timeline.map((p) => ({
@@ -120,14 +120,14 @@ async function fetchTermSeries(term: string, opts: TrendsOptions) {
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : String(e);
     const isSyntaxError = e instanceof SyntaxError || errorMsg.includes('JSON') || errorMsg.includes('Unexpected token');
-    
+
     // If it's a SyntaxError (HTML response parsed as JSON), log it specifically
     if (isSyntaxError) {
       console.warn(`[trends] ⚠️ Google Trends returned HTML for term "${term}" (likely rate-limited). Error:`, errorMsg);
     } else {
       console.error(`[trends] Failed to fetch term "${term}":`, errorMsg);
     }
-    
+
     // Return empty array on error (caller will handle it)
     return [];
   }
@@ -138,7 +138,7 @@ export async function fetchSeriesGoogle(
   terms: string[],
   options?: TrendsOptions
 ): Promise<SeriesPoint[]> {
-  if (!terms || terms.length < 2) return [];
+  if (!terms || terms.length < 1) return [];
 
   const opts = { ...DEFAULT_OPTS, ...(options ?? {}) };
   const range = resolveRange(opts.timeframe);
@@ -163,11 +163,11 @@ export async function fetchSeriesGoogle(
 
     const data = safeParse<InterestOverTimeResponse>(res);
     if (!data) {
-      console.warn('[trends] Failed to parse Google Trends response, response preview:', 
+      console.warn('[trends] Failed to parse Google Trends response, response preview:',
         typeof res === 'string' ? res.substring(0, 200) : String(res).substring(0, 200));
       throw new Error('Failed to parse Google Trends response');
     }
-    
+
     const timeline = data?.default?.timelineData ?? [];
 
     if (timeline?.length && timeline[0]?.value?.length === terms.length) {
@@ -183,7 +183,7 @@ export async function fetchSeriesGoogle(
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : String(e);
     const isSyntaxError = e instanceof SyntaxError || errorMsg.includes('JSON') || errorMsg.includes('Unexpected token');
-    
+
     // If it's a SyntaxError (HTML response parsed as JSON), log it specifically
     if (isSyntaxError) {
       console.warn("[trends] ⚠️ Google Trends returned HTML instead of JSON (likely rate-limited or blocked). Error:", errorMsg);
@@ -191,7 +191,7 @@ export async function fetchSeriesGoogle(
     } else {
       console.error("[trends] combined call failed, falling back to sequential:", errorMsg);
     }
-    
+
     // If it's a rate limit or HTML response error, log it specifically
     if (errorMsg.includes('HTML') || errorMsg.includes('rate-limit') || isSyntaxError) {
       console.warn("[trends] ⚠️ Google Trends may be rate-limiting requests. Consider adding delays between requests.");
@@ -229,4 +229,48 @@ export async function fetchSeriesGoogle(
   });
 
   return series;
+}
+
+export type RelatedQuery = {
+  query: string;
+  value: number; // For top queries, this is 0-100. For rising, this is % growth
+  formattedValue: string; // e.g., "+3,500%" or "Breakout"
+  link: string;
+};
+
+export async function fetchRelatedQueries(keyword: string, options?: TrendsOptions): Promise<{ top: RelatedQuery[]; rising: RelatedQuery[] }> {
+  const opts = { ...DEFAULT_OPTS, ...(options ?? {}) };
+  const range = resolveRange(opts.timeframe);
+
+  try {
+    const res = await googleTrends.relatedQueries({
+      keyword: normalizeTerm(keyword),
+      geo: opts.geo,
+      hl: "en-GB",
+      timezone: opts.tz,
+      ...(range.useAll ? {} : { startTime: range.startTime, endTime: range.endTime }),
+    });
+
+    const data = safeParse<any>(res);
+    if (!data || !data.default || !data.default.rankedList) return { top: [], rising: [] };
+
+    const topList = data.default.rankedList.find((l: any) => l.rankedKeyword && l.rankedKeyword.length > 0 && l.rankedKeyword[0].formattedValue !== "Breakout")?.rankedKeyword || [];
+    const risingList = data.default.rankedList.find((l: any) => l.rankedKeyword && l.rankedKeyword.length > 0 && (l.rankedKeyword[0].formattedValue.includes("%") || l.rankedKeyword[0].formattedValue === "Breakout"))?.rankedKeyword || [];
+
+    const mapQuery = (q: any) => ({
+      query: q.query,
+      value: q.value,
+      formattedValue: q.formattedValue,
+      link: q.link
+    });
+
+    return {
+      top: topList.map(mapQuery).slice(0, 5),
+      rising: risingList.map(mapQuery).slice(0, 5)
+    };
+
+  } catch (e) {
+    console.error(`[trends] Failed to fetch related queries for "${keyword}":`, e);
+    return { top: [], rising: [] };
+  }
 }

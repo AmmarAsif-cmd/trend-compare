@@ -1,111 +1,96 @@
-import { TrendingUp, DollarSign, BarChart3, Brain, Calendar, Zap } from "lucide-react";
 
-const features = [
-  {
-    icon: TrendingUp,
-    title: "Search Trend Analysis",
-    description: "See if products are gaining or losing popularity with real Google Trends data.",
-    color: "from-blue-500 to-blue-600",
-  },
-  {
-    icon: DollarSign,
-    title: "Price History",
-    description: "Track historical pricing to identify the best time to source and sell.",
-    color: "from-green-500 to-green-600",
-  },
-  {
-    icon: BarChart3,
-    title: "Competition Analysis",
-    description: "Understand how many sellers are competing in your niche.",
-    color: "from-purple-500 to-purple-600",
-  },
-  {
-    icon: Brain,
-    title: "AI Recommendations",
-    description: "Get instant GO/NO-GO verdicts powered by artificial intelligence.",
-    color: "from-pink-500 to-pink-600",
-  },
-  {
-    icon: Calendar,
-    title: "Seasonal Planning",
-    description: "Discover the best months to launch and promote your products.",
-    color: "from-orange-500 to-orange-600",
-  },
-  {
-    icon: Zap,
-    title: "Instant Results",
-    description: "No waiting around. Get comprehensive analysis in under 30 seconds.",
-    color: "from-yellow-500 to-yellow-600",
-  },
-];
+import { Check, X, TrendingUp, Zap, DollarSign } from "lucide-react";
 
 export default function EcommerceFeatures() {
   return (
-    <section className="relative bg-white py-20 sm:py-24 lg:py-28">
+    <section className="relative bg-slate-50 py-24 sm:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4">
-            Everything You Need to Find
-            <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Winning Products
-            </span>
+
+        {/* Sassy Header */}
+        <div className="text-center mb-20">
+          <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-6 tracking-tight">
+            Stop Paying for <span className="text-slate-400 decoration-4 decoration-red-500 line-through">Bloatware</span>.
           </h2>
-          <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto">
-            Stop paying $49-$99/month for product research tools. Get the same insights for free.
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            You don't need 50 features you'll never use. You need to find a winning product before your coffee gets cold.
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="group relative bg-white p-8 rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-xl transition-all duration-300"
-              >
-                {/* Icon */}
-                <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${feature.color} mb-5`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-
-                {/* Content */}
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-slate-600 leading-relaxed">
-                  {feature.description}
-                </p>
-
-                {/* Hover Effect */}
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Comparison */}
-        <div className="mt-16 bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-3xl p-8 sm:p-12 border border-slate-200">
-          <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 text-center">
-            Why TrendArc vs. Paid Tools?
-          </h3>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-red-500 mb-2">$49-99</div>
-              <div className="text-slate-600 font-medium mb-1">Jungle Scout / Helium 10</div>
-              <div className="text-sm text-slate-500">per month</div>
+        {/* The Comparison Table */}
+        <div className="max-w-5xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
+          <div className="grid grid-cols-3 bg-slate-50 border-b border-slate-200">
+            <div className="p-6 text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center">Feature</div>
+            <div className="p-6 text-center border-l border-slate-200 bg-white relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+              <span className="text-lg font-black text-slate-900 flex items-center justify-center gap-2">
+                TrendArc <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">Pro</span>
+              </span>
             </div>
-            <div className="flex items-center justify-center">
-              <div className="text-4xl font-bold text-slate-400">vs</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-green-600 mb-2">$0</div>
-              <div className="text-slate-600 font-medium mb-1">TrendArc</div>
-              <div className="text-sm text-slate-500">forever free</div>
+            <div className="p-6 text-center border-l border-slate-200 bg-slate-50/50 grayscale opacity-70">
+              <span className="text-lg font-bold text-slate-500">The "Big Guys"</span>
             </div>
           </div>
+
+          {/* Table Rows */}
+          {[
+            { name: "Monthly Cost", us: "$6.99", them: "$99.00", highlight: true },
+            { name: "Search Data", us: "Real-Time (Live)", them: "Cached (Old)", highlight: false },
+            { name: "Viral Alerts", us: "Instant", them: "Daily/Weekly", highlight: false },
+            { name: "UI Design", us: "Clean & Modern", them: "Clunky Spreadsheet", highlight: false },
+            { name: "AI Analysis", us: "Yes (GPT-4o)", them: "Basic Filters", highlight: false },
+            { name: "Setup Time", us: "0 Seconds", them: "2 Hour Course", highlight: false },
+          ].map((row, i) => (
+            <div key={i} className="grid grid-cols-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+              <div className="p-6 flex items-center font-medium text-slate-700">{row.name}</div>
+
+              <div className={`p-6 border-l border-slate-100 text-center font-bold flex items-center justify-center ${row.highlight ? 'text-emerald-600 text-xl' : 'text-slate-900'}`}>
+                {row.name === "Monthly Cost" ? (
+                  <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-lg border border-emerald-200 shadow-sm">{row.us}</span>
+                ) : (
+                  row.us
+                )}
+              </div>
+
+              <div className="p-6 border-l border-slate-100 text-center text-slate-400 font-medium flex items-center justify-center grayscale opacity-70">
+                {row.name === "Monthly Cost" ? (
+                  <span className="line-through decoration-red-400">{row.them}</span>
+                ) : (
+                  row.them
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Bottom Call to Action within the card */}
+          <div className="grid grid-cols-3 bg-slate-50 p-8 border-t border-slate-200">
+            <div className="hidden sm:block"></div>
+            <div className="col-span-3 sm:col-span-1">
+              <a href="/pricing" className="block w-full text-center bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
+                Start for $6.99
+              </a>
+              <p className="text-center text-xs text-slate-400 mt-3">No long-term contracts.</p>
+            </div>
+            <div className="hidden sm:block"></div>
+          </div>
         </div>
+
+        {/* Value Grid (Mini Features) */}
+        <div className="grid md:grid-cols-3 gap-8 mt-24">
+          {[
+            { title: "Honest Data", desc: "We don't inflate search volume to sell you expensive courses. You get the raw, ugly truth.", icon: TrendingUp },
+            { title: "Designed for Humans", desc: "No complex dashboards. Just a simple search bar that prints money.", icon: Zap },
+            { title: "Wallet Friendly", desc: "Save your money for inventory. Not software subscriptions.", icon: DollarSign },
+          ].map((item, i) => (
+            <div key={i} className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-6">
+                <item.icon className="w-6 h-6 text-slate-900" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h3>
+              <p className="text-slate-600 leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+
       </div>
     </section>
   );

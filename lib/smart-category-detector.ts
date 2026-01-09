@@ -228,11 +228,11 @@ export function detectCategoryByPatterns(termA: string, termB: string): {
 
   // Pattern-based hints (lightweight)
   const patterns = {
-    music: /\b(music|song|album|artist|singer|band|spotify|concert|tour|rap|pop|rock|jazz)\b/i,
-    movies: /\b(movie|film|watch|netflix|imdb|trailer|actor|actress|director)\b/i,
-    games: /\b(game|gaming|steam|playstation|xbox|nintendo|fps|rpg)\b/i,
-    products: /\b(buy|price|review|iphone|samsung|laptop|phone|headphones)\b/i,
-    tech: /\b(programming|framework|react|python|javascript|aws|docker)\b/i,
+    music: /\b(music|song|album|artist|singer|band|spotify|concert|tour|rap|pop|rock|jazz|hiphop|rnb|lyrics|vocal|soundtrack|orchestra|symphony|composer|producer|remix|acoustic|instrumental|ep|lp|single|discography|billboard|grammy)\b/i,
+    movies: /\b(movie|film|watch|netflix|imdb|trailer|actor|actress|director|series|season|episode|cinema|theatre|theater|hbo|disney|marvel|dc|superhero|documentary|sequel|prequel|trilogy|box office|blockbuster|oscars|emmy|screenplay|cinematography|streaming|prime video|hulu)\b/i,
+    games: /\b(game|gaming|steam|playstation|ps4|ps5|xbox|nintendo|switch|console|pc game|esports|twitch|gameplay|fps|rpg|mmo|moba|battle royale|controller|multiplayer|online|pvp|pve|level|boss|quest|achievement|trophy|speedrun|mod|dlc|expansion|remake|remaster)\b/i,
+    products: /\b(buy|price|review|iphone|samsung|galaxy|pixel|laptop|macbook|dell|hp|lenovo|asus|phone|smartphone|android|ios|tablet|ipad|headphones|earbuds|airpods|sony|bose|camera|canon|nikon|dslr|mirrorless|lens|tv|oled|qled|monitor|keyboard|mouse|printer|router|smartwatch|watch|garmin|fitbit|appliance|fridge|washer|dryer|vacuum|dyson|kitchen|blender|coffee|sneaker|shoe|nike|adidas|jordan|yeezy|fashion|clothing|outfit|skincare|makeup|toy|lego|doll|action figure)\b/i,
+    tech: /\b(programming|coding|developer|software|hardware|framework|library|api|sdk|react|vue|angular|svelte|nextjs|node|python|javascript|typescript|java|c\+\+|c#|golang|rust|php|ruby|swift|kotlin|flutter|dart|aws|azure|gcp|cloud|server|database|sql|nosql|mongodb|postgres|mysql|redis|docker|kubernetes|linux|ubuntu|windows|macos|git|github|gitlab|ide|vscode|compiler|algorithm|data structure|machine learning|ai|neural network|blockchain|crypto|bitcoin|ethereum)\b/i,
   };
 
   for (const [cat, pattern] of Object.entries(patterns)) {
